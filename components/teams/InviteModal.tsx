@@ -140,7 +140,7 @@ export function InviteModal({
             />
 
             <label className="mb-1.5 mt-4 block text-[13px] font-medium text-gray-700">
-              Role title <span className="font-normal text-gray-400">(optional)</span>
+              Position <span className="font-normal text-gray-400">(shows on the org chart)</span>
             </label>
             <input
               value={roleTitle}
@@ -157,7 +157,11 @@ export function InviteModal({
               </button>
               <button
                 onClick={submit}
-                disabled={sending || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)}
+                disabled={
+                  sending ||
+                  !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||
+                  roleTitle.trim().length === 0
+                }
                 className="btn-primary disabled:opacity-50"
               >
                 {sending ? <Spinner className="h-4 w-4 animate-spin" /> : <Envelope className="h-4 w-4" />}

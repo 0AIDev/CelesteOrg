@@ -35,7 +35,7 @@ export default async function DashboardPage({
 
 
 
-  const [{ data: pendingApprovals }, { data: todayEvents }, { data: recentDocs }, { data: openIdeas }, { data: activity }, day] =
+  const [{ data: pendingApprovals }, { data: todayEvents }, { data: recentDocs }, { data: docRequests }, { data: openIdeas }, { data: activity }, day] =
     await Promise.all([
       supabase
         .from("approvals")
@@ -62,13 +62,15 @@ export default async function DashboardPage({
       supabase
         .from("documents")
         .select(
-          `id, title, category, uploaded_at,
+          `id, title, category, requires_signature, uploaded_at,
            owner:profiles!documents_owner_id_fkey(id, full_name, avatar_url)`,
         )
         .gte("uploaded_at", from ?? "1970-01-01T00:00:00")
         .lte("uploaded_at", to ?? "2999-12-31T23:59:59")
         .order("uploaded_at", { ascending: false })
         .limit(8),
+      // RLS limits these to requests where I'm signer/requester (or admin).
+      supabase.from("document_requests").select("document_id, status, signer_id"),
       supabase
         .from("ideas")
         .select("id, title, category")
@@ -87,6 +89,22 @@ export default async function DashboardPage({
     ]);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
+
+  // Per-document signature status for the Recent documents list.
+  const docSigStatus: Record<string, { pending: number; signed: number; minePending: boolean }> = {};
+  for (const d of recentDocs ?? []) {
+    docSigStatus[d.id] = { pending: 0, signed: 0, minePending: false };
+  }
+  for (const r of docRequests ?? []) {
+    const cur = docSigStatus[r.document_id];
+    if (!cur) continue;
+    if (r.status === "pending") {
+      cur.pending++;
+      if (r.signer_id === profile?.id) cur.minePending = true;
+    } else if (r.status === "signed") {
+      cur.signed++;
+    }
+  }
 
   return (
     <Suspense fallback={null}>
@@ -113,8 +131,10 @@ export default async function DashboardPage({
             id: d.id,
             title: d.title,
             category: d.category,
+            requires_signature: d.requires_signature,
             uploaded_at: d.uploaded_at,
             owner: d.owner as unknown as { id: string; full_name: string | null; avatar_url: string | null } | null,
+            sig_status: docSigStatus[d.id],
           })) ?? []
         }
         events={

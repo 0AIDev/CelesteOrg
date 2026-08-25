@@ -97,7 +97,7 @@ export async function createApproval(
       await notify(
         approverId,
         "approval",
-        "Nuova richiesta di approvazione",
+        "New approval request",
         parsed.summary,
         data.id,
       );
@@ -170,7 +170,7 @@ export async function reviewApproval(
     await notify(
       approval.requester_id,
       "approval",
-      `Richiesta ${parsed.decision === "approved" ? "approvata" : "rifiutata"}`,
+      `Request ${parsed.decision === "approved" ? "approved" : "rejected"}`,
       approval.summary,
       parsed.approvalId,
     );

@@ -110,7 +110,7 @@ function ProfileTab({
   // user's own folder (avatars/<user-id>/...).
   async function handleAvatar(file: File) {
     if (!file.type.startsWith("image/")) {
-      setErr("Scegli un'immagine (JPG, PNG, WebP…).");
+      setErr("Choose an image (JPG, PNG, WebP…).");
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -124,7 +124,7 @@ function ProfileTab({
       const {
         data: { user },
       } = await sb.auth.getUser();
-      if (!user) throw new Error("Non autenticato.");
+      if (!user) throw new Error("Not authenticated.");
 
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${user.id}/${Date.now()}-avatar.${ext}`;
@@ -139,7 +139,7 @@ function ProfileTab({
       if (!res.ok) throw new Error(res.error);
       onSaved();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Upload fallito.");
+      setErr(e instanceof Error ? e.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -199,7 +199,7 @@ function ProfileTab({
         <div>
           <p className="font-medium text-gray-900">{profile?.full_name}</p>
           <p className="text-xs text-gray-500">
-            Clicca sull&apos;avatar per cambiare foto (max 2 MB).
+            Click the avatar to change your photo (max 2 MB).
           </p>
         </div>
       </div>

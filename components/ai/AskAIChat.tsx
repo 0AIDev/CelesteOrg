@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 type Msg = { role: "user" | "ai"; text: string };
 
 const SUGGESTIONS = [
-  "Chi è in ferie oggi?",
-  "Cosa devo approvare?",
-  "Quali documenti sono stati caricati di recente?",
+  "Who's on vacation today?",
+  "What do I need to approve?",
+  "Which documents were uploaded recently?",
 ];
 
 export function AskAIChat({
@@ -89,7 +89,7 @@ export function AskAIChat({
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-gray-900">Ask Celeste AI</p>
-              <p className="text-[11px] text-gray-500">Conosce il workspace in tempo reale</p>
+              <p className="text-[11px] text-gray-500">Knows your workspace in real time</p>
             </div>
             <button
               onClick={() => onOpenChange(false)}
@@ -105,7 +105,7 @@ export function AskAIChat({
             {msgs.length === 0 && !thinking && (
               <div className="space-y-2 pt-1">
                 <p className="text-[13px] text-gray-500">
-                  Ciao! Chiedimi qualunque cosa sul workspace — calendario, approvazioni, documenti, team.
+                  Hi! Ask me anything about the workspace — calendar, approvals, documents, team.
                 </p>
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -136,7 +136,7 @@ export function AskAIChat({
               <div className="flex justify-start">
                 <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-4 py-3">
                   <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  <span className="text-[12px] text-gray-400">Pensando…</span>
+                  <span className="text-[12px] text-gray-400">Thinking…</span>
                 </div>
               </div>
             )}
@@ -153,7 +153,7 @@ export function AskAIChat({
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Chiedi a Celeste…"
+              placeholder="Ask Celeste…"
               className="input h-9 w-full pr-10 text-[13px]"
             />
             {input.trim().length > 0 && (
@@ -161,7 +161,7 @@ export function AskAIChat({
                 type="submit"
                 disabled={thinking}
                 className="absolute right-[1.15rem] top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-40"
-                aria-label="Invia"
+                aria-label="Send"
               >
                 {thinking ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

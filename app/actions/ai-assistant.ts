@@ -120,13 +120,13 @@ function deterministicAnswer(q: string, context: string): string {
     const evts = lines(calendar);
     return evts.length
       ? `Ecco il calendario di oggi:\n${evts.join("\n")}`
-      : "Niente in calendario oggi — è tutto libero.";
+      : "Nothing on the calendar today — it's all clear.";
   }
   if (/(approv|pending|review|inbox|da approvare)/.test(t)) {
     const appr = lines(approvals);
     return appr.length
-      ? `Hai ${appr.length} approvazioni in attesa:\n${appr.join("\n")}\nLe trovi in /approvals.`
-      : "Nessuna approvazione in attesa. Sei in pari.";
+      ? `You have ${appr.length} pending approvals:\n${appr.join("\n")}\nFind them in /approvals.`
+      : "No approvals waiting. You're all caught up.";
   }
   if (/(document|doc |file|pdf|upload)/.test(t)) {
     const docs = lines(documents);
@@ -138,16 +138,16 @@ function deterministicAnswer(q: string, context: string): string {
     const teamLines = lines(team);
     return teamLines.length
       ? `Il team (${teamLines.length}+ persone):\n${teamLines.join("\n")}`
-      : "Non riesco a leggere l'organigramma in questo momento.";
+      : "I can't read the org chart right now.";
   }
   if (/(idea|idea vault|suggest|sugger)/.test(t)) {
     return "Hai un'idea? Apri /ideas e aggiungila al vault: la categorizzo e la inoltro ai founder.";
   }
   return [
     "Posso aiutarti con il workspace in tempo reale — prova a chiedermi:",
-    "• “Chi è in ferie oggi?”",
-    "• “Cosa devo approvare?”",
-    "• “Quali documenti sono stati caricati di recente?”",
+    "• “Who's on vacation today?”",
+    "• “What do I need to approve?”",
+    "• “Which documents were uploaded recently?”",
     "• “Chi fa parte del team?”",
     "Per tutto il resto, /ideas raccoglie suggerimenti e /reports il feed quotidiano.",
   ].join("\n");

@@ -25,9 +25,11 @@ export const useSession = () => useContext(SessionContext);
 
 export function LayoutProvider({
   user,
+  canManage,
   children,
 }: {
   user: SessionUser | null;
+  canManage?: boolean;
   children: React.ReactNode;
 }) {
   // Persisted UI state — sidebar and Ask AI panels remember their last state
@@ -75,7 +77,7 @@ export function LayoutProvider({
         <Sidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          onOpenInvite={() => setInviteOpen(true)}
+          onOpenInvite={canManage ? () => setInviteOpen(true) : undefined}
           onOpenStandup={() => setStandupOpen(true)}
         />
 
@@ -89,8 +91,8 @@ export function LayoutProvider({
           <main className="flex-1">{children}</main>
         </div>
 
-        {/* Global overlays */}
-        <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+        {/* Global overlays — the invite modal is only reachable by founders/admins */}
+        {canManage && <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />}
         <MorningModal open={standupOpen} onClose={() => setStandupOpen(false)} />
         <EodModal open={eodOpen} onClose={() => setEodOpen(false)} />
         <CommandMenu

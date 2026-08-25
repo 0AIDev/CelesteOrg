@@ -23,7 +23,7 @@ export default async function InviteCompletePage({
   // Show a minimal, self-contained confirmation page (no shell) so the user
   // sees exactly what happened, then let them continue into the app.
   const path = result.ok
-    ? "/dashboard?welcome=1"
+    ? "/onboarding?welcome=1"
     : `/teams?invite_error=${encodeURIComponent(result.error)}`;
 
   redirect(path);

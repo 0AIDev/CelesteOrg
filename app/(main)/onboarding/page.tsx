@@ -4,7 +4,11 @@ import { OnboardingClient } from "@/components/onboarding/OnboardingClient";
 
 export const metadata = { title: "Onboarding" };
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams?: { welcome?: string };
+}) {
   const supabase = createClient();
   const profile = await getProfile().catch(() => null);
   const myId = profile?.id ?? "";
@@ -32,6 +36,19 @@ export default async function OnboardingPage() {
     <OnboardingClient
       myId={myId}
       isAdmin={profile ? profile.is_founder || false : false}
+      welcome={searchParams?.welcome === "1"}
+      profile={
+        profile
+          ? {
+              full_name: profile.full_name,
+              role_title: profile.role_title,
+              department_id: profile.department_id,
+              bio: profile.bio,
+              location: profile.location,
+              previous_companies: profile.previous_companies,
+            }
+          : null
+      }
       tasks={
         myTasks?.map((t) => ({
           id: t.id,

@@ -74,7 +74,7 @@ export async function createCalendarEvent(
           manager_id: approverId,
           type: "timeoff",
           target_id: data.id,
-          summary: `${parsed.type === "vacation" ? "Ferie" : parsed.type === "remote" ? "Remote" : "Malattia"}: ${parsed.title}`,
+          summary: `${parsed.type === "vacation" ? "Vacation" : parsed.type === "remote" ? "Remote" : "Sick leave"}: ${parsed.title}`,
           status: "pending",
         })
         .select("id")
@@ -84,7 +84,7 @@ export async function createCalendarEvent(
         await notify(
           approverId,
           "approval",
-          "Nuova richiesta time-off",
+          "New time-off request",
           `${user.email}: ${parsed.title} (${parsed.type})`,
           approval?.id,
         );

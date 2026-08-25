@@ -13,6 +13,7 @@ import {
   FileText,
   ShieldCheck,
   ArrowRight,
+  PenNib,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Card } from "@/components/ui/Card";
@@ -35,8 +36,10 @@ type DocItem = {
   id: string;
   title: string;
   category: string | null;
+  requires_signature: boolean;
   uploaded_at: string;
   owner: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  sig_status?: { pending: number; signed: number; minePending: boolean };
 };
 
 type EventItem = {
@@ -272,18 +275,35 @@ export function DashboardClient({
                 <p className="px-4 py-5 text-center text-sm text-gray-400">No documents yet.</p>
               ) : (
                 <ul className="divide-y divide-gray-100">
-                  {docs.slice(0, 4).map((d) => (
-                    <li key={d.id} className="flex items-center gap-2.5 px-4 py-2">
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-gray-900">{d.title}</p>
-                        <p className="truncate text-[11px] text-gray-400">
-                          {d.owner?.full_name} · {new Date(d.uploaded_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {d.category && <Badge tone="neutral">{d.category}</Badge>}
-                    </li>
-                  ))}
+                  {docs.slice(0, 4).map((d) => {
+                    const st = d.sig_status;
+                    return (
+                      <li key={d.id} className="flex items-center gap-2.5 px-4 py-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-gray-900">{d.title}</p>
+                          <p className="truncate text-[11px] text-gray-400">
+                            {d.owner?.full_name} · {new Date(d.uploaded_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {d.requires_signature && st && (
+                          <span
+                            className={`flex shrink-0 items-center gap-0.5 text-[11px] font-medium ${
+                              st.minePending ? "text-gray-900" : "text-gray-500"
+                            }`}
+                          >
+                            <PenNib className="h-3 w-3" />
+                            {st.minePending
+                              ? "awaiting your signature"
+                              : st.pending > 0
+                                ? `awaiting ${st.pending}/${st.pending + st.signed} signatures`
+                                : "fully signed"}
+                          </span>
+                        )}
+                        {d.category && <Badge tone="neutral">{d.category}</Badge>}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               <button

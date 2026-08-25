@@ -122,7 +122,7 @@ export async function submitTaskForApproval(
       await notify(
         approverId,
         "approval",
-        "Task onboarding da approvare",
+        "Onboarding task to approve",
         task.title,
         approval?.id,
       );
@@ -217,7 +217,7 @@ export async function assignTask(
     await notify(
       parsed.userId,
       "system",
-      "Nuovo task di onboarding",
+      "New onboarding task",
       parsed.title,
     );
 

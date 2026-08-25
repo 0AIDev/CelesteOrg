@@ -16,6 +16,21 @@ export default async function DocumentsPage() {
     )
     .order("uploaded_at", { ascending: false });
 
+  // Team members — used by the "Send for signature" picker.
+  const { data: members } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, role_title")
+    .order("full_name", { ascending: true });
+
+  // Send-for-signature status (visible to requesters, signers, admins via RLS).
+  const { data: requests } = await supabase
+    .from("document_requests")
+    .select(
+      `id, document_id, status, message, requested_at, signed_at,
+       signer:profiles!document_requests_signer_id_fkey(id, full_name, avatar_url)`,
+    )
+    .order("requested_at", { ascending: true });
+
   return (
     <DocumentsClient
       docs={
@@ -28,6 +43,24 @@ export default async function DocumentsPage() {
           uploaded_at: d.uploaded_at,
           requires_signature: d.requires_signature,
           owner: d.owner as unknown as { id: string; full_name: string | null; avatar_url: string | null } | null,
+        })) ?? []
+      }
+      members={
+        members?.map((m) => ({
+          id: m.id,
+          full_name: m.full_name,
+          avatar_url: m.avatar_url,
+          role_title: m.role_title,
+        })) ?? []
+      }
+      requests={
+        requests?.map((r) => ({
+          id: r.id,
+          document_id: r.document_id,
+          status: r.status,
+          requested_at: r.requested_at,
+          signed_at: r.signed_at,
+          signer: r.signer as unknown as { id: string; full_name: string | null; avatar_url: string | null } | null,
         })) ?? []
       }
       mine={userId}

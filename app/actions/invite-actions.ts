@@ -148,7 +148,10 @@ export async function resendInvite(id: string): Promise<
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const redirectTo = `${appUrl}/invite/complete?invite=${invite.token}`;
+    // Land on the client callback first: it exchanges the magic-link hash for
+    // a server-visible session, then forwards to the invite completion page.
+    const next = encodeURIComponent(`/invite/complete?invite=${invite.token}`);
+    const redirectTo = `${appUrl}/auth/callback?next=${next}`;
     const { data: linkData, error } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: invite.email,
@@ -202,7 +205,7 @@ async function isFounderOrAdmin(): Promise<boolean> {
 const inviteSchema = z.object({
   email: z.string().email("Enter a valid email"),
   departmentId: z.string().uuid().optional(),
-  roleTitle: z.string().max(120).optional(),
+  roleTitle: z.string().min(1, "Position is required").max(120),
 });
 
 export async function inviteTeammate(
@@ -227,25 +230,58 @@ export async function inviteTeammate(
 
     const admin = createAdminClient();
 
-    // Create the tracked invite row first (gives us our own immutable token).
-    const { data: invite, error: inviteErr } = await admin
+    // A unique constraint lives on invites(email). Handle re-invites cleanly:
+    //   - accepted  → the person is already a member
+    //   - pending   → reuse the row, refresh the role and regenerate the link
+    //   - revoked   → revive the row with the new role/department
+    let inviteId: string | undefined;
+    let token: string | undefined;
+    const { data: existing } = await admin
       .from("invites")
-      .insert({
-        email,
-        department_id: parsed.departmentId,
-        role_title: parsed.roleTitle,
-        invited_by: inviterId,
-      })
-      .select("token, id")
-      .single();
-    if (inviteErr) return { ok: false, error: inviteErr.message };
+      .select("id, status, token")
+      .eq("email", email)
+      .maybeSingle();
+    if (existing) {
+      if (existing.status === "accepted") {
+        return { ok: false, error: "This email is already a team member." };
+      }
+      const { data: refreshed, error: upErr } = await admin
+        .from("invites")
+        .update({
+          status: "pending",
+          role_title: parsed.roleTitle,
+          department_id: parsed.departmentId,
+          invited_by: inviterId,
+        })
+        .eq("id", existing.id)
+        .select("id, token")
+        .single();
+      if (upErr) return { ok: false, error: upErr.message };
+      inviteId = refreshed.id;
+      token = refreshed.token;
+    } else {
+      // Create the tracked invite row first (gives us our own immutable token).
+      const { data: invite, error: inviteErr } = await admin
+        .from("invites")
+        .insert({
+          email,
+          department_id: parsed.departmentId,
+          role_title: parsed.roleTitle,
+          invited_by: inviterId,
+        })
+        .select("token, id")
+        .single();
+      if (inviteErr) return { ok: false, error: inviteErr.message };
+      inviteId = invite.id;
+      token = invite.token;
+    }
 
-    const token = invite.token;
-
-    // Generate a full magic-link URL (works without SMTP configured). We embed
-    // our invite token in the redirect so completion can assign department/role.
+    // Generate a full magic-link URL (works without SMTP configured). Land on
+    // the client callback first so the hash session becomes server-visible,
+    // then forward to the invite completion page.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const redirectTo = `${appUrl}/invite/complete?invite=${token}`;
+    const next = encodeURIComponent(`/invite/complete?invite=${token}`);
+    const redirectTo = `${appUrl}/auth/callback?next=${next}`;
 
     const { data: linkData, error: linkError } =
       await admin.auth.admin.generateLink({
@@ -256,13 +292,13 @@ export async function inviteTeammate(
 
     if (linkError) {
       // Cleanup the invite row so a retry is clean.
-      await admin.from("invites").delete().eq("id", invite.id).is("status", "pending");
+      await admin.from("invites").delete().eq("id", inviteId).is("status", "pending");
       return { ok: false, error: linkError.message };
     }
 
     const actionLink = linkData?.properties?.action_link as string | undefined;
     if (!actionLink) {
-      await admin.from("invites").delete().eq("id", invite.id).is("status", "pending");
+      await admin.from("invites").delete().eq("id", inviteId).is("status", "pending");
       return { ok: false, error: "Could not build invite link." };
     }
 
@@ -318,12 +354,21 @@ export async function acceptInvite(
       if (deptErr) return { ok: false, error: deptErr.message };
     }
 
-    // Create a role so the person shows on the org chart. Higher up, a founder
-    // can wire reports_to; role_level defaults to a leaf level.
+    // Create a role so the person shows on the org chart immediately, under
+    // the CEO (the root role). The invited position is the one chosen by the
+    // founder at invite time.
+    const { data: rootRole } = await admin
+      .from("roles")
+      .select("id")
+      .is("reports_to", null)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
     const { error: roleErr } = await admin.from("roles").insert({
       profile_id: user.id,
       title: invite.role_title || "Teammate",
       department_id: invite.department_id,
+      reports_to: rootRole?.id ?? null,
       level: 5,
     });
     if (roleErr) return { ok: false, error: roleErr.message };
@@ -349,7 +394,7 @@ export async function acceptInvite(
     await notify(
       invite.invited_by,
       "invite",
-      `${user.email} ha accettato l'invito`,
+      `${user.email} accepted the invite`,
       invite.role_title || "Teammate",
       invite.id,
     );

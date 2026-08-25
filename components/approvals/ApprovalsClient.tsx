@@ -65,7 +65,7 @@ export function ApprovalsClient({
             Approvals
           </h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            Inbox di {firstName} — tutto ciò che aspetta il tuo ok.
+            {firstName}&apos;s inbox — everything waiting for your sign-off.
           </p>
         </div>
       </div>
@@ -75,7 +75,7 @@ export function ApprovalsClient({
         <Card className="flex items-center gap-3 !p-4">
           <Tray className="h-4 w-4 shrink-0 text-gray-900" />
           <div>
-            <p className="text-[11px] font-medium text-gray-500">In attesa</p>
+            <p className="text-[11px] font-medium text-gray-500">Pending</p>
             <p className="text-xl font-semibold tabular-nums text-gray-900">{pending.length}</p>
           </div>
         </Card>
@@ -103,7 +103,7 @@ export function ApprovalsClient({
         </div>
         {pending.length === 0 ? (
           <p className="px-4 py-12 text-center text-sm text-gray-400">
-            Tutto in pari — nessuna approvazione in attesa.
+            All caught up — no approvals waiting.
           </p>
         ) : (
           <ul className="divide-y divide-gray-100">
@@ -156,7 +156,7 @@ export function ApprovalsClient({
           </h2>
         </div>
         {history.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-gray-400">Nessuna decisione registrata.</p>
+          <p className="px-4 py-10 text-center text-sm text-gray-400">No decisions recorded.</p>
         ) : (
           <div className="max-h-[26rem] overflow-y-auto">
             <Table>

@@ -15,6 +15,9 @@ import {
   ShieldCheck,
   Check,
   MagnifyingGlass,
+  PaperPlaneTilt,
+  ArrowCounterClockwise,
+  Bell,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
@@ -26,7 +29,12 @@ import {
   createDocumentRecord,
   getDocumentSignedUrl,
 } from "@/app/actions/document-actions";
-import { signDocument } from "@/app/actions/signature-actions";
+import {
+  signDocument,
+  sendForSignature,
+  revokeSignatureRequest,
+  sendRemindersNow,
+} from "@/app/actions/signature-actions";
 import { fmtBytes, relativeTime } from "@/lib/utils";
 
 type Doc = {
@@ -40,21 +48,43 @@ type Doc = {
   owner: { id: string; full_name: string | null; avatar_url: string | null } | null;
 };
 
+type Member = {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  role_title: string | null;
+};
+
+type SigRequest = {
+  id: string;
+  document_id: string;
+  status: string;
+  requested_at: string;
+  signed_at: string | null;
+  signer: { id: string; full_name: string | null; avatar_url: string | null } | null;
+};
+
 export function DocumentsClient({
   docs,
   mine,
+  members,
+  requests,
 }: {
   docs: Doc[];
   mine: string | null;
+  members: Member[];
+  requests: SigRequest[];
 }) {
   const router = useRouter();
   const [view, setView] = useState<"list" | "grid">(() =>
     typeof window !== "undefined" && window.localStorage.getItem("celeste-docs-view") === "grid" ? "grid" : "list",
   );
+  const [tab, setTab] = useState<"all" | "tosign">("all");
   const [query, setQuery] = useState("");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<Doc | null>(null);
   const [signingDoc, setSigningDoc] = useState<Doc | null>(null);
+  const [sendingDoc, setSendingDoc] = useState<Doc | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
   const [member, setMember] = useState("");
@@ -67,7 +97,26 @@ export function DocumentsClient({
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
   }, [docs]);
 
+  const reqByDoc = useMemo(() => {
+    const map = new Map<string, SigRequest[]>();
+    for (const r of requests) {
+      const arr = map.get(r.document_id) ?? [];
+      arr.push(r);
+      map.set(r.document_id, arr);
+    }
+    return map;
+  }, [requests]);
+
+  const myPendingDocIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of requests) {
+      if (r.status === "pending" && r.signer?.id === mine) set.add(r.document_id);
+    }
+    return set;
+  }, [requests, mine]);
+
   const filtered = docs.filter((d) => {
+    if (tab === "tosign" && !myPendingDocIds.has(d.id)) return false;
     if (!d.title.toLowerCase().includes(query.toLowerCase())) return false;
     if (range.start && range.end) {
       const dt = d.uploaded_at.slice(0, 10);
@@ -138,6 +187,16 @@ export function DocumentsClient({
     if (url.ok && url.url) setPreviewUrl(url.url);
   }
 
+  function statusText(d: Doc): { label: string; awaitingMine: boolean } {
+    const reqs = reqByDoc.get(d.id) ?? [];
+    if (reqs.length === 0) return { label: "requires signature", awaitingMine: false };
+    const pending = reqs.filter((r) => r.status === "pending");
+    const minePending = pending.some((r) => r.signer?.id === mine);
+    if (pending.length === 0) return { label: "fully signed", awaitingMine: false };
+    if (minePending && d.owner?.id !== mine) return { label: "awaiting your signature", awaitingMine: true };
+    return { label: `awaiting ${pending.length}/${reqs.length} signatures`, awaitingMine: false };
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -194,6 +253,36 @@ export function DocumentsClient({
         </div>
       </div>
 
+      {/* Tabs — All vs To sign */}
+      <div className="mb-4 flex items-center gap-1 border-b border-gray-100">
+        <button
+          onClick={() => setTab("all")}
+          className={`border-b-2 px-3 pb-2 text-sm font-medium transition-colors ${
+            tab === "all"
+              ? "border-gray-900 text-gray-900"
+              : "border-transparent text-gray-400 hover:text-gray-700"
+          }`}
+        >
+          All documents
+        </button>
+        <button
+          onClick={() => setTab("tosign")}
+          className={`flex items-center gap-1.5 border-b-2 px-3 pb-2 text-sm font-medium transition-colors ${
+            tab === "tosign"
+              ? "border-gray-900 text-gray-900"
+              : "border-transparent text-gray-400 hover:text-gray-700"
+          }`}
+        >
+          <PenNib className="h-3.5 w-3.5" />
+          To sign
+          {myPendingDocIds.size > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-semibold text-white">
+              {myPendingDocIds.size}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="mb-4">
         <FilterBar
           range={range}
@@ -223,111 +312,91 @@ export function DocumentsClient({
               No documents found.
             </div>
           )}
-          {filtered.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => openPreview(d)}
-              className="grid w-full grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr] items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">{d.title}</p>
-                  <div className="flex items-center gap-2">
-                    {d.requires_signature && (
-                      <span className="flex items-center gap-0.5 text-[11px] font-medium text-gray-500">
-                        <PenNib className="h-3 w-3" /> requires signature
-                      </span>
-                    )}
+          {filtered.map((d) => {
+            const st = statusText(d);
+            return (
+              <button
+                key={d.id}
+                onClick={() => openPreview(d)}
+                className="grid w-full grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr] items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-900">{d.title}</p>
+                    <div className="flex items-center gap-2">
+                      {d.requires_signature && (
+                        <span
+                          className={`flex items-center gap-0.5 text-[11px] font-medium ${
+                            st.awaitingMine ? "text-gray-900" : "text-gray-500"
+                          }`}
+                        >
+                          <PenNib className="h-3 w-3" />
+                          {st.label}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <SquircleAvatar name={d.owner?.full_name} src={d.owner?.avatar_url} size="xs" />
-                <span className="truncate">{d.owner?.full_name}</span>
-              </div>
-              <div>
-                <Badge tone="neutral">{d.category ?? "General"}</Badge>
-              </div>
-              <span className="text-sm text-gray-500">{fmtBytes(d.file_size)}</span>
-              <span className="text-right text-sm text-gray-400">{relativeTime(d.uploaded_at)}</span>
-            </button>
-          ))}
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <SquircleAvatar name={d.owner?.full_name} src={d.owner?.avatar_url} size="xs" />
+                  <span className="truncate">{d.owner?.full_name}</span>
+                </div>
+                <div>
+                  <Badge tone="neutral">{d.category ?? "General"}</Badge>
+                </div>
+                <span className="text-sm text-gray-500">{fmtBytes(d.file_size)}</span>
+                <span className="text-right text-sm text-gray-400">{relativeTime(d.uploaded_at)}</span>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((d) => (
-            <button key={d.id} onClick={() => openPreview(d)} className="card card-hover text-left">
-              <File className="h-5 w-5 text-gray-400" />
-              <p className="mt-3 truncate text-sm font-semibold text-gray-900">{d.title}</p>
-              <p className="mt-0.5 text-xs text-gray-400">
-                {fmtBytes(d.file_size)} · {relativeTime(d.uploaded_at)}
-              </p>
-              <div className="mt-3 flex items-center justify-between">
-                <Badge tone="neutral">{d.category ?? "General"}</Badge>
-                {d.requires_signature && <PenNib className="h-3.5 w-3.5 text-gray-500" />}
-              </div>
-            </button>
-          ))}
+          {filtered.map((d) => {
+            const st = statusText(d);
+            return (
+              <button key={d.id} onClick={() => openPreview(d)} className="card card-hover text-left">
+                <File className="h-5 w-5 text-gray-400" />
+                <p className="mt-3 truncate text-sm font-semibold text-gray-900">{d.title}</p>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  {fmtBytes(d.file_size)} · {relativeTime(d.uploaded_at)}
+                </p>
+                <div className="mt-3 flex items-center justify-between">
+                  <Badge tone="neutral">{d.category ?? "General"}</Badge>
+                  {d.requires_signature && (
+                    <span
+                      className={`flex items-center gap-0.5 text-[11px] font-medium ${
+                        st.awaitingMine ? "text-gray-900" : "text-gray-500"
+                      }`}
+                    >
+                      <PenNib className="h-3 w-3" />
+                      {st.label}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Preview modal */}
-      {preview && (
-        <Modal onClose={() => setPreview(null)} title="Document preview">
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-gray-900">{preview.title}</p>
-            <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
-              <span>{fmtBytes(preview.file_size)}</span>
-              <span>·</span>
-              <span>Owner: {preview.owner?.full_name}</span>
-            </div>
-          </div>
-          <div
-            className={`flex items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 ${
-              preview.mime_type === "application/pdf" ? "h-96" : "h-64"
-            }`}
-          >
-            {previewUrl ? (
-              preview.mime_type === "application/pdf" ? (
-                <iframe
-                  src={previewUrl}
-                  title={preview.title}
-                  className="h-full w-full"
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewUrl}
-                  alt={preview.title}
-                  className="h-full w-full object-contain"
-                />
-              )
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-gray-400">
-                <FileText className="h-10 w-10" />
-                <span className="text-sm">Preview unavailable in-browser</span>
-              </div>
-            )}
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <button onClick={() => setPreview(null)} className="btn-secondary">
-              Close
-            </button>
-            {preview.requires_signature && (
-              <button
-                onClick={() => {
-                  setSigningDoc(preview);
-                  setPreview(null);
-                }}
-                className="btn-primary"
-              >
-                <PenNib className="h-4 w-4" />
-                Sign Document
-              </button>
-            )}
-          </div>
-        </Modal>
+      {/* Preview modal */}      {preview && (
+        <PreviewModal
+          doc={preview}
+          mine={mine}
+          reqs={reqByDoc.get(preview.id) ?? []}
+          previewUrl={previewUrl}
+          onClose={() => setPreview(null)}
+          onSign={() => {
+            setSigningDoc(preview);
+            setPreview(null);
+          }}
+          onSend={() => {
+            setSendingDoc(preview);
+            setPreview(null);
+          }}
+        />
       )}
 
       {/* E-signature modal */}
@@ -341,7 +410,328 @@ export function DocumentsClient({
           }}
         />
       )}
+
+      {/* Send-for-signature modal */}
+      {sendingDoc && (
+        <SendForSignatureModal
+          doc={sendingDoc}
+          mine={mine}
+          members={members}
+          existing={reqByDoc.get(sendingDoc.id) ?? []}
+          onClose={() => setSendingDoc(null)}
+          onDone={() => {
+            setSendingDoc(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function PreviewModal({
+  doc,
+  mine,
+  reqs,
+  previewUrl,
+  onClose,
+  onSign,
+  onSend,
+}: {
+  doc: Doc;
+  mine: string | null;
+  reqs: SigRequest[];
+  previewUrl: string | null;
+  onClose: () => void;
+  onSign: () => void;
+  onSend: () => void;
+}) {
+  const isOwner = doc.owner?.id === mine;
+  const pending = reqs.filter((r) => r.status === "pending");
+  const signed = reqs.filter((r) => r.status === "signed");
+  const [reminding, setReminding] = useState(false);
+  const [remindMsg, setRemindMsg] = useState("");
+
+  async function revoke(id: string) {
+    const res = await revokeSignatureRequest({ requestId: id });
+    if (!res.ok) alert(res.error);
+    window.location.reload();
+  }
+
+  async function remind() {
+    setReminding(true);
+    setRemindMsg("");
+    const res = await sendRemindersNow({ documentId: doc.id });
+    setReminding(false);
+    if (!res.ok) {
+      setRemindMsg(res.error);
+      return;
+    }
+    setRemindMsg(
+      res.reminded && res.reminded > 0
+        ? `Reminder sent to ${res.reminded} pending signer${res.reminded === 1 ? "" : "s"}`
+        : "No pending signers to remind.",
+    );
+  }
+
+  return (
+    <Modal onClose={onClose} title="Document preview">
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-gray-900">{doc.title}</p>
+        <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
+          <span>{fmtBytes(doc.file_size)}</span>
+          <span>·</span>
+          <span>Owner: {doc.owner?.full_name}</span>
+        </div>
+      </div>
+      <div
+        className={`flex items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 ${
+          doc.mime_type === "application/pdf" ? "h-96" : "h-64"
+        }`}
+      >
+        {previewUrl ? (
+          doc.mime_type === "application/pdf" ? (
+            <iframe
+              src={previewUrl}
+              title={doc.title}
+              className="h-full w-full"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={doc.title}
+              className="h-full w-full object-contain"
+            />
+          )
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-gray-400">
+            <FileText className="h-10 w-10" />
+            <span className="text-sm">Preview unavailable in-browser</span>
+          </div>
+        )}
+      </div>
+
+      {doc.requires_signature && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              Signature requests {reqs.length > 0 && `(${signed.length}/${reqs.length} signed)`}
+            </p>
+            {isOwner && (
+              <div className="flex items-center gap-1.5">
+                {pending.length > 0 && (
+                  <button
+                    onClick={remind}
+                    disabled={reminding}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                    title="Send a reminder to everyone who hasn't signed yet"
+                  >
+                    {reminding ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                    Remind
+                  </button>
+                )}
+                <button
+                  onClick={onSend}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                >
+                  <PaperPlaneTilt className="h-3.5 w-3.5" />
+                  {reqs.length === 0 ? "Send for signature" : "Request more"}
+                </button>
+              </div>
+            )}
+          </div>
+          {remindMsg && <p className="mt-2 text-xs text-gray-500">{remindMsg}</p>}
+          {reqs.length === 0 ? (
+            <p className="mt-2 text-xs text-gray-400">
+              {isOwner
+                ? "No one has been asked to sign yet — send it to specific teammates."
+                : "No signature requests for you on this document."}
+            </p>
+          ) : (
+            <ul className="mt-2 divide-y divide-gray-100">
+              {reqs.map((r) => (
+                <li key={r.id} className="flex items-center gap-2.5 py-2">
+                  <SquircleAvatar name={r.signer?.full_name} src={r.signer?.avatar_url} size="xs" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                    {r.signer?.full_name ?? "Unknown"}
+                  </span>
+                  {r.status === "pending" && (
+                    <>
+                      <span className="text-[11px] font-medium text-gray-500">Pending</span>
+                      {isOwner && (
+                        <button
+                          onClick={() => revoke(r.id)}
+                          title="Revoke request"
+                          className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        >
+                          <ArrowCounterClockwise className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {r.status === "signed" && (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-gray-700">
+                      <Check className="h-3 w-3" />
+                      Signed {r.signed_at ? relativeTime(r.signed_at) : ""}
+                    </span>
+                  )}
+                  {r.status === "revoked" && (
+                    <span className="text-[11px] font-medium text-gray-400">Revoked</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={onClose} className="btn-secondary">
+          Close
+        </button>
+        {doc.requires_signature && (
+          <button
+            onClick={onSign}
+            className="btn-primary"
+            disabled={pending.length === 0 && reqs.length > 0}
+            title={
+              pending.length === 0 && reqs.length > 0
+                ? "All requested signers have already signed"
+                : undefined
+            }
+          >
+            <PenNib className="h-4 w-4" />
+            Sign Document
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function SendForSignatureModal({
+  doc,
+  mine,
+  members,
+  existing,
+  onClose,
+  onDone,
+}: {
+  doc: Doc;
+  mine: string | null;
+  members: Member[];
+  existing: SigRequest[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [ids, setIds] = useState<string[]>([]);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const alreadyRequested = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of existing) {
+      if (r.status !== "revoked" && r.signer?.id) set.add(r.signer.id);
+    }
+    return set;
+  }, [existing]);
+
+  const available = members.filter((m) => m.id !== mine);
+
+  function toggle(id: string) {
+    setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function send() {
+    if (ids.length === 0) return;
+    setBusy(true);
+    setErr("");
+    const res = await sendForSignature({
+      documentId: doc.id,
+      signerIds: ids,
+      message: msg.trim() ? msg.trim() : undefined,
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setErr(res.error);
+      return;
+    }
+    onDone();
+  }
+
+  return (
+    <Modal onClose={onClose} title="Send for signature">
+      <p className="mb-4 text-sm text-gray-600">
+        Ask teammates to sign <span className="font-medium text-gray-900">{doc.title}</span>.
+        They&apos;ll get a notification and can sign from their Documents page.
+      </p>
+
+      <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Who needs to sign?</label>
+      {available.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-400">
+          No other team members yet — invite them first.
+        </p>
+      ) : (
+        <ul className="max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200">
+          {available.map((m) => {
+            const done = alreadyRequested.has(m.id);
+            return (
+              <li key={m.id}>
+                <label
+                  className={`flex items-center gap-2.5 px-3 py-2 ${
+                    done ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-gray-50"
+                  }`}
+                >
+                  <Checkbox.Root
+                    checked={ids.includes(m.id) || done}
+                    disabled={done}
+                    onCheckedChange={() => !done && toggle(m.id)}
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-300 bg-white"
+                  >
+                    <Checkbox.Indicator>
+                      <Check className="h-3 w-3 text-white" />
+                    </Checkbox.Indicator>
+                  </Checkbox.Root>
+                  <SquircleAvatar name={m.full_name} src={m.avatar_url} size="xs" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{m.full_name}</span>
+                  <span className="truncate text-xs text-gray-400">{m.role_title}</span>
+                  {done && <span className="text-[11px] font-medium text-gray-400">already asked</span>}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <label className="mt-4 mb-1.5 block text-[13px] font-medium text-gray-700">
+        Message <span className="font-normal text-gray-400">(optional)</span>
+      </label>
+      <textarea
+        value={msg}
+        onChange={(e) => setMsg(e.target.value)}
+        placeholder="e.g. Please review and sign by Friday."
+        rows={2}
+        className="input resize-none"
+      />
+
+      {err && <p className="mt-3 text-xs text-gray-600">{err}</p>}
+
+      <div className="mt-5 flex items-center justify-between gap-2">
+        <button onClick={onClose} className="px-2 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900">
+          Cancel
+        </button>
+        <button
+          onClick={send}
+          disabled={ids.length === 0 || busy}
+          className="btn-primary disabled:opacity-50"
+        >
+          {busy ? <Spinner className="h-4 w-4 animate-spin" /> : <PaperPlaneTilt className="h-4 w-4" />}
+          Send to {ids.length === 0 ? "signature" : `${ids.length} ${ids.length === 1 ? "person" : "people"}`}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

@@ -85,7 +85,7 @@ async function main() {
       full_name: fullName,
       is_founder: true,
       department_id: dept?.id ?? null,
-      role_title: "CEO",
+      role_title: "Chief Executive Officer",
       joined_at: new Date().toISOString().slice(0, 10),
     },
     { onConflict: "id" },
@@ -102,7 +102,7 @@ async function main() {
   if (!existingRole) {
     const { error: roleErr } = await admin.from("roles").insert({
       profile_id: userId,
-      title: "CEO",
+      title: "Chief Executive Officer",
       department_id: dept?.id ?? null,
       level: 1,
     });

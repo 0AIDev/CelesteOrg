@@ -89,7 +89,7 @@ async function main() {
       full_name: "Celeste Founder",
       is_founder: true,
       department_id: deptId("leadership"),
-      role_title: "CEO",
+      role_title: "Chief Executive Officer",
     }, { onConflict: "id" });
   }
 

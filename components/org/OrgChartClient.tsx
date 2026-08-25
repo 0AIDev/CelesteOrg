@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   MapPin,
-  Crown,
   ArrowRight,
   Users,
   NotePencil,
@@ -130,7 +129,6 @@ export function OrgChartClient({
               key={d.id}
               active={activeDept === d.id}
               onClick={() => setActiveDept(activeDept === d.id ? null : d.id)}
-              dot={d.color ?? undefined}
             >
               {d.name}
             </DeptTab>
@@ -193,12 +191,10 @@ function DeptTab({
   active,
   onClick,
   children,
-  dot,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  dot?: string;
 }) {
   return (
     <button
@@ -209,12 +205,6 @@ function DeptTab({
           : "pill bg-white"
       }
     >
-      {dot && (
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ background: dot }}
-        />
-      )}
       {children}
     </button>
   );
@@ -354,20 +344,16 @@ function OrgCardNode({ data, onSelect }: NodeProps & { onSelect?: (n: OrgNode) =
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <button
         onClick={() => onSelect?.(node)}
-        className="group relative flex w-[208px] flex-col items-center rounded-2xl border border-gray-200 bg-white px-3 pb-5 pt-5 shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+        className="group relative flex w-[208px] flex-col items-center rounded-2xl border border-gray-200 bg-white px-3 pb-5 pt-0 shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
       >
-        <div className="relative">
+        {/* Avatar overlaps the card's top edge — half in, half out */}
+        <div className="relative -mt-8">
           <SquircleAvatar
             name={node.full_name}
             src={node.avatar_url}
             size="lg"
             className="h-14 w-14 text-sm"
           />
-          {node.is_founder && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-white shadow-sm">
-              <Crown className="h-2.5 w-2.5" />
-            </span>
-          )}
         </div>
         <p className="mt-2.5 w-full truncate text-center text-sm font-semibold text-gray-900">
           {node.full_name}
@@ -616,7 +602,7 @@ function ProfilePanel({
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
-                  placeholder="Solo tu puoi vedere queste note…"
+                  placeholder="Only you can see these notes…"
                   className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
                 <div className="mt-2 flex items-center gap-2">

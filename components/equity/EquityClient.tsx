@@ -83,7 +83,7 @@ export function EquityClient({
           <TrendUp className="mb-3 h-9 w-9 text-gray-300" />
           <p className="text-sm font-medium text-gray-900">No equity grant on file</p>
           <p className="mt-1 max-w-sm text-xs text-gray-500">
-            Il tuo grant apparirà qui quando verrà emesso dalla company. I grant sono visibili solo a te e ai founder.
+            Your grant will appear here once the company issues it. Grants are visible only to you and the founders.
           </p>
         </Card>
       )}
@@ -96,7 +96,7 @@ export function EquityClient({
             <span className="text-[11px] tabular-nums text-gray-400">{teamGrants.length} grants</span>
           </div>
           {teamGrants.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-gray-400">Nessun grant emesso finora.</p>
+            <p className="px-4 py-10 text-center text-sm text-gray-400">No grants issued yet.</p>
           ) : (
             <Table>
               <TableHeader>

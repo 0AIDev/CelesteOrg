@@ -13,6 +13,10 @@ export default async function ProtectedLayout({
 
   const profile = await getProfile().catch(() => null);
 
+  // Only founders and admins may invite teammates — the sidebar invite card
+  // and modal must not appear (or silently fail) for everyone else.
+  const canManage = profile?.is_founder === true || user.app_metadata?.role === "admin";
+
   // Resolve the department name for a subtle context tag in the header.
   let departmentName: string | null = null;
   if (profile?.department_id) {
@@ -27,6 +31,7 @@ export default async function ProtectedLayout({
 
   return (
     <LayoutProvider
+      canManage={canManage}
       user={
         user
           ? {
