@@ -51,13 +51,39 @@ export default async function ProtectedLayout({
     ? [viewerRoleId, ...collectSubordinates(viewerRoleId, allRoles ?? [])]
     : []; // no role → see nothing (prevents new users from seeing all dashboards)
 
+  // Build a map of profile_id → full_name for dashboard labels
+  const profileNameMap = new Map(
+    (allRoles ?? []).map((r) => {
+      // We'll resolve names from profiles table below
+      return [r.profile_id, ""] as [string, string];
+    }),
+  );
+
+  // Fetch profile names for dashboard titles
+  const profileIds = (allRoles ?? []).map((r) => r.profile_id).filter(Boolean);
+  const { data: dashProfiles } = profileIds.length > 0
+    ? await supabase.from("profiles").select("id, full_name").in("id", profileIds)
+    : { data: [] };
+  for (const p of dashProfiles ?? []) {
+    profileNameMap.set(p.id, p.full_name ?? "");
+  }
+
   const dashboards = (allRoles ?? [])
     .filter((r) => visibleRoleIds.includes(r.id))
-    .map((r) => ({
-      slug: r.id,
-      title: shortRoleTitle(r.title),
-      isOwn: viewerRoleId ? r.id === viewerRoleId : false,
-    }));
+    .map((r) => {
+      const roleName = shortRoleTitle(r.title);
+      const profileName = profileNameMap.get(r.profile_id) ?? "";
+      const firstName = profileName.split(" ")[0] || "";
+      // Use "Name Dashboard" for teammates, "Role Dashboard" for named roles
+      const title = roleName === r.title && firstName
+        ? `${firstName} Dashboard`
+        : `${roleName} Dashboard`;
+      return {
+        slug: r.id,
+        title,
+        isOwn: viewerRoleId ? r.id === viewerRoleId : false,
+      };
+    });
 
   // Detect onboarding page from the URL pathname (server-side)
   // The onboarding page should not show sidebar/header.
