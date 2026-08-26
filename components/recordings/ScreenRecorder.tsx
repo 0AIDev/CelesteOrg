@@ -239,7 +239,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   // ── FLOATING WIDGET (minimized during recording) ─────────────────────
   if ((state === "recording" || state === "paused") && minimized) {
     return (
-      <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="fixed bottom-20 right-5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
         <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-xl">
           <span className={cn("h-2.5 w-2.5 rounded-full", state === "recording" ? "animate-pulse bg-red-500" : "bg-yellow-400")} />
           <span className="text-sm font-medium tabular-nums text-gray-900">{formatTime(duration)}</span>
