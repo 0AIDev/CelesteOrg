@@ -249,17 +249,16 @@ function cleanBriefing(raw: string): string {
   text = text.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
 
   // Remove everything BEFORE the actual greeting (thinking preamble)
-  // Look for the first greeting pattern and keep from there
   const greetingMatch = text.match(/(Good\s+(?:morning|afternoon|evening)[\s\S]*$)/i);
   if (greetingMatch) {
     text = greetingMatch[1];
   }
 
-  // Strip numbered analysis lines ("1. Analyze User Input:", "2. Draft Construction:", etc.)
-  text = text.replace(/^\s*\d+\.\s+(?:Analyze|Draft|Deconstruct|Review|Check|Step|Priority|Here|Output|Format|Data|Constraints|Structure|Length|Tone|Start|Role|Focus|Work|Note|Summary|Action|Context|Method|Result|Conclusion|Recommendation).*$/gim, "");
+  // Strip numbered analysis lines
+  text = text.replace(/^\s*\d+\.\s+(?:Analyze|Draft|Deconstruct|Review|Check|Step|Priority|Here|Output|Format|Data|Constraints|Structure|Length|Tone|Start|Role|Focus|Work|Note|Summary|Action|Context|Method|Result|Conclusion|Recommendation|Content|Greeting|CRITICAL).*$/gim, "");
 
   // Strip bullet points that look like analysis
-  text = text.replace(/^\s*[-•]\s+(?:Role:|Focus:|Length:|Tone:|Start:|Structure:|Data|Constraints:|Output|Format:|Concise:|Priority|NO\s).*$/gim, "");
+  text = text.replace(/^\s*[-•]\s+(?:Role:|Focus:|Length:|Tone:|Start:|Structure:|Data|Constraints:|Output|Format:|Concise:|Priority|NO\s|Use\s|Highlight|Be\s).*$/gim, "");
 
   // Strip any remaining numbered items that look like analysis
   text = text.replace(/^\s*\d+\..*$/gm, "");
@@ -274,6 +273,11 @@ function cleanBriefing(raw: string): string {
   // Clean up extra whitespace and empty lines
   text = text.replace(/\n{3,}/g, "\n\n");
   text = text.trim();
+
+  // Final safety: if text is too long (>500 chars) or contains analysis keywords, use fallback
+  if (text.length > 500 || /\b(analyze|deconstruct|step \d|draft construction|output format)\b/i.test(text)) {
+    return "";
+  }
 
   return text;
 }
@@ -291,25 +295,7 @@ async function generateBriefing(
 
   const roleConfig = ROLE_CONTEXT[roleTitle.toLowerCase()] ?? DEFAULT_ROLE;
 
-  const systemPrompt = [
-    `You are Celeste, the AI assistant for an internal company HQ.`,
-    `Generate a ${roleConfig.tone} morning briefing for ${userName} who is ${roleTitle}.`,
-    `Focus on: ${roleConfig.focus}.`,
-    `The briefing should be 3-5 sentences, professional, and actionable.`,
-    `Start with a brief greeting appropriate for the time of day.`,
-    `Highlight the most important items requiring attention, organized by priority.`,
-    `Use the workspace data provided to give specific, concrete information.`,
-    `CRITICAL: Do NOT include ANY of the following:`,
-    `- No thinking, reasoning, analysis, or step-by-step breakdown`,
-    `- No numbered lists like "1. Analyze" or "2. Draft"`,
-    `- No bullet points with metadata like "Role:", "Focus:", "Constraints:"`,
-    `- No preamble or introduction like "Here is" or "Let me"`,
-    `Do NOT use markdown like asterisks, hashes, or code blocks.`,
-    `Use HTML <strong> tags for bold text on key items.`,
-    `Output ONLY the final greeting and briefing. Start with "Good morning/afternoon/evening".`,
-    `Format as 3-5 short paragraphs separated by <br> tags.`,
-    `Be concise — readable in 30 seconds.`,
-  ].join(" ");
+  const systemPrompt = `You are Celeste, an AI assistant. Write a morning briefing for ${userName} (${roleTitle}).\n\nFormat: 3-5 short sentences. Start with greeting. Use <strong>bold</strong> for key numbers. Separate sentences with <br>.\n\nRules:\n- Only output the briefing text\n- No analysis, no thinking, no numbered lists\n- No markdown, no asterisks\n- No preamble like 'Here is'\n- Be specific with real numbers from the data`;
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
