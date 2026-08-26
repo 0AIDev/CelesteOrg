@@ -14,6 +14,7 @@ import {
   Gauge,
   Coins,
   GithubLogo,
+  Lightning,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -37,6 +38,7 @@ export const mainNav: NavItem[] = [
   { label: "Approvals", href: "/approvals", icon: ShieldCheck },
   { label: "Equity", href: "/equity", icon: Coins },
   { label: "GitHub", href: "/github", icon: GithubLogo },
+  { label: "Prompt Vault", href: "/prompt-vault", icon: Lightning },
 ];
 
 export const shortcuts: NavItem[] = [
