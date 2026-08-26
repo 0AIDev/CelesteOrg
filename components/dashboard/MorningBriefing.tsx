@@ -79,22 +79,22 @@ export function MorningBriefing({
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="rounded-xl bg-gray-900 px-4 py-3">
+    <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-[13px] font-medium text-white">
+          <h2 className="text-sm font-semibold text-gray-900">
             {greeting}, {userName.split(" ")[0]}
           </h2>
           {state.status === "done" && (
             <button
               onClick={() => setExpanded((e) => !e)}
-              className="rounded p-0.5 text-gray-400 transition-colors hover:text-white"
+              className="rounded p-0.5 text-gray-400 transition-colors hover:text-gray-700"
             >
               {expanded ? (
-                <ChevronUp className="h-3 w-3" />
+                <ChevronUp className="h-3.5 w-3.5" />
               ) : (
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-3.5 w-3.5" />
               )}
             </button>
           )}
@@ -105,7 +105,7 @@ export function MorningBriefing({
           <button
             onClick={generate}
             disabled={state.status === "loading"}
-            className="rounded p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
+            className="rounded p-1 text-gray-400 transition-colors hover:text-gray-700 disabled:opacity-50"
             title="Refresh briefing"
           >
             <RefreshCw
@@ -124,22 +124,22 @@ export function MorningBriefing({
           {state.status === "loading" && (
             <div className="flex items-center gap-2 py-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-              <span className="text-[12px] text-gray-400">Generating your briefing…</span>
+              <span className="text-[12.5px] text-gray-500">Generating your briefing…</span>
             </div>
           )}
 
           {state.status === "done" && (
-            <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-300">
+            <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-600">
               {state.text}
             </div>
           )}
 
           {state.status === "error" && (
             <div className="py-2">
-              <p className="text-[12px] text-gray-400">{state.text}</p>
+              <p className="text-[12.5px] text-gray-500">{state.text}</p>
               <button
                 onClick={generate}
-                className="mt-1 text-[11px] font-medium text-gray-500 hover:text-white"
+                className="mt-1 text-[11px] font-medium text-gray-400 hover:text-gray-700"
               >
                 Try again
               </button>
