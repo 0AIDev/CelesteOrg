@@ -13,6 +13,7 @@ import {
   RocketLaunch,
   Gauge,
   Coins,
+  GithubLogo,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -35,6 +36,7 @@ export const mainNav: NavItem[] = [
   { label: "Reports", href: "/reports", icon: ClipboardText },
   { label: "Approvals", href: "/approvals", icon: ShieldCheck },
   { label: "Equity", href: "/equity", icon: Coins },
+  { label: "GitHub", href: "/github", icon: GithubLogo },
 ];
 
 export const shortcuts: NavItem[] = [
