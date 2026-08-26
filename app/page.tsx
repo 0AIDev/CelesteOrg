@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 
-// The session check lives in middleware.ts (which runs first on every
-// request) — no need to hit Supabase again here. This page is a pure,
-// dependency-free redirect so the root stays fast even on cold start.
+// Root redirects to sign-in. Onboarding is only accessible via invite link.
 export default function Home() {
-  redirect("/onboarding");
+  redirect("/sign-in");
 }

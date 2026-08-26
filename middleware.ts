@@ -91,9 +91,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Onboarding is always accessible (no auth required)
+  // Onboarding is only accessible via invite link (with token) or if already authenticated
   if (pathname.startsWith("/onboarding")) {
-    return withFreshHtml(request, response);
+    const hasInviteToken = request.nextUrl.searchParams.has("token");
+    // Allow if: has invite token, or user is authenticated, or coming from /invito
+    if (hasInviteToken || user || request.referrer?.includes("/invito")) {
+      return withFreshHtml(request, response);
+    }
+    // No invite token and not authenticated → redirect to sign-in
+    const url = request.nextUrl.clone();
+    url.pathname = "/sign-in";
+    return NextResponse.redirect(url);
   }
 
   // Redirect incomplete onboarding to /onboarding (skip the redirect for
@@ -105,16 +113,8 @@ export async function middleware(request: NextRequest) {
     pathname !== "/sign-in" &&
     !pathname.startsWith("/auth")
   ) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (profile && !profile.onboarding_completed) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/onboarding";
-      return NextResponse.redirect(url);
-    }
+    // Onboarding is no longer forced — users access it from the sidebar.
+    // The onboarding link remains visible until onboarding_completed = true.
   }
 
   return withFreshHtml(request, response);
