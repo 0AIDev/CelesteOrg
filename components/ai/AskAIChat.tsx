@@ -5,12 +5,13 @@ import { ArrowUp, Loader2, X } from "lucide-react";
 import { askAi } from "@/app/actions/ai-assistant";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "ai"; text: string };
+type Msg = { role: "user" | "ai"; text: string; actions?: string[] };
 
 const SUGGESTIONS = [
   "Who's on vacation today?",
   "What do I need to approve?",
-  "Which documents were uploaded recently?",
+  "Create a meeting tomorrow at 10am called Team Sync",
+  "Invite alice@company.com as Head of Marketing",
 ];
 
 export function AskAIChat({
@@ -39,7 +40,7 @@ export function AskAIChat({
     setThinking(true);
     const res = await askAi(question);
     setThinking(false);
-    setMsgs((m) => [...m, { role: "ai", text: res.ok ? res.answer : res.error }]);
+    setMsgs((m) => [...m, { role: "ai", text: res.ok ? res.answer : res.error, actions: res.ok ? res.actions : undefined }]);
   }
 
   return (
@@ -129,6 +130,13 @@ export function AskAIChat({
                   )}
                 >
                   {m.text}
+                  {m.actions && m.actions.length > 0 && (
+                    <div className="mt-2 border-t border-gray-200 pt-2">
+                      {m.actions.map((a, i) => (
+                        <p key={i} className="text-[12px] text-green-700">{a}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
