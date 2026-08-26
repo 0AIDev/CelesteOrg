@@ -339,8 +339,9 @@ function OrgEdge({
       id={id}
       d={`M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + dy}, ${targetX} ${targetY - dy}, ${targetX} ${targetY}`}
       fill="none"
-      stroke="#d7dae1"
+      stroke="var(--edge-strong, #d7dae1)"
       strokeWidth={1.5}
+      className="dark:stroke-[rgba(255,255,255,0.15)]"
     />
   );
 }
@@ -356,7 +357,7 @@ function OrgCardNode({ data, onSelect }: NodeProps & { onSelect?: (n: OrgNode) =
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <button
         onClick={() => onSelect?.(node)}
-        className="group relative flex w-[208px] flex-col items-center rounded-2xl border border-gray-200 bg-white px-3 pb-5 pt-0 shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+        className="group relative flex w-[208px] flex-col items-center rounded-2xl border border-gray-200 bg-white px-3 pb-5 pt-0 shadow-sm transition-all hover:border-gray-300 hover:shadow-md dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:hover:border-[rgba(255,255,255,0.2)]"
       >
         {/* Avatar overlaps the card's top edge — half in, half out */}
         <div className="relative -mt-8">
@@ -367,16 +368,16 @@ function OrgCardNode({ data, onSelect }: NodeProps & { onSelect?: (n: OrgNode) =
             className="h-14 w-14 text-sm"
           />
         </div>
-        <p className="mt-2.5 w-full truncate text-center text-sm font-semibold text-gray-900">
+        <p className="mt-2.5 w-full truncate text-center text-sm font-semibold text-gray-900 dark:text-white">
           {node.full_name}
         </p>
-        <p className="w-full truncate text-center text-xs text-gray-500">
+        <p className="w-full truncate text-center text-xs text-gray-500 dark:text-gray-400">
           {node.title}
         </p>
       </button>
       {/* Direct-report count badge, hanging below the card */}
       {reportCount > 0 && (
-        <span className="absolute -bottom-2.5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-900 px-2.5 py-0.5 text-[10.5px] font-semibold text-white shadow-sm">
+        <span className="absolute -bottom-2.5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-900 px-2.5 py-0.5 text-[10.5px] font-semibold text-white shadow-sm dark:bg-[rgba(255,255,255,0.15)] dark:text-white">
           {reportCount.toLocaleString()}
           <CaretDown className="h-2.5 w-2.5" />
         </span>
