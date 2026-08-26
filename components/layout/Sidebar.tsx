@@ -275,37 +275,9 @@ function SidebarInner({
 
       {/* Scrollable nav */}
       <nav className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
-        {/* Top-level items (always visible) */}
-        <div className="mb-3 space-y-0.5">
-          {topNav.map((item) => (
-            <NavItem
-              key={item.href ?? item.label}
-              item={item}
-              active={!!item.href && pathname.startsWith(item.href)}
-              onClick={navClick}
-              isPinned={pinnedItems.includes(item.label)}
-              onTogglePin={() => handleTogglePin(item.label)}
-              showPin
-            />
-          ))}
-        </div>
-
-        {/* Collapsible categories (less important) */}
-        {categories.map((cat) => (
-          <CategorySection
-            key={cat.label}
-            label={cat.label}
-            items={cat.items}
-            pathname={pathname}
-            navClick={navClick}
-            pinnedItems={pinnedItems}
-            onTogglePin={handleTogglePin}
-          />
-        ))}
-
-        {/* Pinned section */}
+        {/* Pinned section — always at the top */}
         {pinnedNavItems.length > 0 && (
-          <div className="mt-3">
+          <div className="mb-3">
             <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Pinned</p>
             <div className="space-y-0.5">
               {pinnedNavItems.map((item) =>
@@ -337,6 +309,36 @@ function SidebarInner({
             </div>
           </div>
         )}
+
+        {/* Top-level items (excluding pinned to avoid duplicates) */}
+        <div className="mb-3 space-y-0.5">
+          {topNav
+            .filter((item) => !pinnedItems.includes(item.label))
+            .map((item) => (
+              <NavItem
+                key={item.href ?? item.label}
+                item={item}
+                active={!!item.href && pathname.startsWith(item.href)}
+                onClick={navClick}
+                isPinned={false}
+                onTogglePin={() => handleTogglePin(item.label)}
+                showPin
+              />
+            ))}
+        </div>
+
+        {/* Collapsible categories (excluding pinned items) */}
+        {categories.map((cat) => (
+          <CategorySection
+            key={cat.label}
+            label={cat.label}
+            items={cat.items.filter((i) => !pinnedItems.includes(i.label))}
+            pathname={pathname}
+            navClick={navClick}
+            pinnedItems={pinnedItems}
+            onTogglePin={handleTogglePin}
+          />
+        ))}
 
         {/* Onboarding (hidden if completed) */}
         {!isOnboarded && (

@@ -106,7 +106,10 @@ export function getPinnedItems(): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(PINNED_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as string[];
+    // Deduplicate by keeping unique labels
+    return [...new Set(parsed)];
   } catch {
     return [];
   }
