@@ -98,6 +98,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   const [s5, setS5] = useState({ typed_name: "", agreed: false, signed: data?.hasSignedNDA ?? false });
   const [goals, setGoals] = useState({ first_week: "", first_30_days: "", first_90_days: "", key_people_to_meet: "", projects_of_interest: "" });
   const [toolsAccess, setToolsAccess] = useState<string[]>([]);
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
   const goNext = useCallback(() => {
     setTransitioning(true);
@@ -249,17 +250,35 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
           {/* ═══════════ Welcome ═══════════ */}
           {(isAccountStep("welcome") || isNormalStep("welcome")) && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[
-                { icon: <House weight="bold" className="h-4 w-4" />, text: "Your internal company workspace — everything in one place." },
-                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "Org chart, calendar, documents, approvals, chat, and AI." },
-                { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: "Built for fast-moving teams who want to stay aligned." },
-                { icon: <Command weight="bold" className="h-4 w-4" />, text: "Use ⌘K to search anything, Ask Celeste for AI help." },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, title: "Org Chart", desc: "See the full team structure, who reports to whom, and message anyone directly." },
+                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, title: "Calendar", desc: "View and create events, schedule meetings, and see team availability." },
+                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, title: "Chat", desc: "Direct messages and channel-based team communication in real time." },
+                { icon: <Check weight="bold" className="h-4 w-4" />, title: "Approvals", desc: "Review and approve requests from the team — documents, expenses, and more." },
+                { icon: <House weight="bold" className="h-4 w-4" />, title: "Documents", desc: "Share, sign, and manage company documents in one place." },
+                { icon: <Sparkle weight="bold" className="h-4 w-4" />, title: "AI Assistant", desc: "Ask Celeste anything about the workspace — calendar, approvals, team, and more." },
+                { icon: <Command weight="bold" className="h-4 w-4" />, title: "Quick Actions", desc: "Press ⌘K anywhere to search, navigate, or run commands instantly." },
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
-                  <span className="text-gray-400">{item.icon}</span>
-                  <span className="text-sm text-gray-700">{item.text}</span>
-                </div>
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setExpandedCards((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(i)) next.delete(i); else next.add(i);
+                    return next;
+                  })}
+                  className={`w-full text-left rounded-2xl border px-4 py-3 transition-all ${expandedCards.has(i) ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-900"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400 shrink-0">{item.icon}</span>
+                    <span className="text-sm font-medium text-gray-900 flex-1">{item.title}</span>
+                    <span className="text-gray-300 text-xs">{expandedCards.has(i) ? "−" : "+"}</span>
+                  </div>
+                  {expandedCards.has(i) && (
+                    <p className="mt-2 ml-7 text-[13px] text-gray-500 leading-relaxed">{item.desc}</p>
+                  )}
+                </button>
               ))}
             </div>
           )}
