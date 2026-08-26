@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle } from "@phosphor-icons/react";
 
@@ -118,15 +118,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
     }, 150);
   }, []);
 
-  // Auto-advance informational steps (not welcome — let them read it)
-  const autoAdvanceSteps = ["team", "goals", "culture", "tools"];
-  useEffect(() => {
-    const currentStepId = STEP_META[step]?.id;
-    if (autoAdvanceSteps.includes(currentStepId) && !busy) {
-      const timer = setTimeout(() => goNext(), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [step, busy]);
+
 
   // ── Save handlers ─────────────────────────────────────────────────────
   async function saveAccount() {
