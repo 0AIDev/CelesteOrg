@@ -52,6 +52,7 @@ export function RecordingsLibrary({
   const [playing, setPlaying] = useState<string | null>(null);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [playError, setPlayError] = useState<string | null>(null);
 
   async function handlePlay(recording: RecordingRow) {
     if (playing === recording.id) {
@@ -60,22 +61,27 @@ export function RecordingsLibrary({
       return;
     }
 
+    setPlayError(null);
     const res = await getRecordingUrl(recording.file_path);
     if (res.ok && res.url) {
       setPlaying(recording.id);
       setPlayingUrl(res.url);
+    } else {
+      setPlayError(!res.ok ? res.error : "Could not load recording");
     }
   }
 
   async function handleDelete(id: string) {
     setDeleting(id);
-    await deleteRecording(id);
-    setRecordings((prev) => prev.filter((r) => r.id !== id));
-    setDeleting(null);
-    if (playing === id) {
-      setPlaying(null);
-      setPlayingUrl(null);
+    const res = await deleteRecording(id);
+    if (res.ok) {
+      setRecordings((prev) => prev.filter((r) => r.id !== id));
+      if (playing === id) {
+        setPlaying(null);
+        setPlayingUrl(null);
+      }
     }
+    setDeleting(null);
   }
 
   return (
@@ -123,13 +129,26 @@ export function RecordingsLibrary({
         </div>
       )}
 
+      {/* Play error */}
+      {playError && (
+        <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-600">
+          {playError}
+          <button
+            onClick={() => setPlayError(null)}
+            className="ml-2 text-red-400 hover:text-red-600"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Recordings list */}
       {recordings.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-20 text-center">
           <Monitor className="h-8 w-8 text-gray-300" />
           <p className="mt-3 text-sm font-medium text-gray-600">No recordings yet</p>
           <p className="mt-1 text-xs text-gray-400">
-            Click "New Recording" to capture your screen.
+            Click &quot;New Recording&quot; to capture your screen.
           </p>
         </div>
       ) : (

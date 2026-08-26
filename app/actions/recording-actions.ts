@@ -92,6 +92,12 @@ export async function uploadRecording(input: {
     const base64Data = input.blob.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
 
+    // Check file size (Supabase free tier has 50MB limit per upload)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (buffer.length > maxSize) {
+      return { ok: false, error: "Recording too large (max 50MB). Try a shorter recording." };
+    }
+
     // Upload to storage
     const filePath = `${user.id}/${Date.now()}-${input.fileName}`;
     const { error: uploadErr } = await supabase.storage
@@ -103,6 +109,13 @@ export async function uploadRecording(input: {
 
     if (uploadErr) return { ok: false, error: `Upload failed: ${uploadErr.message}` };
 
+    // Get file size from storage
+    const { data: fileData } = await supabase.storage
+      .from("screen-recordings")
+      .list(user.id, { limit: 1, search: filePath.split("/").pop() });
+
+    const actualSize = fileData?.[0]?.metadata?.size ?? buffer.length;
+
     // Insert metadata
     const { data, error: insertErr } = await supabase
       .from("screen_recordings")
@@ -111,7 +124,7 @@ export async function uploadRecording(input: {
         description: input.description?.trim() || null,
         file_path: filePath,
         file_name: input.fileName,
-        file_size: buffer.length,
+        file_size: actualSize,
         mime_type: input.mimeType,
         duration_sec: input.durationSec,
         author_id: user.id,
@@ -121,9 +134,6 @@ export async function uploadRecording(input: {
       .single();
 
     if (insertErr) return { ok: false, error: insertErr.message };
-
-    // Fire-and-forget: trigger AI transcription (best effort)
-    triggerTranscription(data.id, filePath).catch(() => {});
 
     revalidatePath("/recordings");
     return { ok: true, id: data.id };
@@ -156,16 +166,4 @@ export async function deleteRecording(recordingId: string): Promise<ActionResult
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Delete failed" };
   }
-}
-
-// ── Async transcription (fire-and-forget) ───────────────────────────────────
-async function triggerTranscription(recordingId: string, filePath: string) {
-  // Transcription is best-effort — requires OpenAI Whisper or similar.
-  // For now, we mark it as ready without transcript.
-  // When a transcription service is available, pipe the audio through it.
-  const admin = (await import("@/lib/supabase/admin")).createAdminClient();
-  await admin
-    .from("screen_recordings")
-    .update({ status: "ready", updated_at: new Date().toISOString() })
-    .eq("id", recordingId);
 }

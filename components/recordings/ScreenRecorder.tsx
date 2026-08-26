@@ -53,6 +53,14 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   const startRecording = useCallback(async () => {
     try {
       setError("");
+
+      // Check if getDisplayMedia is supported
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        setError("Screen recording is not supported in this browser. Try Chrome or Edge.");
+        setState("error");
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: "monitor" } as MediaTrackConstraints,
         audio: {
@@ -95,6 +103,13 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
         }
       };
 
+      mediaRecorder.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        setError("Recording failed. Please try again.");
+        setState("error");
+        stopRecording();
+      };
+
       mediaRecorder.start(1000); // collect data every second
       startTimeRef.current = Date.now();
       setState("recording");
@@ -111,8 +126,10 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not start recording";
-      if (msg.includes("NotAllowedError")) {
+      if (msg.includes("NotAllowedError") || msg.includes("cancelled")) {
         setError("Screen sharing was cancelled.");
+      } else if (msg.includes("NotReadableError")) {
+        setError("Could not access screen. Please try again.");
       } else {
         setError(msg);
       }
@@ -165,6 +182,15 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
 
     setState("uploading");
     setProgress(0);
+    setError("");
+
+    // Check file size before uploading
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (blob.size > maxSize) {
+      setError("Recording too large (max 50MB). Try a shorter recording.");
+      setState("error");
+      return;
+    }
 
     // Convert blob to base64
     const reader = new FileReader();
@@ -172,23 +198,34 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
       const base64 = reader.result as string;
       setProgress(50);
 
-      const res = await uploadRecording({
-        blob: base64,
-        fileName: `recording-${Date.now()}.webm`,
-        mimeType: "video/webm",
-        title: title.trim() || `Recording ${new Date().toLocaleString()}`,
-        durationSec: duration,
-      });
+      try {
+        const res = await uploadRecording({
+          blob: base64,
+          fileName: `recording-${Date.now()}.webm`,
+          mimeType: "video/webm",
+          title: title.trim() || `Recording ${new Date().toLocaleString()}`,
+          durationSec: duration,
+        });
 
-      setProgress(100);
+        setProgress(100);
 
-      if (res.ok) {
-        setState("done");
-      } else {
-        setError(res.error);
+        if (res.ok) {
+          setState("done");
+        } else {
+          setError(res.error);
+          setState("error");
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Upload failed");
         setState("error");
       }
     };
+
+    reader.onerror = () => {
+      setError("Failed to process recording");
+      setState("error");
+    };
+
     reader.readAsDataURL(blob);
   }
 
@@ -305,6 +342,16 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
             </div>
           )}
 
+          {/* File size info */}
+          {state === "preview" && recordedBlobRef.current && (
+            <p className="mb-3 text-[11px] text-gray-400">
+              Size: {(recordedBlobRef.current.size / (1024 * 1024)).toFixed(1)} MB
+              {recordedBlobRef.current.size > 50 * 1024 * 1024 && (
+                <span className="ml-2 text-red-500">(too large, max 50MB)</span>
+              )}
+            </p>
+          )}
+
           {/* Controls */}
           <div className="flex items-center justify-between">
             {/* Left: discard */}
@@ -384,7 +431,8 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
                   </button>
                   <button
                     onClick={handleUpload}
-                    className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-gray-700"
+                    disabled={recordedBlobRef.current ? recordedBlobRef.current.size > 50 * 1024 * 1024 : true}
+                    className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-3.5 w-3.5" />
                     Save Recording
