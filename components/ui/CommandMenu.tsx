@@ -16,6 +16,16 @@ import {
   Gauge,
   CalendarBlank,
   ShieldCheck,
+  RocketLaunch,
+  Sparkle,
+  CheckCircle,
+  ChatCircleText,
+  Coin,
+  TreeStructure,
+  GithubLogo,
+  Bell,
+  Notebook,
+  Plugs,
 } from "@phosphor-icons/react";
 import { mainNav, shortcuts, bottomNav, type NavItem } from "@/components/nav/config";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
@@ -27,6 +37,7 @@ type Action = {
   sub?: string;
   icon: React.ReactNode;
   keywords?: string;
+  shortcut?: string;
   run: () => void;
 };
 
@@ -78,39 +89,88 @@ export function CommandMenu({
       sub: "Share today's focus",
       icon: <Sun className="h-[18px] w-[18px] text-gray-500" />,
       keywords: "standup morning report",
+      shortcut: "S",
       run: () => {
         onOpenChange(false);
         onOpenStandup();
       },
     },
     {
-      label: "Submit EOD report",
+      label: "Submit EOD Report",
       sub: "Wrap up your day",
       icon: <MoonStars className="h-[18px] w-[18px] text-gray-500" />,
-      keywords: "eod evening report",
+      keywords: "eod evening report end of day",
+      shortcut: "E",
       run: () => {
         onOpenChange(false);
         onOpenEod();
       },
     },
     {
+      label: "Request Time Off",
+      sub: "Vacation · remote · sick",
+      icon: <CalendarPlus className="h-[18px] w-[18px] text-gray-500" />,
+      keywords: "time off vacation holiday remote sick pto",
+      shortcut: "T",
+      run: () => {
+        onOpenChange(false);
+        router.push("/calendar?new=1");
+      },
+    },
+    {
       label: "New Idea",
-      sub: "Add to the vault",
+      sub: "Add to the idea vault",
       icon: <Lightbulb className="h-[18px] w-[18px] text-gray-500" />,
-      keywords: "idea suggestion backlog",
+      keywords: "idea suggestion backlog innovation",
+      shortcut: "I",
       run: () => {
         onOpenChange(false);
         router.push("/ideas?new=1");
       },
     },
     {
-      label: "Request Time Off",
-      sub: "Vacation · remote · sick",
-      icon: <CalendarPlus className="h-[18px] w-[18px] text-gray-500" />,
-      keywords: "time off vacation holiday remote sick",
+      label: "Invite Teammate",
+      sub: "Send a magic link invite",
+      icon: <UsersThree className="h-[18px] w-[18px] text-gray-500" />,
+      keywords: "invite teammate member colleague email",
+      shortcut: "U",
       run: () => {
         onOpenChange(false);
-        router.push("/calendar?new=1");
+        router.push("/teams?invite=1");
+      },
+    },
+    {
+      label: "Ask Celeste AI",
+      sub: "Chat with your workspace copilot",
+      icon: <ChatCircleText className="h-[18px] w-[18px] text-gray-500" />,
+      keywords: "ask ai chat assistant help celeste copilot",
+      shortcut: "A",
+      run: () => {
+        onOpenChange(false);
+        // Toggle the Ask AI sidebar — dispatch a custom event
+        window.dispatchEvent(new CustomEvent("celeste-toggle-ai"));
+      },
+    },
+    {
+      label: "Upload Document",
+      sub: "Share files with the team",
+      icon: <FileText className="h-[18px] w-[18px] text-gray-500" />,
+      keywords: "upload document file share pdf",
+      shortcut: "D",
+      run: () => {
+        onOpenChange(false);
+        router.push("/documents?upload=1");
+      },
+    },
+    {
+      label: "New Prompt",
+      sub: "Add to the Prompt Vault",
+      icon: <Notebook className="h-[18px] w-[18px] text-gray-500" />,
+      keywords: "prompt vault ai template workflow",
+      shortcut: "P",
+      run: () => {
+        onOpenChange(false);
+        router.push("/prompt-vault?new=1");
       },
     },
   ];
@@ -180,6 +240,65 @@ export function CommandMenu({
                     />
                   );
                 })}
+              </Command.Group>
+
+              <Command.Group heading="Operational" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                <CommandItem
+                  label="Approve / Reject"
+                  sub="/approvals"
+                  icon={<CheckCircle size={18} className="text-gray-500" />}
+                  keywords="approve reject review approval"
+                  onSelect={() => { onOpenChange(false); router.push("/approvals"); }}
+                />
+                <CommandItem
+                  label="CEO Dashboard"
+                  sub="/dashboards/ceo"
+                  icon={<Gauge size={18} className="text-gray-500" />}
+                  keywords="ceo dashboard revenue arr metrics"
+                  onSelect={() => { onOpenChange(false); router.push("/dashboards"); }}
+                />
+                <CommandItem
+                  label="Org Chart"
+                  sub="/org-chart"
+                  icon={<TreeStructure size={18} className="text-gray-500" />}
+                  keywords="org chart team structure hierarchy"
+                  onSelect={() => { onOpenChange(false); router.push("/org-chart"); }}
+                />
+                <CommandItem
+                  label="GitHub Activity"
+                  sub="/github"
+                  icon={<GithubLogo size={18} className="text-gray-500" />}
+                  keywords="github commits pull requests deploys webhook"
+                  onSelect={() => { onOpenChange(false); router.push("/github"); }}
+                />
+                <CommandItem
+                  label="AI Usage"
+                  sub="/ai-usage"
+                  icon={<Sparkle size={18} className="text-gray-500" />}
+                  keywords="ai usage tokens cost provider realtime"
+                  onSelect={() => { onOpenChange(false); router.push("/ai-usage"); }}
+                />
+                <CommandItem
+                  label="Notifications"
+                  sub="View all notifications"
+                  icon={<Bell size={18} className="text-gray-500" />}
+                  keywords="notifications alerts"
+                  onSelect={() => { onOpenChange(false); router.push("/dashboard"); }}
+                />
+                <CommandItem
+                  label="Equity & Cap Table"
+                  sub="/equity"
+                  icon={<Coin size={18} className="text-gray-500" />}
+                  keywords="equity shares vesting cap table grant"
+                  onSelect={() => { onOpenChange(false); router.push("/equity"); }}
+                />
+                <CommandItem
+                  label="Developer Settings"
+                  sub="/developers"
+                  icon={<Plugs size={18} className="text-gray-500" />}
+                  keywords="developer api keys webhooks settings"
+                  onSelect={() => { onOpenChange(false); router.push("/developers"); }}
+                />
               </Command.Group>
 
               {index && index.members.length > 0 && (
@@ -305,12 +424,14 @@ function CommandItem({
   sub,
   icon,
   keywords,
+  shortcut,
   onSelect,
 }: {
   label: string;
   sub?: string;
   icon: React.ReactNode;
   keywords?: string;
+  shortcut?: string;
   onSelect: () => void;
 }) {
   return (
@@ -322,15 +443,18 @@ function CommandItem({
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-600 transition-colors group-data-[selected=true]:bg-gray-200/70">
         {icon}
       </div>
-      <div className="flex min-w-0 max-w-[60%] flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium text-gray-900">{label}</span>
         {sub && <span className="truncate text-xs text-gray-400">{sub}</span>}
       </div>
-      <div className="ml-auto hidden shrink-0 items-center gap-1.5 pl-2 pr-1 text-xs font-medium text-gray-500 group-data-[selected=true]:flex">
-        <span>Open</span>
-        <kbd className="flex h-5 w-fit shrink-0 items-center rounded-md border border-gray-200 bg-white px-1 font-medium text-gray-400">
-          <ArrowUUpLeft className="h-3 w-3" />
-        </kbd>
+      <div className="flex shrink-0 items-center gap-1.5 pl-2 pr-1 text-xs font-medium text-gray-400 group-data-[selected=true]:text-gray-500">
+        {shortcut && (
+          <kbd className="hidden h-5 w-5 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-[10px] font-semibold text-gray-400 group-data-[selected=true]:sm:flex">
+            {shortcut}
+          </kbd>
+        )}
+        <span className="hidden text-gray-400 group-data-[selected=true]:sm:inline">Open</span>
+        <ArrowUUpLeft className="hidden h-3 w-3 text-gray-400 group-data-[selected=true]:sm:block" />
       </div>
     </Command.Item>
   );
