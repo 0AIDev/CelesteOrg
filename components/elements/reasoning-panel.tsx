@@ -1,97 +1,124 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-function take<T>(arr: T[], n: number): T[] {
-  return arr.slice(0, Math.max(0, n));
-}
 
 export interface ReasoningStep {
   title: string;
   body: string;
 }
 
-export interface ReasoningPanelProps {
-  steps: ReasoningStep[];
-  visibleSteps: number;
-  streaming: boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  restingLabel: string;
-  elapsed?: string;
+interface ReasoningPanelProps {
+  active: boolean;
   className?: string;
 }
 
-export function ReasoningPanel({
-  steps,
-  visibleSteps,
-  streaming,
-  open,
-  onOpenChange,
-  restingLabel,
-  elapsed,
-  className,
-}: ReasoningPanelProps) {
-  const shown = take(steps, visibleSteps);
+// Fake reasoning steps that appear while waiting for AI response
+const FAKE_STEPS: ReasoningStep[] = [
+  { title: "Understanding your request", body: "Analyzing what you're asking for..." },
+  { title: "Gathering context", body: "Checking your workspace data and history..." },
+  { title: "Formulating response", body: "Preparing a helpful answer..." },
+  { title: "Finalizing", body: "Reviewing the response for accuracy..." },
+];
+
+/**
+ * Fake reasoning panel - shows thinking steps while AI processes
+ * Maximum 5 seconds total, steps appear one by one
+ */
+export function ReasoningPanel({ active, className }: ReasoningPanelProps) {
+  const [visibleSteps, setVisibleSteps] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [open, setOpen] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      // Reset when not active
+      setVisibleSteps(0);
+      setElapsed(0);
+      setOpen(false);
+      return;
+    }
+
+    // Start timer
+    const startTime = Date.now();
+    
+    intervalRef.current = setInterval(() => {
+      const elapsedMs = Date.now() - startTime;
+      const elapsedSec = Math.min(5, Math.floor(elapsedMs / 1000));
+      setElapsed(elapsedSec);
+      
+      // Show steps progressively: 0-1s = step 1, 1-2.5s = step 2, 2.5-4s = step 3, 4-5s = step 4
+      if (elapsedMs < 1000) {
+        setVisibleSteps(1);
+      } else if (elapsedMs < 2500) {
+        setVisibleSteps(2);
+      } else if (elapsedMs < 4000) {
+        setVisibleSteps(3);
+      } else {
+        setVisibleSteps(4);
+      }
+    }, 100);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [active]);
+
+  if (!active && visibleSteps === 0) return null;
+
+  const shown = FAKE_STEPS.slice(0, visibleSteps);
+  const isStreaming = active && elapsed < 5;
 
   return (
-    <div data-slot="reasoning-panel" className={cn("w-full", className)}>
-      {/* Trigger */}
+    <div className={cn("w-full", className)}>
+      {/* Collapsible trigger */}
       <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        className="group/trigger flex items-center gap-1.5 py-1 text-[13.5px] text-gray-500 transition-colors hover:text-gray-700 outline-none active:scale-[0.98]"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 py-1 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
       >
-        {streaming ? (
-          <span className="relative inline-flex items-center gap-1.5">
+        {isStreaming ? (
+          <>
             <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
             <span className="font-medium">Thinking</span>
-            {elapsed && (
-              <span className="font-mono text-[11px] text-gray-400 tabular-nums">
-                {elapsed}
-              </span>
-            )}
-          </span>
+            <span className="font-mono text-gray-300 tabular-nums">{elapsed}s</span>
+          </>
         ) : (
-          <span className="font-medium">{restingLabel}</span>
+          <span className="font-medium">Thought for {elapsed}s</span>
         )}
-        <ChevronDown
+        <ChevronDown 
           className={cn(
-            "size-3.5 shrink-0 opacity-60 transition-transform duration-200",
-            open && "rotate-180",
-          )}
+            "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform duration-200",
+            open && "rotate-180"
+          )} 
         />
       </button>
 
-      {/* Steps */}
-      {open && (
-        <ol className="flex flex-col gap-4 pt-3 pb-1 fade-in animate-in fill-mode-both duration-300">
+      {/* Steps list */}
+      {open && shown.length > 0 && (
+        <ol className="flex flex-col gap-3 pt-2 pb-1 pl-1">
           {shown.map((step, i) => {
-            const active = streaming && i === shown.length - 1;
+            const isActive = isStreaming && i === shown.length - 1;
             return (
               <li
                 key={step.title}
-                className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both flex gap-3 duration-300"
+                className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300"
               >
                 <span
-                  aria-hidden
                   className={cn(
-                    "mt-[7px] size-[5px] shrink-0 rounded-full transition-colors duration-300",
-                    active
-                      ? "animate-pulse bg-blue-500"
-                      : "bg-gray-300",
+                    "mt-1.5 size-1.5 shrink-0 rounded-full transition-colors duration-300",
+                    isActive ? "animate-pulse bg-blue-500" : "bg-gray-300"
                   )}
                 />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <p className="text-[13.5px] font-medium text-gray-700">
+                <div className="flex flex-col">
+                  <p className="text-[13px] font-medium text-gray-700">
                     {step.title}
                   </p>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-gray-500 break-words">
+                  <p className="text-[12px] text-gray-400 leading-relaxed">
                     {step.body}
                   </p>
-                </span>
+                </div>
               </li>
             );
           })}

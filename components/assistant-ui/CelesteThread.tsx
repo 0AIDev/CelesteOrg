@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, Sparkle, Copy, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReasoningPanel } from "@/components/elements/reasoning-panel";
 
 type Message = {
   role: "user" | "assistant";
@@ -270,12 +271,9 @@ function Chat({ onClose }: { onClose: () => void }) {
             {messages.map((msg, i) => (
               <MessageBubble key={i} message={msg} />
             ))}
-            {/* Single thinking indicator — only when loading and no assistant reply yet */}
+            {/* Reasoning panel — shows fake thinking steps while AI processes */}
             {loading && messages[messages.length - 1]?.role !== "assistant" && (
-              <div className="flex items-center gap-2 text-gray-400 py-1">
-                <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
-                <span className="text-[13px]">Thinking...</span>
-              </div>
+              <ReasoningPanel active={loading} className="py-1" />
             )}
             <div ref={messagesEndRef} />
           </div>
