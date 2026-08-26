@@ -117,8 +117,8 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
     }, 150);
   }, []);
 
-  // Auto-advance informational steps
-  const autoAdvanceSteps = ["welcome", "team", "goals", "culture", "tools"];
+  // Auto-advance informational steps (not welcome — let them read it)
+  const autoAdvanceSteps = ["team", "goals", "culture", "tools"];
   useEffect(() => {
     const currentStepId = STEP_META[step]?.id;
     if (autoAdvanceSteps.includes(currentStepId) && !busy) {
@@ -225,9 +225,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950">
-            {isAccountStep("welcome") && "Welcome to Celeste"}
+            {isAccountStep("welcome") && (s0.full_name ? `${s0.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
             {isAccountStep("account") && "Create your account"}
-            {isNormalStep("welcome") && "Welcome to Celeste"}
+            {isNormalStep("welcome") && (s1.full_name ? `${s1.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}
             {isNormalStep("role") && "What's your role?"}
             {isNormalStep("team") && "Your team awaits"}
@@ -245,7 +245,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
           {/* ═══════════ Welcome ═══════════ */}
           {(isAccountStep("welcome") || isNormalStep("welcome")) && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[
                 { icon: "✦", text: "Your internal company workspace — everything in one place." },
                 { icon: "◎", text: "Org chart, calendar, documents, approvals, chat, and AI." },
@@ -320,7 +320,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
           {/* ═══════════ Team ═══════════ */}
           {isNormalStep("team") && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[
                 { icon: "◎", text: "Every person has a role in the Org Chart — see who reports to whom" },
                 { icon: "✦", text: "Your direct manager is assigned by the CEO or department head" },
@@ -360,7 +360,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
           {/* ═══════════ Culture ═══════════ */}
           {isNormalStep("culture") && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[
                 { icon: "⚡", text: "Ship fast, iterate faster — done is better than perfect" },
                 { icon: "◎", text: "Default to transparency — share context, not conclusions" },
@@ -492,17 +492,21 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {/* Error */}
         {err && <p className="mt-3 text-center text-xs text-red-600">{err}</p>}
 
-        {/* ── Navigation: Back + Skip on left, nothing on right ──────── */}
-        <div className="flex items-center gap-2 py-6">
+        {/* ── Navigation: Back + Next + Skip — all plain text ──────── */}
+        <div className="flex items-center gap-3 py-6">
           {step > 0 && (
             <button type="button" onClick={goPrev}
               className="text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
               Back
             </button>
           )}
-          {step > 0 && !["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
+          <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
+            className="text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            {busy ? "Saving…" : isLast ? (s5.signed ? "Continue to dashboard" : "Sign & finish") : "Next"}
+          </button>
+          {!["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
             <button type="button" onClick={goNext}
-              className="text-[13px] font-medium text-gray-400 hover:text-gray-600 transition-colors ml-2">
+              className="text-[13px] font-medium text-gray-400 hover:text-gray-600 transition-colors">
               Skip
             </button>
           )}
