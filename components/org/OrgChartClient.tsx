@@ -179,7 +179,7 @@ export function OrgChartClient({
             {/* Solid white card, rounded corners — same style as Ask Celeste */}
             <motion.div
               onClick={(e) => e.stopPropagation()}
-              className="m-4 mr-6 h-[calc(100vh-2rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl"
+              className="m-4 mr-6 h-[calc(100vh-2rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:bg-[#161616] dark:border-[rgba(255,255,255,0.1)]"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -213,8 +213,8 @@ function DeptTab({
       onClick={onClick}
       className={
         active
-          ? "pill pill-active"
-          : "pill bg-white"
+          ? "rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors bg-white text-black border-white dark:bg-white dark:text-black dark:border-white"
+          : "rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors bg-white text-gray-600 border-gray-200 dark:bg-transparent dark:text-gray-400 dark:border-[rgba(255,255,255,0.1)] dark:hover:bg-[rgba(255,255,255,0.04)]"
       }
     >
       {children}
@@ -427,8 +427,8 @@ function ProfilePanel({
 
   return (
     <div>
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-        <span className="text-sm font-semibold text-gray-900">Profile</span>
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-[rgba(255,255,255,0.06)]">
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">Profile</span>
         <button
           onClick={onClose}
           className="rounded-md p-1 text-gray-400 hover:bg-gray-100"
@@ -463,7 +463,7 @@ function ProfilePanel({
         <div className="mt-5 flex gap-2">
           <button
             onClick={() => router.push(`/chat?peer=${person.id}`)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
           >
             <PaperPlaneTilt className="h-4 w-4" />
             Message
@@ -471,7 +471,7 @@ function ProfilePanel({
           <button
             onClick={onSummarize}
             disabled={summarizing}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-800 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-800 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-transparent dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.04)]"
           >
           {summarizing ? (
             <Spinner className="h-4 w-4 animate-spin" />
@@ -506,7 +506,7 @@ function ProfilePanel({
           </p>
         )}
 
-        <div className="mt-6 divide-y divide-gray-100">
+        <div className="mt-6">
           {/* Bio / description */}
           {person.bio && (
             <Section title="About">
@@ -625,13 +625,13 @@ function ProfilePanel({
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   placeholder="Only you can see these notes…"
-                  className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-[rgba(255,255,255,0.1)] dark:bg-[rgba(255,255,255,0.04)] dark:text-gray-200 dark:placeholder:text-gray-500 dark:focus:border-[rgba(255,255,255,0.2)] dark:focus:ring-[rgba(255,255,255,0.1)]"
                 />
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     onClick={onSaveNote}
                     disabled={savingNote}
-                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
+                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-gray-200"
                   >
                     {savingNote ? (
                       <Spinner className="h-3 w-3 animate-spin" />
