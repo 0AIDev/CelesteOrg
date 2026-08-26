@@ -13,10 +13,13 @@ import {
   GearSix,
   UserCircle,
   Check,
+  Moon,
+  Sun,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { cn, relativeTime } from "@/lib/utils";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 type NotifItem = {
   id: string;
@@ -50,6 +53,7 @@ export function Header({
   onOpenFeedback?: () => void;
 }) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
 
   // Resolve the current user's id once (StrictMode-safe: guarded by `mounted`,
@@ -136,7 +140,7 @@ export function Header({
   const go = (path: string) => (onNavigate ? onNavigate(path) : router.push(path));
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md lg:px-5">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md lg:px-5 dark:bg-[#0F0F0F]/85 dark:border-gray-800">
       <button
         onClick={toggleSidebar}
         className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
@@ -293,6 +297,18 @@ export function Header({
               <MenuItem icon={<ChatCircleText className="h-4 w-4" />} onClick={() => onOpenFeedback?.()}>
                 Feedback
               </MenuItem>
+              <div className="my-1 h-px bg-gray-100" />
+              <button
+                onClick={toggleTheme}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-50 transition-colors"
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </button>
               <div className="my-1 h-px bg-gray-100" />
               <MenuItem
                 icon={<SignOut className="h-4 w-4" />}

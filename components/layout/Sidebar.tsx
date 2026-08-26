@@ -62,7 +62,7 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "relative z-40 flex flex-col overflow-hidden border-r border-gray-200 bg-white/70 backdrop-blur-xl transition-[width,transform] duration-200 ease-in-out",
+          "relative z-40 flex flex-col overflow-hidden border-r border-gray-200 bg-white/70 backdrop-blur-xl transition-[width,transform] duration-200 ease-in-out dark:bg-[#1E1F20]/90 dark:border-gray-800",
           isMobile
             ? cn("fixed inset-y-0 left-0 w-[280px] max-w-[85vw]", open ? "translate-x-0" : "-translate-x-full")
             : cn("sticky top-0 h-screen shrink-0", open ? "w-[260px]" : "w-0"),
@@ -88,7 +88,7 @@ export function Sidebar({
 function Brand() {
   return (
     <div className="flex items-center px-4 pt-4 pb-3">
-      <span className="text-[15px] font-semibold tracking-tight text-gray-950">CelesteHQ</span>
+      <span className="text-[15px] font-semibold tracking-tight text-gray-950 dark:text-gray-100">CelesteHQ</span>
     </div>
   );
 }
@@ -116,8 +116,8 @@ function NavItem({
       className={cn(
         "group/nav flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
         active
-          ? "bg-gray-200/60 text-gray-950"
-          : "text-gray-500 hover:bg-gray-100/70 hover:text-gray-950",
+          ? "bg-gray-200/60 text-gray-950 dark:bg-gray-700/60 dark:text-gray-100"
+          : "text-gray-500 hover:bg-gray-100/70 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-100",
       )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
