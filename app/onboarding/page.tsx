@@ -1,7 +1,7 @@
 import { getOnboardingData } from "@/app/actions/onboarding-actions";
 import { OnboardingClient } from "@/components/onboarding/OnboardingClient";
 
-export const metadata = { title: "Onboarding — Celeste HQ" };
+export const metadata = { title: "Onboarding - Celeste HQ" };
 
 export default async function OnboardingPage() {
   // This page works WITHOUT login - shows account creation first

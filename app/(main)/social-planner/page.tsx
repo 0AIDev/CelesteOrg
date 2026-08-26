@@ -1,7 +1,7 @@
 import { getProfile } from "@/lib/auth";
 import { SocialPlanner } from "@/components/social/SocialPlanner";
 
-export const metadata = { title: "Social Planner — Celeste HQ" };
+export const metadata = { title: "Social Planner - Celeste HQ" };
 export const dynamic = "force-dynamic";
 
 export default async function SocialPlannerPage() {

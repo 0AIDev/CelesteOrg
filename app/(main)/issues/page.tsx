@@ -1,7 +1,7 @@
 import { getProfile } from "@/lib/auth";
 import { IssueTracker } from "@/components/issues/IssueTracker";
 
-export const metadata = { title: "Issues — Celeste HQ" };
+export const metadata = { title: "Issues - Celeste HQ" };
 export const dynamic = "force-dynamic";
 
 export default async function IssuesPage() {

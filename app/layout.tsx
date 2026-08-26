@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: {
     default: "Celeste HQ",
-    template: "%s · Celeste HQ",
+    template: "%s - Celeste HQ",
   },
   description: "Internal operating system for the Celeste team.",
   manifest: "/manifest.json",
