@@ -103,10 +103,14 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
         recordedUrlRef.current = URL.createObjectURL(blob);
         setState("preview");
         setMinimized(false);
-        if (previewRef.current) {
-          previewRef.current.srcObject = null;
-          previewRef.current.src = recordedUrlRef.current;
-        }
+        // Delay setting video source to ensure the video element is rendered
+        setTimeout(() => {
+          if (previewRef.current) {
+            previewRef.current.srcObject = null;
+            previewRef.current.src = recordedUrlRef.current!;
+            previewRef.current.load();
+          }
+        }, 100);
       };
 
       mediaRecorder.onerror = () => {
@@ -115,7 +119,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
         stopRecording();
       };
 
-      mediaRecorder.start(1000);
+      mediaRecorder.start(100);
       startTimeRef.current = Date.now();
       setState("recording");
       setMinimized(false);
@@ -147,6 +151,12 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   function stopRecording() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      // Request final data chunk before stopping
+      try {
+        mediaRecorderRef.current.requestData();
+      } catch {
+        // ignore
+      }
       mediaRecorderRef.current.stop();
     }
     if (streamRef.current) {
@@ -351,7 +361,12 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
           {state === "preview" && (
             <>
               <div className="relative mb-4 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                <video ref={previewRef} className="aspect-video w-full object-contain" playsInline controls />
+                <video ref={previewRef} className="aspect-video w-full object-contain" playsInline controls onLoadedMetadata={(e) => {
+                  const video = e.currentTarget;
+                  if (video.duration && isFinite(video.duration)) {
+                    setDuration(Math.floor(video.duration));
+                  }
+                }} />
               </div>
 
               <input value={title} onChange={(e) => setTitle(e.target.value)}
