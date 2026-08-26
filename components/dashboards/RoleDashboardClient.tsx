@@ -19,7 +19,8 @@ import {
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { reviewApproval } from "@/app/actions/approval-actions";
-import { AiCostTracker } from "@/components/ai-usage/AiCostTracker"
+import { AiCostTracker } from "@/components/ai-usage/AiCostTracker";
+import { PostHogDashboardWidget } from "@/components/analytics/PostHogDashboardWidget"
 
 export type DashboardData = {
   role: {
@@ -103,11 +104,16 @@ export function RoleDashboardClient({ data }: { data: DashboardData }) {
         <Stat icon={FileText} label="Recent documents" value={String(data.docs.length)} />
       </div>
 
-      {/* CEO-only: AI Cost Tracker (full realtime dashboard) */}
+      {/* CEO-only: AI Cost Tracker + PostHog Analytics */}
       {isCEO && (
-        <div className="mb-6">
-          <AiCostTracker />
-        </div>
+        <>
+          <div className="mb-6">
+            <AiCostTracker />
+          </div>
+          <div className="mb-6">
+            <PostHogDashboardWidget />
+          </div>
+        </>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
