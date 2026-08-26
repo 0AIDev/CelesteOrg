@@ -1,9 +1,11 @@
 "use client";
 
 import { AssistantModalPrimitive, ThreadPrimitive, ComposerPrimitive, MessagePrimitive, ActionBarPrimitive, BranchPickerPrimitive } from "@assistant-ui/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ArrowUp, Copy, Check, RotateCcw, Sparkle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StreamingText, type Segment } from "@/components/elements/streaming-text";
+import { ReasoningPanel, type ReasoningStep } from "@/components/elements/reasoning-panel";
 
 /** Floating action button + chat modal */
 export function CelesteAssistantModal() {
@@ -119,17 +121,139 @@ function SuggestionPill({ text }: { text: string }) {
   );
 }
 
-/** Message wrapper */
-function AssistantMessage(props: Record<string, unknown>) {
-  const children = props.children as React.ReactNode;
+/** Message wrapper with streaming text */
+function AssistantMessage() {
+  const [showReasoning, setShowReasoning] = useState(false);
+  const [reasoningSteps] = useState<ReasoningStep[]>([
+    { title: "Reading the request", body: "Understanding what you're asking..." },
+    { title: "Gathering context", body: "Checking workspace data and relevant information..." },
+    { title: "Formulating response", body: "Crafting a clear and actionable answer..." },
+  ]);
+  const [visibleSteps, setVisibleSteps] = useState(0);
+  const [elapsed, setElapsed] = useState("0s");
+  const startTime = useRef(Date.now());
+  const hasStarted = useRef(false);
+
+  // Detect when streaming starts and animate reasoning
+  useEffect(() => {
+    // Show reasoning panel briefly at start
+    if (!hasStarted.current) {
+      hasStarted.current = true;
+      startTime.current = Date.now();
+      setShowReasoning(true);
+      setVisibleSteps(0);
+
+      const stepTimer = setInterval(() => {
+        setVisibleSteps((prev) => {
+          if (prev >= reasoningSteps.length) {
+            clearInterval(stepTimer);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 600);
+
+      const elapsedTimer = setInterval(() => {
+        const secs = Math.floor((Date.now() - startTime.current) / 1000);
+        setElapsed(`${secs}s`);
+      }, 1000);
+
+      // Auto-hide after streaming starts
+      const hideTimer = setTimeout(() => {
+        setShowReasoning(false);
+        clearInterval(elapsedTimer);
+      }, 3000);
+
+      return () => {
+        clearInterval(stepTimer);
+        clearInterval(elapsedTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [reasoningSteps.length]);
+
   return (
     <MessagePrimitive.Root className="group mb-4">
+      {/* Reasoning panel (thinking indicator) */}
+      {showReasoning && (
+        <div className="mb-2">
+          <ReasoningPanel
+            steps={reasoningSteps}
+            visibleSteps={visibleSteps}
+            streaming={true}
+            open={showReasoning}
+            onOpenChange={setShowReasoning}
+            restingLabel={`Reasoned for ${elapsed}`}
+            elapsed={elapsed}
+          />
+        </div>
+      )}
+
+      {/* Message content with streaming text effect */}
       <div className="text-[14px] leading-relaxed text-gray-900">
-        <MessagePrimitive.Parts />
+        <StreamingTextWrapper />
       </div>
-      {children}
       <MessageActions />
     </MessagePrimitive.Root>
+  );
+}
+
+/** Wraps MessagePrimitive.Parts with streaming text animation */
+function StreamingTextWrapper() {
+  const [text, setText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const prevLength = useRef(0);
+
+  // Observe the DOM for text changes to detect streaming
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector('[data-slot="streaming-text-wrapper"]');
+      if (el) {
+        const newText = el.textContent ?? "";
+        if (newText.length > prevLength.current) {
+          setIsStreaming(true);
+        }
+        prevLength.current = newText.length;
+        setText(newText);
+      }
+    });
+
+    // Start observing after a tick
+    const timer = setTimeout(() => {
+      const el = document.querySelector('[data-slot="streaming-text-wrapper"]');
+      if (el) {
+        observer.observe(el, { childList: true, subtree: true, characterData: true });
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Mark streaming as done when text stops changing
+  useEffect(() => {
+    if (!text) return;
+    const timer = setTimeout(() => setIsStreaming(false), 500);
+    return () => clearTimeout(timer);
+  }, [text]);
+
+  const segments: Segment[] = text ? [{ text }] : [];
+  const wordCount = text.split(" ").filter(Boolean).length;
+
+  return (
+    <div data-slot="streaming-text-wrapper">
+      {text ? (
+        <StreamingText
+          segments={segments}
+          count={isStreaming ? Math.ceil(wordCount * 0.85) : wordCount}
+          streaming={isStreaming}
+        />
+      ) : (
+        <MessagePrimitive.Parts />
+      )}
+    </div>
   );
 }
 

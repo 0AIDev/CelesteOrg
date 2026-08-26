@@ -8,17 +8,10 @@ export interface Segment {
   mono?: boolean;
 }
 
-/** Take the first `n` items from an array. */
 function take<T>(arr: T[], n: number): T[] {
   return arr.slice(0, Math.max(0, n));
 }
 
-/**
- * StreamingText — tokens arrive softly: the newest words land in blue and settle into ink.
- *
- * Usage:
- *   <StreamingText segments={[{ text: "Hello world" }]} count={3} streaming />
- */
 export function StreamingText({
   segments,
   count,
@@ -48,7 +41,7 @@ export function StreamingText({
     <p
       data-slot="streaming-text"
       className={cn(
-        "text-[13px] leading-relaxed text-pretty",
+        "text-sm leading-relaxed text-pretty",
         className,
       )}
       {...props}
@@ -58,7 +51,7 @@ export function StreamingText({
         return (
           <span
             key={i}
-            className="inline-block animate-[fadeIn_0.5s_ease-out_both] motion-reduce:animate-none"
+            className="fade-in animate-in fill-mode-both duration-500 motion-reduce:animate-none"
           >
             <span
               className={cn(
