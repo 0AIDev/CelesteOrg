@@ -16,7 +16,10 @@ export function CelesteAssistantModal() {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
+  const [dragMoved, setDragMoved] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [btnRect, setBtnRect] = useState<{ left: number; top: number } | null>(null);
 
   // Load persisted position
   useEffect(() => {
@@ -33,7 +36,21 @@ export function CelesteAssistantModal() {
     } catch { /* ignore */ }
   }, [position]);
 
+  // Track button screen position
+  useEffect(() => {
+    function updateRect() {
+      if (btnRef.current) {
+        const r = btnRef.current.getBoundingClientRect();
+        setBtnRect({ left: r.left, top: r.top });
+      }
+    }
+    updateRect();
+    window.addEventListener("resize", updateRect);
+    return () => window.removeEventListener("resize", updateRect);
+  }, [position, open]);
+
   function handleMouseDown(e: React.MouseEvent) {
+    setDragMoved(false);
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -50,6 +67,7 @@ export function CelesteAssistantModal() {
     function handleMouseMove(e: MouseEvent) {
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) setDragMoved(true);
       const newX = Math.max(0, Math.min(window.innerWidth - 140, dragStartRef.current.posX - dx));
       const newY = Math.max(0, Math.min(window.innerHeight - 40, dragStartRef.current.posY - dy));
       setPosition({ x: newX, y: newY });
@@ -67,11 +85,33 @@ export function CelesteAssistantModal() {
     };
   }, [isDragging]);
 
+  // Calculate modal position: centered above the button
+  const modalWidth = 420;
+  const modalHeight = 520;
+  const buttonWidth = 136; // approx
+  const gap = 12;
+
+  // Button's left edge on screen (button uses `right: position.x`)
+  const btnLeft = btnRect ? btnRect.left : window.innerWidth - position.x - buttonWidth;
+  const btnTop = btnRect ? btnRect.top : window.innerHeight - position.y - 40;
+
+  // Center modal above button, clamped to viewport
+  const modalLeft = Math.max(
+    16,
+    Math.min(btnLeft + buttonWidth / 2 - modalWidth / 2, window.innerWidth - modalWidth - 16)
+  );
+  const modalTop = Math.max(16, btnTop - modalHeight - gap);
+
+  function handleOpen() {
+    if (!dragMoved) setOpen(true);
+  }
+
   return (
     <>
       {/* Ask Celeste button — white glassmorphism, draggable */}
       <button
-        onClick={() => !isDragging && setOpen(true)}
+        ref={btnRef}
+        onClick={handleOpen}
         onMouseDown={handleMouseDown}
         className={cn(
           "fixed z-50 flex h-10 items-center gap-2 rounded-full border border-white/40 bg-white/70 px-3.5 text-[13px] font-medium text-gray-800 shadow-lg backdrop-blur-xl transition-shadow duration-150 hover:shadow-xl",
@@ -83,11 +123,11 @@ export function CelesteAssistantModal() {
         Ask Celeste
       </button>
 
-      {/* Modal */}
+      {/* Modal — positioned above button, centered */}
       {open && (
         <div
-          className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200"
-          style={{ right: position.x, bottom: position.y + 52 }}
+          className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 duration-200"
+          style={{ left: modalLeft, top: modalTop }}
         >
           <Chat onClose={() => setOpen(false)} />
         </div>
@@ -230,10 +270,11 @@ function Chat({ onClose }: { onClose: () => void }) {
             {messages.map((msg, i) => (
               <MessageBubble key={i} message={msg} />
             ))}
+            {/* Single thinking indicator — only when loading and no assistant reply yet */}
             {loading && messages[messages.length - 1]?.role !== "assistant" && (
-              <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex items-center gap-2 text-gray-400 py-1">
                 <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
-                <span className="text-sm">Thinking...</span>
+                <span className="text-[13px]">Thinking...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -241,7 +282,7 @@ function Chat({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {/* Suggestions */}
+      {/* Suggestions — only when no messages */}
       {messages.length === 0 && (
         <div className="flex flex-wrap items-center justify-center gap-2 px-5 pb-3">
           <SuggestionPill text="What's on my calendar today?" onClick={handleSuggestion} />
@@ -282,6 +323,10 @@ function cleanResponse(text: string): string {
   cleaned = cleaned.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
   // Strip lines that look like thinking
   cleaned = cleaned.replace(/^\s*(?:Here'?s a thinking|Let me|I need to|First,|Analysis:|Step \d|\d+\.\s*(?:Analyze|Deconstruct|Check|Formulate)).*$/gim, "");
+  // Strip "Here's a thinking process:" blocks
+  cleaned = cleaned.replace(/Here's a thinking process:[\s\S]*?(?=\n[A-Z])/i, "");
+  // Strip thinking steps
+  cleaned = cleaned.replace(/\d+\.\s*\*\*[^*]+\*\*[\s\S]*?(?=\n\d+\.|\n[A-Z]|$)/g, "");
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
   return cleaned;
 }
