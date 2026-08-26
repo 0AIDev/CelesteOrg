@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
+import { acceptInvite } from "@/app/actions/invite-actions";
 import Link from "next/link";
 
 export const metadata = { title: "Join Celeste HQ" };
@@ -61,10 +62,16 @@ export default async function InvitePage({
   const departmentName =
     (invite.departments as unknown as { name?: string } | null)?.name ?? null;
 
-  // If user is already logged in, redirect to complete
+  // If user is already logged in, redirect directly to onboarding
   const user = await getUser().catch(() => null);
   if (user) {
-    redirect(`/invite/complete?invite=${token}`);
+    // Accept the invite server-side, then go to onboarding
+    const result = await acceptInvite({ token });
+    if (result.ok) {
+      redirect("/onboarding?welcome=1");
+    }
+    // If invite already accepted, just go to dashboard
+    redirect("/dashboard");
   }
 
   // Not logged in — show the invite landing page

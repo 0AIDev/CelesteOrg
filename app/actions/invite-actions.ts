@@ -10,6 +10,23 @@ import { requirePermission } from "@/app/actions/permission-actions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
+/** Detect the app base URL — works in both dev and production. */
+function getBaseUrl(): string {
+  // Explicit override (set in Vercel env vars)
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  // Auto-detect from request headers (server-side)
+  try {
+    const { headers } = require("next/headers");
+    const h = headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    if (host) return `${proto}://${host}`;
+  } catch {
+    /* not in server context */
+  }
+  return "http://localhost:3000";
+}
+
 function userClient() {
   const cookieStore = cookies();
   return createServerClient(
@@ -148,7 +165,7 @@ export async function resendInvite(id: string): Promise<
       return { ok: false, error: "Only pending invites can be resent." };
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = getBaseUrl();
     const inviteLink = `${appUrl}/invito?token=${invite.token}`;
     await sendInviteEmail(invite.email, inviteLink, invite.role_title);
     return { ok: true, link: inviteLink };
@@ -271,7 +288,7 @@ export async function inviteTeammate(
     }
 
     // Build a custom invite link (no Supabase magic link).
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = getBaseUrl();
     const inviteLink = `${appUrl}/invito?token=${token}`;
 
     // Send the invite email via Resend.
