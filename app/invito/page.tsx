@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { acceptInvite } from "@/app/actions/invite-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Logo } from "@/components/ui/Logo";
 import Link from "next/link";
 
 export const metadata = { title: "Join Celeste HQ" };
@@ -101,14 +102,9 @@ export default async function InvitePage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
       <div className="w-full max-w-sm text-center">
-        {/* Icon */}
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 dark:bg-white">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white dark:text-black">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" x2="19" y1="8" y2="14" />
-            <line x1="22" x2="16" y1="11" y2="11" />
-          </svg>
+        {/* Logo */}
+        <div className="mx-auto mb-6">
+          <Logo className="h-12 w-auto" />
         </div>
 
         {/* Title */}
@@ -143,18 +139,13 @@ export default async function InvitePage({
           href={`/sign-in?next=${encodeURIComponent(`/invite/complete?invite=${token}`)}`}
           className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
         >
-          Sign in to Accept
+          Complete the Onboarding
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
             <path d="M5 12l5-5-5-5" />
           </svg>
         </Link>
 
-        <p className="mt-8 text-[12px] text-gray-400">
-          Don&apos;t have an account?{" "}
-          <Link href="/sign-up" className="font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-            Sign up
-          </Link>
-        </p>
+
       </div>
     </div>
   );
