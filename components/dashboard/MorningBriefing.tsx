@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Lightning,
-  Spinner,
-  ArrowClockwise,
-  CaretDown,
-  CaretUp,
-} from "@phosphor-icons/react";
+import { Loader2, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type BriefingState = {
@@ -85,21 +79,25 @@ export function MorningBriefing({
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 transition-all">
+    <div className="rounded-xl bg-gray-900 px-4 py-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white">
-            <Lightning className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-[14px] font-semibold text-gray-900">
-              {greeting}, {userName.split(" ")[0]}
-            </h2>
-            <p className="text-[11.5px] text-gray-400">
-              Your {roleTitle ?? ""} briefing for today
-            </p>
-          </div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[13px] font-medium text-white">
+            {greeting}, {userName.split(" ")[0]}
+          </h2>
+          {state.status === "done" && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="rounded p-0.5 text-gray-400 transition-colors hover:text-white"
+            >
+              {expanded ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -107,67 +105,45 @@ export function MorningBriefing({
           <button
             onClick={generate}
             disabled={state.status === "loading"}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            className="rounded p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
             title="Refresh briefing"
           >
-            <ArrowClockwise
+            <RefreshCw
               className={cn(
                 "h-3.5 w-3.5",
                 state.status === "loading" && "animate-spin",
               )}
             />
           </button>
-
-          {/* Collapse */}
-          <button
-            onClick={() => setExpanded((e) => !e)}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-          >
-            {expanded ? (
-              <CaretUp className="h-3.5 w-3.5" />
-            ) : (
-              <CaretDown className="h-3.5 w-3.5" />
-            )}
-          </button>
         </div>
       </div>
 
       {/* Content */}
       {expanded && (
-        <div className="mt-4">
+        <div className="mt-2">
           {state.status === "loading" && (
-            <div className="flex items-center gap-3 py-4">
-              <Spinner className="h-4 w-4 animate-spin text-gray-400" />
-              <div className="space-y-2">
-                <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
-                <div className="h-3 w-64 animate-pulse rounded bg-gray-100" />
-                <div className="h-3 w-40 animate-pulse rounded bg-gray-100" />
-              </div>
+            <div className="flex items-center gap-2 py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+              <span className="text-[12px] text-gray-400">Generating your briefing…</span>
             </div>
           )}
 
           {state.status === "done" && (
-            <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-700">
+            <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-300">
               {state.text}
             </div>
           )}
 
           {state.status === "error" && (
-            <div className="py-3 text-center">
-              <p className="text-[13px] text-gray-500">{state.text}</p>
+            <div className="py-2">
+              <p className="text-[12px] text-gray-400">{state.text}</p>
               <button
                 onClick={generate}
-                className="mt-2 text-[12px] font-medium text-gray-400 hover:text-gray-700"
+                className="mt-1 text-[11px] font-medium text-gray-500 hover:text-white"
               >
                 Try again
               </button>
             </div>
-          )}
-
-          {state.status === "done" && cached && (
-            <p className="mt-3 text-[10px] text-gray-300">
-              Cached · refreshes every 30 min
-            </p>
           )}
         </div>
       )}
