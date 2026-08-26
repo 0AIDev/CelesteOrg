@@ -129,9 +129,10 @@ export function MorningBriefing({
           )}
 
           {state.status === "done" && (
-            <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-600">
-              {state.text}
-            </div>
+            <div
+              className="text-[13px] leading-relaxed text-gray-600"
+              dangerouslySetInnerHTML={{ __html: state.text }}
+            />
           )}
 
           {state.status === "error" && (

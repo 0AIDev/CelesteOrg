@@ -259,7 +259,9 @@ async function generateBriefing(
     `Start with a brief greeting appropriate for the time of day.`,
     `Highlight the most important items requiring attention, organized by priority.`,
     `Use the workspace data provided to give specific, concrete information.`,
-    `Do NOT use markdown formatting. Write in plain text with line breaks.`,
+    `Do NOT use markdown formatting like asterisks or hashes.`,
+    `Use HTML <strong> tags for bold text on key items (names, counts, statuses).`,
+    `Write in plain text with line breaks between sections.`,
     `Be concise — this should be readable in 30 seconds.`,
   ].join(" ");
 
@@ -308,7 +310,7 @@ function generateDeterministicBriefing(
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const lines: string[] = [`${greeting}, ${userName}. Here's your ${roleTitle} briefing.`];
+  const lines: string[] = [`${greeting}, <strong>${userName}</strong>. Here's your <strong>${roleTitle}</strong> briefing.`];
 
   // Parse approvals
   const approvalMatch = context.match(/Pending approvals \((\d+)\)/);
@@ -316,7 +318,7 @@ function generateDeterministicBriefing(
     const count = parseInt(approvalMatch[1]);
     lines.push(
       count > 0
-        ? `You have ${count} approval${count > 1 ? "s" : ""} waiting for your review.`
+        ? `You have <strong>${count} approval${count > 1 ? "s" : ""}</strong> waiting for your review.`
         : "No pending approvals — you're all caught up.",
     );
   }
@@ -327,7 +329,7 @@ function generateDeterministicBriefing(
     const count = parseInt(eventMatch[1]);
     lines.push(
       count > 0
-        ? `${count} event${count > 1 ? "s" : ""} on today's calendar.`
+        ? `<strong>${count} event${count > 1 ? "s" : ""}</strong> on today's calendar.`
         : "No events scheduled for today.",
     );
   }
@@ -339,9 +341,9 @@ function generateDeterministicBriefing(
   if (ghMatch) {
     const [, pushes, prs, deploys] = ghMatch.map(Number);
     const items = [];
-    if (pushes > 0) items.push(`${pushes} push${pushes > 1 ? "es" : ""}`);
-    if (prs > 0) items.push(`${prs} PR${prs > 1 ? "s" : ""}`);
-    if (deploys > 0) items.push(`${deploys} deploy${deploys > 1 ? "s" : ""}`);
+    if (pushes > 0) items.push(`<strong>${pushes}</strong> push${pushes > 1 ? "es" : ""}`);
+    if (prs > 0) items.push(`<strong>${prs}</strong> PR${prs > 1 ? "s" : ""}`);
+    if (deploys > 0) items.push(`<strong>${deploys}</strong> deploy${deploys > 1 ? "s" : ""}`);
     if (items.length > 0) {
       lines.push(`GitHub activity in the last 24h: ${items.join(", ")}.`);
     }
@@ -352,12 +354,12 @@ function generateDeterministicBriefing(
   if (standupMatch) {
     const [, submitted, pending] = standupMatch.map(Number);
     if (pending > 0) {
-      lines.push(`${pending} teammate${pending > 1 ? "s" : ""} haven't submitted their standup yet.`);
+      lines.push(`<strong>${pending}</strong> teammate${pending > 1 ? "s" : ""} haven't submitted their standup yet.`);
     }
   }
 
   lines.push("\nHave a productive day.");
-  return lines.join("\n");
+  return lines.join("<br>");
 }
 
 // ── Route handler ───────────────────────────────────────────────────────────
