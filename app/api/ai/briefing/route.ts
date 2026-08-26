@@ -238,6 +238,33 @@ async function gatherContext(userId: string, roleTitle: string) {
   return sections.join("\n");
 }
 
+// ── Clean up AI response ───────────────────────────────────────────────────
+function cleanBriefing(raw: string): string {
+  if (!raw) return "";
+
+  let text = raw;
+
+  // Strip thinking blocks (<think>...</think> or similar)
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  text = text.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
+
+  // Strip lines that look like thinking/analysis
+  text = text.replace(/^\s*(?:Here'?s a thinking process|Let me|I need to|First,|Analysis:|Step \d|\d+\.\s*(?:Analyze|Deconstruct|Review|Check)).*$/gim, "");
+
+  // Remove markdown asterisks (but not HTML strong tags)
+  text = text.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/\*([^*]+?)\*/g, "$1");
+
+  // Remove markdown headers
+  text = text.replace(/^#{1,6}\s+/gm, "");
+
+  // Clean up extra whitespace and empty lines
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+
+  return text;
+}
+
 // ── AI briefing generator ───────────────────────────────────────────────────
 async function generateBriefing(
   roleTitle: string,
@@ -259,9 +286,11 @@ async function generateBriefing(
     `Start with a brief greeting appropriate for the time of day.`,
     `Highlight the most important items requiring attention, organized by priority.`,
     `Use the workspace data provided to give specific, concrete information.`,
-    `Do NOT use markdown formatting like asterisks or hashes.`,
-    `Use HTML <strong> tags for bold text on key items (names, counts, statuses).`,
-    `Write in plain text with line breaks between sections.`,
+    `Do NOT include any thinking, reasoning, or analysis.`,
+    `Do NOT use markdown like asterisks, hashes, or code blocks.`,
+    `Do NOT use double asterisks for bold. Instead use HTML <strong> tags.`,
+    `Output ONLY the final briefing text. No preamble, no thinking.`,
+    `Format: plain text with <strong> for bold and <br> for line breaks.`,
     `Be concise — this should be readable in 30 seconds.`,
   ].join(" ");
 
@@ -291,10 +320,8 @@ async function generateBriefing(
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    return (
-      data.choices?.[0]?.message?.content?.trim() ??
-      generateDeterministicBriefing(roleTitle, userName, context)
-    );
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+    return cleanBriefing(raw) || generateDeterministicBriefing(roleTitle, userName, context);
   } catch {
     return generateDeterministicBriefing(roleTitle, userName, context);
   }
