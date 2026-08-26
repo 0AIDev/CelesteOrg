@@ -136,12 +136,7 @@ function SignInForm() {
           <SubmitButton disabled={!canSubmit} />
         </form>
 
-        <p className="mt-6 text-center text-[13px] text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/onboarding" className="font-medium text-gray-900 hover:underline">
-            Create account
-          </Link>
-        </p>
+
       </div>
     </div>
   );
