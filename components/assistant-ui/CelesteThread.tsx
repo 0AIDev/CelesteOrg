@@ -107,6 +107,17 @@ function Chat({ onClose }: { onClose: () => void }) {
           ...prev,
           { role: "assistant", content: "Sorry, I couldn't generate a response. Please try again." },
         ]);
+      } else {
+        // Clean the final response
+        const cleaned = cleanResponse(assistantContent);
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last?.role === "assistant") {
+            last.content = cleaned;
+          }
+          return updated;
+        });
       }
     } catch {
       setMessages((prev) => [
@@ -200,47 +211,51 @@ function Chat({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Message bubble */
+/** Clean thinking process from AI response */
+function cleanResponse(text: string): string {
+  if (!text) return "";
+  let cleaned = text;
+  // Strip thinking blocks
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  cleaned = cleaned.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
+  // Strip lines that look like thinking
+  cleaned = cleaned.replace(/^\s*(?:Here'?s a thinking|Let me|I need to|First,|Analysis:|Step \d|\d+\.\s*(?:Analyze|Deconstruct|Check|Formulate)).*$/gim, "");
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+  return cleaned;
+}
+
+/** Message bubble — clean, no background, no avatar */
 function MessageBubble({ message }: { message: Message }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
+  const content = isUser ? message.content : cleanResponse(message.content);
 
   function copyToClipboard() {
-    navigator.clipboard.writeText(message.content);
+    navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  if (!content) return null;
+
   return (
-    <div className={cn("group flex gap-3", isUser && "flex-row-reverse")}>
+    <div className={cn("group", isUser ? "text-right" : "text-left")}>
       <div
         className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-          isUser ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600",
+          "inline-block max-w-[85%] whitespace-pre-wrap text-[13px] leading-relaxed",
+          isUser ? "text-gray-900" : "text-gray-700",
         )}
-      >
-        {isUser ? "You" : "AI"}
-      </div>
-      <div className={cn("max-w-[80%]", isUser && "text-right")}>
-        <div
-          className={cn(
-            "whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
-            isUser
-              ? "rounded-br-md bg-gray-900 text-white"
-              : "rounded-bl-md border border-gray-100 bg-white text-gray-800 shadow-sm",
-          )}
-          dangerouslySetInnerHTML={{ __html: message.content }}
-        />
-        {!isUser && (
-          <button
-            onClick={copyToClipboard}
-            className="mt-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
-          >
-            {copied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
-            {copied ? "Copied" : "Copy"}
-          </button>
-        )}
-      </div>
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+      {!isUser && (
+        <button
+          onClick={copyToClipboard}
+          className="mt-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
+        >
+          {copied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      )}
     </div>
   );
 }
