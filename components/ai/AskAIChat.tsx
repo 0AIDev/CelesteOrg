@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { ArrowUp, Loader2, X } from "lucide-react";
 import { askAi } from "@/app/actions/ai-assistant";
 import { StreamingText, type Segment } from "@/components/elements/streaming-text";
+import { ThinkingIndicator } from "@/components/elements/thinking-indicator";
 import { cn } from "@/lib/utils";
 
 type Msg = {
@@ -31,8 +32,11 @@ export function AskAIChat({
   const [thinking, setThinking] = useState(false);
   const [streamingIdx, setStreamingIdx] = useState<number | null>(null);
   const [streamCount, setStreamCount] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [thinkingLabel, setThinkingLabel] = useState("Thinking…");
   const listRef = useRef<HTMLDivElement>(null);
   const streamTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (listRef.current) {
@@ -40,12 +44,36 @@ export function AskAIChat({
     }
   }, [msgs, thinking, streamCount]);
 
-  // Cleanup streaming timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (streamTimerRef.current) clearInterval(streamTimerRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
   }, []);
+
+  // Start elapsed timer when thinking begins
+  useEffect(() => {
+    if (thinking) {
+      setElapsed(0);
+      setThinkingLabel("Thinking…");
+      elapsedTimerRef.current = setInterval(() => {
+        setElapsed((prev) => prev + 1);
+      }, 1000);
+      // Cycle through labels
+      const labels = ["Thinking…", "Reading workspace data…", "Analyzing context…", "Drafting a reply…"];
+      let labelIdx = 0;
+      const labelTimer = setInterval(() => {
+        labelIdx = (labelIdx + 1) % labels.length;
+        setThinkingLabel(labels[labelIdx]);
+      }, 2500);
+      return () => {
+        clearInterval(labelTimer);
+      };
+    } else {
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    }
+  }, [thinking]);
 
   const startStream = useCallback((text: string, msgIndex: number) => {
     // Split into words for streaming
@@ -217,9 +245,11 @@ export function AskAIChat({
 
             {thinking && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-4 py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  <span className="text-[12px] text-gray-400">Thinking…</span>
+                <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-4 py-3">
+                  <ThinkingIndicator
+                    label={thinkingLabel}
+                    elapsed={elapsed > 0 ? `${elapsed}s` : undefined}
+                  />
                 </div>
               </div>
             )}
