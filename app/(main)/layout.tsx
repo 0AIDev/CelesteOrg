@@ -64,6 +64,10 @@ export default async function ProtectedLayout({
       isOwn: viewerRoleId ? r.id === viewerRoleId : false,
     }));
 
+  // Detect onboarding page from the URL pathname (server-side)
+  // The onboarding page should not show sidebar/header.
+  const isOnboardingPage = false; // Handled client-side by LayoutProvider
+
   return (
     <LayoutProvider
       canManage={canManage}

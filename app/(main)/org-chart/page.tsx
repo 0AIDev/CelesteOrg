@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { OrgChartClient } from "@/components/org/OrgChartClient";
+import { OrgChartLazy } from "@/components/org/OrgChartLazy";
 import type { OrgNode } from "@/lib/types";
 
 export const metadata = { title: "Org Chart" };
@@ -26,7 +26,8 @@ export default async function OrgChartPage({
   ]);
 
   // Fetch profiles who hold roles (for the tree).
-  const profileIds = roles?.map((r) => r.profile_id) ?? [];
+  // Filter out null profile_ids — roles without an assigned person are skipped.
+  const profileIds = (roles?.map((r) => r.profile_id).filter(Boolean) as string[]) ?? [];
   const { data: profiles } = profileIds.length
     ? await supabase
         .from("profiles")
@@ -40,6 +41,7 @@ export default async function OrgChartPage({
         .from("profile_notes")
         .select("subject_id, note")
         .eq("author_id", user.id)
+        .then((r) => (r.error ? { data: [] } : r))
     : { data: [] as { subject_id: string; note: string }[] };
   const noteBySubject = new Map(myNotes?.map((n) => [n.subject_id, n.note]) ?? []);
 
@@ -92,7 +94,7 @@ export default async function OrgChartPage({
     .map((r) => byRole.get(r.id)!);
 
   return (
-    <OrgChartClient
+    <OrgChartLazy
       trees={roots}
       departments={
         departments?.map((d) => ({

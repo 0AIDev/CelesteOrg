@@ -1,7 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, createContext, useContext, useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { InviteModal } from "@/components/teams/InviteModal";
@@ -29,12 +28,14 @@ export function LayoutProvider({
   canManage,
   isOnboarded,
   dashboards,
+  onboardingMode = false,
   children,
 }: {
   user: SessionUser | null;
   canManage?: boolean;
   isOnboarded?: boolean;
   dashboards?: { slug: string; title: string; isOwn?: boolean }[];
+  onboardingMode?: boolean;
   children: React.ReactNode;
 }) {
   // Persisted UI state — sidebar and Ask AI panels remember their last state
@@ -46,8 +47,7 @@ export function LayoutProvider({
   const [eodOpen, setEodOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [revision, setRevision] = useState(0);
-  const pathname = usePathname();
-  const onboardingMode = pathname.startsWith("/onboarding");
+
 
   useEffect(() => {
     try {
@@ -80,6 +80,7 @@ export function LayoutProvider({
     <SessionContext.Provider
       value={{ user, refresh: () => setRevision((r) => r + 1) }}
     >
+    <Suspense fallback={<div className="flex min-h-screen bg-white"><div className="flex min-w-0 flex-1 flex-col"><main className="flex-1">{children}</main></div></div>}>
       <div className="flex min-h-screen bg-white">
         {!onboardingMode && (
           <Sidebar
@@ -122,6 +123,7 @@ export function LayoutProvider({
         {/* Ask AI — right column, pushes the main content when open */}
         <AskAIChat open={aiOpen} onOpenChange={setAiOpen} />
       </div>
+    </Suspense>
     </SessionContext.Provider>
   );
 }

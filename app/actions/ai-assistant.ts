@@ -313,16 +313,16 @@ export async function askAi(question: string): Promise<Answer> {
     `Team:\n${members.map((m: Record<string, unknown>) => `- ${m.full_name}${m.role_title ? ` (${m.role_title})` : ""}${m.is_founder ? " [founder]" : ""}`).join("\n")}`,
   ].join("\n\n");
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
   if (apiKey) {
     try {
       // First LLM call — decide if tool use is needed
-      const firstRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      const firstRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -368,11 +368,11 @@ export async function askAi(question: string): Promise<Answer> {
       }
 
       // Second LLM call — synthesize the final answer
-      const secondRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      const secondRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -432,16 +432,16 @@ function deterministicAnswer(q: string, context: string): string {
     return teamLines.length ? `Team (${teamLines.length}+ people):\n${teamLines.join("\n")}` : "Can't read the team right now.";
   }
   if (/(create|schedule|add|new).*(event|meeting|calendar)/.test(t)) {
-    return "I can create events! Try: \"Create a meeting tomorrow at 10am called Team Sync\"\n(I need the OpenAI API key to process natural language commands.)";
+    return "I can create events! Try: \"Create a meeting tomorrow at 10am called Team Sync\"\nI'll process natural language commands using Groq AI.";
   }
   if (/(invite|send).*(invite|link)/.test(t)) {
-    return "I can send invites! Try: \"Invite john@example.com as Head of Marketing\"\n(I need the OpenAI API key to process natural language commands.)";
+    return "I can send invites! Try: \"Invite john@example.com as Head of Marketing\"\nI'll process natural language commands using Groq AI.";
   }
   if (/(submit|add|new).*(idea|suggestion)/.test(t)) {
-    return "I can submit ideas! Try: \"Add an idea: Improve onboarding docs, high priority\"\n(I need the OpenAI API key to process natural language commands.)";
+    return "I can submit ideas! Try: \"Add an idea: Improve onboarding docs, high priority\"\nI'll process natural language commands using Groq AI.";
   }
   if (/(approve|reject)/.test(t)) {
-    return "I can approve requests! Try: \"Approve the vacation request from Mattia\"\n(I need the OpenAI API key to process natural language commands.)";
+    return "I can approve requests! Try: \"Approve the vacation request from Mattia\"\nI'll process natural language commands using Groq AI.";
   }
 
   return [
