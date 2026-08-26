@@ -10,12 +10,17 @@ import {
   List,
   ChatsCircle,
   Circle,
+  Users,
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
   getChannels,
   createChannel,
   deleteChannel,
+  getChannelMembers,
+  addChannelMember,
+  removeChannelMember,
+  canManageChannel,
   getMessages,
   sendMessage,
   deleteMessage,
@@ -27,6 +32,7 @@ import {
   type ChatMessage,
   type DmConversation,
   type DirectMessage,
+  type ChannelMember,
 } from "@/app/actions/chat-actions";
 import { useSession } from "@/components/layout/LayoutProvider";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
@@ -45,6 +51,10 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   const [showNewChannel, setShowNewChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
+  const [channelMembers, setChannelMembers] = useState<ChannelMember[]>([]);
+  const [showMembers, setShowMembers] = useState(false);
+  const [canManage, setCanManage] = useState(false);
+  const [addMemberId, setAddMemberId] = useState("");
 
   // DM state
   const [dmConversations, setDmConversations] = useState<DmConversation[]>([]);
@@ -88,6 +98,9 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   useEffect(() => {
     if (!activeChannel) return;
     getMessages(activeChannel.id).then(setMessages);
+    // Load channel members and permissions
+    getChannelMembers(activeChannel.id).then(setChannelMembers);
+    canManageChannel(activeChannel.id).then(setCanManage);
   }, [activeChannel]);
 
   // Load DM messages when peer changes
@@ -295,6 +308,23 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
       if (activeChannel?.id === ch.id) {
         setActiveChannel(channels.find((c) => c.id !== ch.id) ?? null);
       }
+    }
+  }
+
+  async function handleAddMember() {
+    if (!activeChannel || !addMemberId.trim()) return;
+    const res = await addChannelMember(activeChannel.id, addMemberId.trim());
+    if (res.ok) {
+      getChannelMembers(activeChannel.id).then(setChannelMembers);
+      setAddMemberId("");
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!activeChannel) return;
+    const res = await removeChannelMember(activeChannel.id, userId);
+    if (res.ok) {
+      setChannelMembers((prev) => prev.filter((m) => m.user_id !== userId));
     }
   }
 
@@ -531,9 +561,61 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                   <p className="text-[11px] text-gray-400">{currentDescription}</p>
                 )}
               </div>
+              {viewMode === "channels" && activeChannel && (
+                <button
+                  onClick={() => setShowMembers(!showMembers)}
+                  className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] text-gray-600 hover:bg-gray-50"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  {channelMembers.length} members
+                </button>
+              )}
             </>
           )}
         </div>
+
+        {/* Channel Members Panel */}
+        {showMembers && viewMode === "channels" && activeChannel && (
+          <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[12px] font-medium text-gray-700">Channel Members</p>
+              <button onClick={() => setShowMembers(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {channelMembers.map((m) => (
+                <div key={m.user_id} className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1">
+                  <SquircleAvatar name={m.user?.full_name} src={m.user?.avatar_url} size="xs" className="h-4 w-4 text-[7px]" />
+                  <span className="text-[11px] text-gray-600">{m.user?.full_name ?? "Unknown"}</span>
+                  {m.role === "admin" && <span className="text-[9px] text-gray-400">(admin)</span>}
+                  {canManage && m.user_id !== user?.id && (
+                    <button onClick={() => handleRemoveMember(m.user_id)} className="ml-0.5 text-gray-300 hover:text-red-500">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {canManage && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={addMemberId}
+                  onChange={(e) => setAddMemberId(e.target.value)}
+                  placeholder="User ID to add..."
+                  className="h-7 flex-1 rounded-lg border border-gray-200 px-2 text-[11px] outline-none focus:border-gray-300"
+                />
+                <button
+                  onClick={handleAddMember}
+                  disabled={!addMemberId.trim()}
+                  className="h-7 rounded-lg bg-gray-900 px-2.5 text-[11px] font-medium text-white hover:bg-gray-800 disabled:opacity-40"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">

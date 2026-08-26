@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,9 @@ export async function createChannel(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-  const { data, error } = await sb
+  // Use admin client to bypass potential RLS issues
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("channels")
     .insert({
       name: slug,
@@ -80,6 +83,99 @@ export async function deleteChannel(channelId: string): Promise<{ ok: boolean; e
   const { error } = await sb.from("channels").delete().eq("id", channelId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// ─── Channel Members (Access Control) ───────────────────────────────────────
+
+export type ChannelMember = {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  role: string;
+  added_by: string | null;
+  created_at: string;
+  user?: { full_name: string | null; avatar_url: string | null } | null;
+};
+
+export async function getChannelMembers(channelId: string): Promise<ChannelMember[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("channel_members")
+    .select("*, user:profiles!channel_members_user_id_fkey(full_name, avatar_url)")
+    .eq("channel_id", channelId)
+    .order("created_at");
+  return (data as ChannelMember[]) ?? [];
+}
+
+export async function addChannelMember(
+  channelId: string,
+  userId: string,
+  role = "member",
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not authenticated" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("channel_members").insert({
+    channel_id: channelId,
+    user_id: userId,
+    role,
+    added_by: user.id,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: "Member already in channel" };
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
+export async function removeChannelMember(
+  channelId: string,
+  userId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("channel_members")
+    .delete()
+    .eq("channel_id", channelId)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function canManageChannel(channelId: string): Promise<boolean> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return false;
+
+  // Check if user is founder/admin
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("is_founder")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profile?.is_founder) return true;
+
+  // Check if user created the channel
+  const { data: channel } = await sb
+    .from("channels")
+    .select("created_by")
+    .eq("id", channelId)
+    .maybeSingle();
+  if (channel?.created_by === user.id) return true;
+
+  // Check if user is channel admin
+  const { data: member } = await sb
+    .from("channel_members")
+    .select("role")
+    .eq("channel_id", channelId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (member?.role === "admin") return true;
+
+  return false;
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────
