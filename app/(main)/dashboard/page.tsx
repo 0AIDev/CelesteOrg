@@ -111,6 +111,8 @@ export default async function DashboardPage({
       <DashboardClient
         range={range}
         firstName={firstName}
+        userId={profile?.id ?? null}
+        roleTitle={profile?.role_title ?? null}
         stats={{
           approvals: pendingApprovals?.length ?? 0,
           timeOff: todayEvents?.filter((e) => e.type === "vacation" || e.type === "remote").length ?? 0,

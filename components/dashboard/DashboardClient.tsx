@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { reviewApproval } from "@/app/actions/approval-actions";
 import { MorningModal, EodModal } from "@/components/reports/ReportModals";
 import { DateRangePicker, type DateRange } from "@/components/ui/DateRangePicker";
+import { MorningBriefing } from "@/components/dashboard/MorningBriefing";
 import { relativeTime } from "@/lib/utils";
 import { useUrlParam } from "@/lib/useUrlParam";
 
@@ -68,6 +69,8 @@ export function DashboardClient({
   ideas,
   activity,
   reportStatus,
+  userId,
+  roleTitle,
 }: {
   range: DateRange;
   firstName: string;
@@ -78,6 +81,8 @@ export function DashboardClient({
   ideas: { id: string; title: string; category: string | null }[];
   activity: ActivityItem[];
   reportStatus: { morningDone: boolean; eodDone: boolean; date: string };
+  userId?: string | null;
+  roleTitle?: string | null | undefined;
 }) {
   const router = useRouter();
   const [, setFromParam] = useUrlParam("from");
@@ -131,6 +136,17 @@ export function DashboardClient({
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5">
+      {/* AI Morning Briefing */}
+      {userId && (
+        <div className="mb-4">
+          <MorningBriefing
+            userId={userId}
+            roleTitle={roleTitle}
+            userName={firstName}
+          />
+        </div>
+      )}
+
       {/* Header — one glance */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
