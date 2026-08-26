@@ -24,7 +24,7 @@ export function MorningBriefing({
 
   // Generate briefing on mount (with session cache)
   useEffect(() => {
-    if (!userId || !roleTitle) return;
+    if (!userId) return;
 
     // Check session cache first
     try {
@@ -52,7 +52,7 @@ export function MorningBriefing({
       const res = await fetch("/api/ai/briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, roleTitle, userName }),
+        body: JSON.stringify({ userId, roleTitle: roleTitle ?? "Team Member", userName }),
       });
       const data = await res.json();
       if (data.ok && data.briefing) {

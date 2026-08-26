@@ -271,7 +271,7 @@ async function generateBriefing(
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "qwen/qwen3.6-27b",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -363,11 +363,14 @@ function generateDeterministicBriefing(
 // ── Route handler ───────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { userId, roleTitle, userName } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const userId = body.userId as string | undefined;
+    const roleTitle = (body.roleTitle as string) || "Team Member";
+    const userName = (body.userName as string) || "there";
 
-    if (!userId || !roleTitle) {
+    if (!userId) {
       return NextResponse.json(
-        { error: "userId and roleTitle are required" },
+        { error: "userId is required" },
         { status: 400 },
       );
     }
