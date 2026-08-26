@@ -9,6 +9,7 @@ import { CommandMenu } from "@/components/ui/CommandMenu";
 import { AskAIChat } from "@/components/ai/AskAIChat";
 import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 import { AIProvider } from "@/components/ai/AIProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 type SessionUser = {
   id: string;
@@ -70,6 +71,7 @@ export function LayoutProvider({
     <SessionContext.Provider
       value={{ user, refresh: () => setRevision((r) => r + 1) }}
     >
+    <ThemeProvider>
     <AIProvider>
     <Suspense fallback={<div className="flex min-h-screen bg-white"><div className="flex min-w-0 flex-1 flex-col"><main className="flex-1">{children}</main></div></div>}>
       <div className="flex min-h-screen bg-white">
@@ -119,6 +121,7 @@ export function LayoutProvider({
       </div>
     </Suspense>
     </AIProvider>
+    </ThemeProvider>
     </SessionContext.Provider>
   );
 }

@@ -13,12 +13,15 @@ import {
   Eye,
   EyeSlash,
   Camera,
+  Moon,
+  Sun,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { Input } from "./Input";
 import { createClient } from "@/lib/supabase/client";
 import { updateProfile, changePassword } from "@/app/actions/settings-actions";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 type Profile = {
   full_name: string;
@@ -32,6 +35,7 @@ const TABS = [
   { value: "profile", label: "Profile", icon: UserCircle },
   { value: "security", label: "Security", icon: ShieldCheck },
   { value: "notifications", label: "Notifications", icon: Bell },
+  { value: "appearance", label: "Appearance", icon: Moon },
 ];
 
 export function SettingsClient({
@@ -79,6 +83,9 @@ export function SettingsClient({
           </Tabs.Content>
           <Tabs.Content value="notifications">
             <NotificationsTab />
+          </Tabs.Content>
+          <Tabs.Content value="appearance">
+            <AppearanceTab />
           </Tabs.Content>
         </div>
       </Tabs.Root>
@@ -360,9 +367,63 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 
 function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-900">
+    <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-900 dark:text-gray-100">
       <span className="text-gray-400">{icon}</span>
       {title}
+    </div>
+  );
+}
+
+function AppearanceTab() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle icon={<Moon className="h-4 w-4" />} title="Appearance" />
+      
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Dark mode</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isDark ? "Currently using dark theme" : "Currently using light theme"}
+            </p>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={`relative h-7 w-12 rounded-full transition-colors ${isDark ? "bg-gray-900" : "bg-gray-200"}`}
+            aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
+          >
+            <span
+              className={`absolute top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition-all ${isDark ? "left-[22px]" : "left-0.5"}`}
+            >
+              {isDark ? (
+                <Moon className="h-3.5 w-3.5 text-gray-700" />
+              ) : (
+                <Sun className="h-3.5 w-3.5 text-gray-500" />
+              )}
+            </span>
+          </button>
+        </div>
+
+        {/* Preview */}
+        <div className="mt-5 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">Preview</p>
+          <div className={`rounded-xl p-4 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+            <div className={`flex items-center gap-3 ${isDark ? "text-white" : "text-gray-900"}`}>
+              <div className={`h-10 w-10 rounded-full ${isDark ? "bg-gray-700" : "bg-gray-200"}`} />
+              <div>
+                <p className="text-sm font-medium">Mattia Ciuni</p>
+                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Chief Executive Officer</p>
+              </div>
+            </div>
+            <div className={`mt-3 rounded-lg p-3 ${isDark ? "bg-gray-800" : "bg-white"}`}>
+              <p className={`text-[13px] ${isDark ? "text-gray-300" : "text-gray-600"}`}>This is how content will appear in dark mode.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
