@@ -17,7 +17,6 @@ import {
 // ── Step definitions ──────────────────────────────────────────────────────
 const STEPS_WITH_ACCOUNT = [
   { id: "welcome", label: "Welcome" },
-  { id: "account", label: "Account" },
   { id: "identity", label: "Profile" },
   { id: "role", label: "Role" },
   { id: "team", label: "Team" },
@@ -27,6 +26,7 @@ const STEPS_WITH_ACCOUNT = [
   { id: "tech", label: "Tech" },
   { id: "preferences", label: "Style" },
   { id: "nda", label: "Agreement" },
+  { id: "account", label: "Create Account" },
 ];
 
 const STEPS_WITHOUT_ACCOUNT = [
@@ -216,7 +216,11 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
     return false;
   }
 
+  // Account step is now last — check if it's the last step
+  const isAccountLast = needsAccount && step === STEP_META.length - 1;
+
   const isLast = step === STEP_META.length - 1;
+  // For account step at the end, show "Create account & finish"
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-white">
@@ -510,7 +514,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           </div>
           <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
             className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">
-            {busy ? "Saving…" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
+            {busy ? "Saving…" : isAccountLast ? "Create account" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
           </button>
         </div>
       </div>
