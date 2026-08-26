@@ -216,8 +216,21 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   function isNextDisabled() {
     const id = STEP_META[step]?.id;
     if (busy) return true;
+    // Account step (last) — all fields required
     if (id === "account" && needsAccount) return !s0.full_name.trim() || !s0.email.trim() || s0.password.length < 8;
+    // Profile step — name required
     if (id === "identity") return !s1.full_name.trim();
+    // Role step — department required
+    if (id === "role") return !departmentId;
+    // Goals step — at least first week goal required
+    if (id === "goals") return !goals.first_week.trim();
+    // Tools step — at least one tool required
+    if (id === "tools") return toolsAccess.length === 0;
+    // Tech step — language required
+    if (id === "tech") return !s3.primary_language;
+    // Preferences step — communication required
+    if (id === "preferences") return !s4.communication_channel;
+    // NDA step — agreement + typed name required
     if (id === "nda" && !s5.signed) return !s5.agreed || !s5.typed_name.trim();
     return false;
   }
@@ -317,7 +330,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {/* ═══════════ Role — card grid ═══════════ */}
           {isNormalStep("role") && (
             <div className="space-y-4">
-              <Field label="Department">
+              <Field label="Department" required>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {(data?.departments ?? []).map((d) => (
                     <button key={d.id} type="button" onClick={() => setDepartmentId(d.id)}
@@ -327,6 +340,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                     </button>
                   ))}
                 </div>
+                {!departmentId && <p className="mt-1.5 text-[11px] text-red-500">Select a department to continue</p>}
               </Field>
               <Field label="Role title">
                 <input className="input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Software Engineer" />
@@ -357,8 +371,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {/* ═══════════ Goals ═══════════ */}
           {isNormalStep("goals") && (
             <div className="space-y-4">
-              <Field label="Goals for the first week">
+              <Field label="Goals for the first week" required>
                 <textarea className="input resize-none" rows={2} value={goals.first_week} onChange={(e) => setGoals({ ...goals, first_week: e.target.value })} placeholder="e.g. Set up dev environment, meet the team" />
+                {!goals.first_week.trim() && <p className="mt-1.5 text-[11px] text-red-500">At least one goal is required</p>}
               </Field>
               <Field label="Goals for the first 30 days">
                 <textarea className="input resize-none" rows={2} value={goals.first_30_days} onChange={(e) => setGoals({ ...goals, first_30_days: e.target.value })} placeholder="e.g. Ship first feature, understand architecture" />
@@ -398,7 +413,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {/* ═══════════ Tools ═══════════ */}
           {isNormalStep("tools") && (
             <div className="space-y-4">
-              <Field label="Which tools do you use daily?">
+              <Field label="Which tools do you use daily?" required>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {toolList.map((tool) => (
                     <button key={tool.name} type="button" onClick={() => toggleTool(tool.name)}
@@ -408,6 +423,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                     </button>
                   ))}
                 </div>
+                {toolsAccess.length === 0 && <p className="mt-1.5 text-[11px] text-red-500">Select at least one tool to continue</p>}
               </Field>
             </div>
           )}
@@ -513,17 +529,11 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
         {/* ── Navigation: Back left, Next button right ─────────────── */}
         <div className="flex items-center justify-between py-6">
-          <div className="flex items-center gap-3">
+          <div>
             {step > 0 && (
               <button type="button" onClick={goPrev}
                 className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
                 Back
-              </button>
-            )}
-            {!["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
-              <button type="button" onClick={goNext}
-                className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
-                Skip
               </button>
             )}
           </div>
