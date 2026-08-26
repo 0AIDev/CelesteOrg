@@ -30,7 +30,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed bottom-5 right-5 z-[9999] w-[340px] animate-fade-in">
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:bg-[#161616] dark:border-[rgba(255,255,255,0.1)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <h3 className="text-sm font-semibold text-gray-900">Your feedback</h3>
@@ -64,8 +64,8 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
                   onClick={() => setCategory(c)}
                   className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                     category === c
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      ? "bg-white text-black dark:bg-white dark:text-black"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-[rgba(255,255,255,0.08)] dark:text-gray-400 dark:hover:bg-[rgba(255,255,255,0.12)]"
                   }`}
                 >
                   {c}
@@ -97,7 +97,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
               <button
                 onClick={submit}
                 disabled={saving || content.trim().length < 3}
-                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-gray-200"
               >
                 {saving ? (
                   <Spinner className="h-3 w-3 animate-spin" />
