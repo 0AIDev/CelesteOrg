@@ -492,24 +492,26 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {/* Error */}
         {err && <p className="mt-3 text-center text-xs text-red-600">{err}</p>}
 
-        {/* ── Navigation: Back + Next + Skip — all plain text ──────── */}
-        <div className="flex items-center gap-3 py-6">
-          {step > 0 && (
-            <button type="button" onClick={goPrev}
-              className="text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
-              Back
-            </button>
-          )}
+        {/* ── Navigation: Back left, Next button right ─────────────── */}
+        <div className="flex items-center justify-between py-6">
+          <div className="flex items-center gap-3">
+            {step > 0 && (
+              <button type="button" onClick={goPrev}
+                className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                Back
+              </button>
+            )}
+            {!["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
+              <button type="button" onClick={goNext}
+                className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                Skip
+              </button>
+            )}
+          </div>
           <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
-            className="text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-            {busy ? "Saving…" : isLast ? (s5.signed ? "Continue to dashboard" : "Sign & finish") : "Next"}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">
+            {busy ? "Saving…" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
           </button>
-          {!["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
-            <button type="button" onClick={goNext}
-              className="text-[13px] font-medium text-gray-400 hover:text-gray-600 transition-colors">
-              Skip
-            </button>
-          )}
         </div>
       </div>
 
