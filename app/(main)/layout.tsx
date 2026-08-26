@@ -77,9 +77,11 @@ export default async function ProtectedLayout({
       // Generic roles like "Teammate" → use "Name Dashboard"
       // Named roles like "CEO" → use "CEO Dashboard"
       const isGenericRole = ["teammate", "member", "user"].includes(r.title.toLowerCase());
-      const title = isGenericRole && firstName
+      let title = isGenericRole && firstName
         ? `${firstName} Dashboard`
         : `${roleName} Dashboard`;
+      // Prevent double "Dashboard" in title
+      title = title.replace(/Dashboard\s*Dashboard/gi, "Dashboard").trim();
       return {
         slug: r.id,
         title,

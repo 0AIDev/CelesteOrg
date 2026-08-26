@@ -170,20 +170,28 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         },
         (payload) => {
           const newMsg = payload.new as ChatMessage;
-          sb.from("profiles")
-            .select("full_name, avatar_url")
-            .eq("id", newMsg.sender_id)
-            .single()
-            .then(({ data }) => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  ...newMsg,
-                  sender_name: data?.full_name ?? "Unknown",
-                  sender_avatar: data?.avatar_url ?? null,
-                },
-              ]);
-            });
+          // Deduplicate: skip if already in state (optimistic add)
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            sb.from("profiles")
+              .select("full_name, avatar_url")
+              .eq("id", newMsg.sender_id)
+              .single()
+              .then(({ data }) => {
+                setMessages((curr) => {
+                  if (curr.some((m) => m.id === newMsg.id)) return curr;
+                  return [
+                    ...curr,
+                    {
+                      ...newMsg,
+                      sender_name: data?.full_name ?? "Unknown",
+                      sender_avatar: data?.avatar_url ?? null,
+                    },
+                  ];
+                });
+              });
+            return prev;
+          });
         },
       )
       .on(
