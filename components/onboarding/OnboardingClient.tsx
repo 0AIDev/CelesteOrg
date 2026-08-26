@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Spinner } from "@phosphor-icons/react";
+import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle } from "@phosphor-icons/react";
 
 import {
   createAccount,
@@ -251,13 +251,13 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {(isAccountStep("welcome") || isNormalStep("welcome")) && (
             <div className="space-y-4">
               {[
-                { icon: "✦", text: "Your internal company workspace — everything in one place." },
-                { icon: "◎", text: "Org chart, calendar, documents, approvals, chat, and AI." },
-                { icon: "⚡", text: "Built for fast-moving teams who want to stay aligned." },
-                { icon: "⌘", text: "Use ⌘K to search anything, Ask Celeste for AI help." },
+                { icon: <House weight="bold" className="h-4 w-4" />, text: "Your internal company workspace — everything in one place." },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "Org chart, calendar, documents, approvals, chat, and AI." },
+                { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: "Built for fast-moving teams who want to stay aligned." },
+                { icon: <Command weight="bold" className="h-4 w-4" />, text: "Use ⌘K to search anything, Ask Celeste for AI help." },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
-                  <span className="text-gray-400 text-sm">{item.icon}</span>
+                  <span className="text-gray-400">{item.icon}</span>
                   <span className="text-sm text-gray-700">{item.text}</span>
                 </div>
               ))}
@@ -326,13 +326,13 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {isNormalStep("team") && (
             <div className="space-y-4">
               {[
-                { icon: "◎", text: "Every person has a role in the Org Chart — see who reports to whom" },
-                { icon: "✦", text: "Your direct manager is assigned by the CEO or department head" },
-                { icon: "⚡", text: "Message anyone directly from their profile in the Org Chart" },
-                { icon: "⌘", text: "Join #general, #engineering, and your department channel" },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "Every person has a role in the Org Chart — see who reports to whom" },
+                { icon: <Check weight="bold" className="h-4 w-4" />, text: "Your direct manager is assigned by the CEO or department head" },
+                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, text: "Message anyone directly from their profile in the Org Chart" },
+                { icon: <House weight="bold" className="h-4 w-4" />, text: "Join #general, #engineering, and your department channel" },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
-                  <span className="text-gray-400 text-sm">{item.icon}</span>
+                  <span className="text-gray-400">{item.icon}</span>
                   <span className="text-sm text-gray-700">{item.text}</span>
                 </div>
               ))}
@@ -366,14 +366,14 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           {isNormalStep("culture") && (
             <div className="space-y-4">
               {[
-                { icon: "⚡", text: "Ship fast, iterate faster — done is better than perfect" },
-                { icon: "◎", text: "Default to transparency — share context, not conclusions" },
-                { icon: "✦", text: "Own your work — take initiative, be accountable" },
-                { icon: "⌘", text: "Async-first: write it down before scheduling a meeting" },
-                { icon: "◈", text: "DACI framework: Driver, Approver, Contributors, Informed" },
+                { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: "Ship fast, iterate faster — done is better than perfect" },
+                { icon: <House weight="bold" className="h-4 w-4" />, text: "Default to transparency — share context, not conclusions" },
+                { icon: <Check weight="bold" className="h-4 w-4" />, text: "Own your work — take initiative, be accountable" },
+                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, text: "Async-first: write it down before scheduling a meeting" },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "DACI framework: Driver, Approver, Contributors, Informed" },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
-                  <span className="text-gray-400 text-sm">{item.icon}</span>
+                  <span className="text-gray-400">{item.icon}</span>
                   <span className="text-sm text-gray-700">{item.text}</span>
                 </div>
               ))}
