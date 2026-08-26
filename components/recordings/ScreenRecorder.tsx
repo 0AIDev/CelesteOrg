@@ -13,11 +13,21 @@ import {
   Spinner,
   Check,
   ArrowClockwise,
+  CaretDown,
+  CaretUp,
+  Camera,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { uploadRecording } from "@/app/actions/recording-actions";
 
-type RecorderState = "idle" | "recording" | "paused" | "preview" | "uploading" | "done" | "error";
+type RecorderState =
+  | "idle"
+  | "recording"
+  | "paused"
+  | "preview"
+  | "uploading"
+  | "done"
+  | "error";
 
 // ── Main component ──────────────────────────────────────────────────────────
 export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
@@ -26,6 +36,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   const [error, setError] = useState("");
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [minimized, setMinimized] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -35,6 +46,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   const recordedUrlRef = useRef<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  const pausedDurationRef = useRef<number>(0);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -54,9 +66,10 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     try {
       setError("");
 
-      // Check if getDisplayMedia is supported
       if (!navigator.mediaDevices?.getDisplayMedia) {
-        setError("Screen recording is not supported in this browser. Try Chrome or Edge.");
+        setError(
+          "Screen recording is not supported in this browser. Try Chrome or Edge.",
+        );
         setState("error");
         return;
       }
@@ -72,12 +85,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
 
       streamRef.current = stream;
       chunksRef.current = [];
-
-      // Show live preview
-      if (previewRef.current) {
-        previewRef.current.srcObject = stream;
-        previewRef.current.play();
-      }
+      pausedDurationRef.current = 0;
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
@@ -97,27 +105,31 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
         recordedBlobRef.current = blob;
         recordedUrlRef.current = URL.createObjectURL(blob);
         setState("preview");
+        setMinimized(false);
         if (previewRef.current) {
           previewRef.current.srcObject = null;
           previewRef.current.src = recordedUrlRef.current;
         }
       };
 
-      mediaRecorder.onerror = (e) => {
-        console.error("MediaRecorder error:", e);
+      mediaRecorder.onerror = () => {
         setError("Recording failed. Please try again.");
         setState("error");
         stopRecording();
       };
 
-      mediaRecorder.start(1000); // collect data every second
+      mediaRecorder.start(1000);
       startTimeRef.current = Date.now();
       setState("recording");
+      setMinimized(false);
 
       // Timer
       setDuration(0);
       timerRef.current = setInterval(() => {
-        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        setDuration(
+          Math.floor((Date.now() - startTimeRef.current) / 1000) -
+            Math.floor(pausedDurationRef.current / 1000),
+        );
       }, 1000);
 
       // Handle user stopping the share via browser UI
@@ -140,7 +152,10 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
   // ── Stop recording ────────────────────────────────────────────────────
   function stopRecording() {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
     }
     if (streamRef.current) {
@@ -155,11 +170,18 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     if (mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.pause();
       if (timerRef.current) clearInterval(timerRef.current);
+      pausedDurationRef.current = Date.now();
       setState("paused");
     } else if (mediaRecorderRef.current.state === "paused") {
       mediaRecorderRef.current.resume();
+      // Adjust start time to account for pause duration
+      const pauseLength = Date.now() - pausedDurationRef.current;
+      startTimeRef.current += pauseLength;
+      pausedDurationRef.current = 0;
       timerRef.current = setInterval(() => {
-        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        setDuration(
+          Math.floor((Date.now() - startTimeRef.current) / 1000),
+        );
       }, 1000);
       setState("recording");
     }
@@ -172,7 +194,9 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     recordedUrlRef.current = null;
     chunksRef.current = [];
     setDuration(0);
+    setTitle("");
     setState("idle");
+    setMinimized(false);
   }
 
   // ── Upload to Supabase ────────────────────────────────────────────────
@@ -184,15 +208,13 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     setProgress(0);
     setError("");
 
-    // Check file size before uploading
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 50 * 1024 * 1024;
     if (blob.size > maxSize) {
       setError("Recording too large (max 50MB). Try a shorter recording.");
       setState("error");
       return;
     }
 
-    // Convert blob to base64
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
@@ -235,6 +257,64 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
+  // ── RENDER ────────────────────────────────────────────────────────────
+
+  // FLOATING WIDGET — shown during recording/paused (Loom-style)
+  if ((state === "recording" || state === "paused") && minimized) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-xl">
+          {/* Recording indicator */}
+          <span
+            className={cn(
+              "h-2.5 w-2.5 rounded-full",
+              state === "recording"
+                ? "animate-pulse bg-red-500"
+                : "bg-yellow-400",
+            )}
+          />
+
+          {/* Timer */}
+          <span className="text-sm font-medium tabular-nums text-gray-900">
+            {formatTime(duration)}
+          </span>
+
+          {/* Pause / Resume */}
+          <button
+            onClick={togglePause}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title={state === "recording" ? "Pause" : "Resume"}
+          >
+            {state === "recording" ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </button>
+
+          {/* Stop */}
+          <button
+            onClick={stopRecording}
+            className="rounded-lg bg-red-600 p-1.5 text-white transition-colors hover:bg-red-700"
+            title="Stop recording"
+          >
+            <Stop className="h-4 w-4" />
+          </button>
+
+          {/* Expand */}
+          <button
+            onClick={() => setMinimized(false)}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title="Expand"
+          >
+            <CaretUp className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // FULL MODAL — idle, recording (expanded), paused (expanded), preview, uploading, done, error
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
       <div
@@ -247,22 +327,33 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
             <Monitor className="h-4 w-4 text-gray-400" />
             <h2 className="text-[14px] font-semibold text-gray-900">
               {state === "idle" && "Screen Recorder"}
-              {state === "recording" && "Recording…"}
-              {state === "paused" && "Paused"}
+              {(state === "recording" || state === "paused") && "Recording…"}
               {state === "preview" && "Preview Recording"}
               {state === "uploading" && "Uploading…"}
               {state === "done" && "Recording Saved"}
               {state === "error" && "Error"}
             </h2>
           </div>
-          {onClose && state !== "uploading" && (
-            <button
-              onClick={onClose}
-              className="rounded-md p-1 text-gray-400 hover:bg-gray-100"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {/* Minimize button during recording */}
+            {(state === "recording" || state === "paused") && (
+              <button
+                onClick={() => setMinimized(true)}
+                className="rounded-md p-1 text-gray-400 hover:bg-gray-100"
+                title="Minimize (recording continues)"
+              >
+                <CaretDown className="h-4 w-4" />
+              </button>
+            )}
+            {onClose && state !== "uploading" && (
+              <button
+                onClick={onClose}
+                className="rounded-md p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="p-5">
@@ -273,12 +364,13 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
               className="aspect-video w-full object-contain"
               muted={state === "recording" || state === "paused"}
               playsInline
+              controls={state === "preview"}
             />
 
             {/* Idle state */}
             {state === "idle" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                <Monitor className="h-12 w-12 text-gray-500" />
+                <Camera className="h-12 w-12 text-gray-500" />
                 <p className="mt-3 text-sm text-gray-400">
                   Select a screen or window to record
                 </p>
@@ -291,7 +383,9 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
                 <span
                   className={cn(
                     "h-2 w-2 rounded-full",
-                    state === "recording" ? "animate-pulse bg-red-500" : "bg-yellow-400",
+                    state === "recording"
+                      ? "animate-pulse bg-red-500"
+                      : "bg-yellow-400",
                   )}
                 />
                 <span className="text-xs font-medium text-white tabular-nums">
@@ -345,9 +439,12 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
           {/* File size info */}
           {state === "preview" && recordedBlobRef.current && (
             <p className="mb-3 text-[11px] text-gray-400">
-              Size: {(recordedBlobRef.current.size / (1024 * 1024)).toFixed(1)} MB
+              Size: {(recordedBlobRef.current.size / (1024 * 1024)).toFixed(1)}{" "}
+              MB
               {recordedBlobRef.current.size > 50 * 1024 * 1024 && (
-                <span className="ml-2 text-red-500">(too large, max 50MB)</span>
+                <span className="ml-2 text-red-500">
+                  (too large, max 50MB)
+                </span>
               )}
             </p>
           )}
@@ -379,33 +476,23 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
                 </button>
               )}
 
-              {state === "recording" && (
+              {(state === "recording" || state === "paused") && (
                 <>
                   <button
                     onClick={togglePause}
                     className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Pause className="h-3.5 w-3.5" />
-                    Pause
-                  </button>
-                  <button
-                    onClick={stopRecording}
-                    className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-[12px] font-medium text-white hover:bg-red-700"
-                  >
-                    <Stop className="h-3.5 w-3.5" />
-                    Stop
-                  </button>
-                </>
-              )}
-
-              {state === "paused" && (
-                <>
-                  <button
-                    onClick={togglePause}
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    Resume
+                    {state === "recording" ? (
+                      <>
+                        <Pause className="h-3.5 w-3.5" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" />
+                        Resume
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={stopRecording}
@@ -431,7 +518,11 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
                   </button>
                   <button
                     onClick={handleUpload}
-                    disabled={recordedBlobRef.current ? recordedBlobRef.current.size > 50 * 1024 * 1024 : true}
+                    disabled={
+                      recordedBlobRef.current
+                        ? recordedBlobRef.current.size > 50 * 1024 * 1024
+                        : true
+                    }
                     className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-3.5 w-3.5" />
