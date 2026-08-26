@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle } from "@phosphor-icons/react";
+import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle, Moon, Sun } from "@phosphor-icons/react";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 import {
   createAccount,
@@ -72,6 +73,7 @@ type OnboardingData = {
 
 export function OnboardingClient({ data }: { data: OnboardingData }) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const needsAccount = !data;
   const STEP_META = needsAccount ? STEPS_WITH_ACCOUNT : STEPS_WITHOUT_ACCOUNT;
 
@@ -242,12 +244,20 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   // For account step at the end, show "Create account & finish"
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-white">
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-white dark:bg-[#0F0F0F]">
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute right-5 top-5 flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.06)]"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === "dark" ? "Light" : "Dark"}
+      </button>
       <div className="w-full max-w-3xl px-6" style={{ opacity: transitioning ? 0 : 1, transition: "opacity 150ms" }}>
 
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">
-          <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950">
+          <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
             {isAccountStep("welcome") && (s0.full_name ? `${s0.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
             {isAccountStep("account") && "Create your account"}
             {isNormalStep("welcome") && (s1.full_name ? `${s1.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
@@ -280,13 +290,13 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
               ].map((item, i) => (
                 <div
                   key={i}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3"
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 shrink-0">{item.icon}</span>
-                    <span className="text-sm font-medium text-gray-900">{item.title}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{item.title}</span>
                   </div>
-                  <p className="mt-1 ml-7 text-[13px] text-gray-500 leading-relaxed">{item.desc}</p>
+                  <p className="mt-1 ml-7 text-[13px] text-gray-500 leading-relaxed dark:text-gray-400">{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -360,9 +370,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                 { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, text: "Message anyone directly from their profile in the Org Chart" },
                 { icon: <House weight="bold" className="h-4 w-4" />, text: "Join #general, #engineering, and your department channel" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
+                <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]">
                   <span className="text-gray-400">{item.icon}</span>
-                  <span className="text-sm text-gray-700">{item.text}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{item.text}</span>
                 </div>
               ))}
             </div>
@@ -402,9 +412,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                 { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, text: "Async-first: write it down before scheduling a meeting" },
                 { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "DACI framework: Driver, Approver, Contributors, Informed" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900">
+                <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]">
                   <span className="text-gray-400">{item.icon}</span>
-                  <span className="text-sm text-gray-700">{item.text}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{item.text}</span>
                 </div>
               ))}
             </div>
@@ -480,10 +490,10 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                   ))}
                 </div>
               </Field>
-              <div className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Notifications</p>
-                  <p className="text-xs text-gray-500">Approvals, mentions, task updates.</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Notifications</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Approvals, mentions, task updates.</p>
                 </div>
                 <button type="button" onClick={() => setS4({ ...s4, notifications_enabled: !s4.notifications_enabled })}
                   className={`relative h-6 w-11 rounded-full transition-colors ${s4.notifications_enabled ? "bg-gray-900" : "bg-gray-200"}`}>
@@ -532,13 +542,13 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
           <div>
             {step > 0 && (
               <button type="button" onClick={goPrev}
-                className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                className="text-[13px] font-medium text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                 Back
               </button>
             )}
           </div>
           <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">
+            className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed dark:border-[rgba(255,255,255,0.1)] dark:bg-white dark:text-black dark:hover:bg-gray-200">
             {busy ? "Saving…" : isAccountLast ? "Create account" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
           </button>
         </div>
@@ -551,7 +561,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
             <button key={s.id} type="button" aria-label={`Step ${s.label}`}
               onClick={() => { if (i <= step) { setTransitioning(true); setTimeout(() => { setStep(i); setTransitioning(false); }, 150); } }}
               disabled={i > step} className="py-1 px-1">
-              <div className={`h-[6px] rounded-full bg-gray-950 transition-all duration-200 ${i === step ? "w-5 opacity-100" : "w-[6px] opacity-30"}`} />
+              <div className={`h-[6px] rounded-full bg-gray-950 dark:bg-white transition-all duration-200 ${i === step ? "w-5 opacity-100" : "w-[6px] opacity-30"}`} />
             </button>
           ))}
         </div>
