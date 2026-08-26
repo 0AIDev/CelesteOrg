@@ -112,7 +112,6 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   const [s5, setS5] = useState({ typed_name: "", agreed: false, signed: data?.hasSignedNDA ?? false });
   const [goals, setGoals] = useState({ first_week: "", first_30_days: "", first_90_days: "", key_people_to_meet: "", projects_of_interest: "" });
   const [toolsAccess, setToolsAccess] = useState<string[]>([]);
-  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
   const goNext = useCallback(() => {
     setTransitioning(true);
@@ -266,25 +265,16 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                 { icon: <Sparkle weight="bold" className="h-4 w-4" />, title: "AI Assistant", desc: "Ask Celeste anything about the workspace — calendar, approvals, team, and more." },
                 { icon: <Command weight="bold" className="h-4 w-4" />, title: "Quick Actions", desc: "Press ⌘K anywhere to search, navigate, or run commands instantly." },
               ].map((item, i) => (
-                <button
+                <div
                   key={i}
-                  type="button"
-                  onClick={() => setExpandedCards((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(i)) next.delete(i); else next.add(i);
-                    return next;
-                  })}
-                  className={`w-full text-left rounded-2xl border px-4 py-3 transition-all ${expandedCards.has(i) ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-900"}`}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 shrink-0">{item.icon}</span>
-                    <span className="text-sm font-medium text-gray-900 flex-1">{item.title}</span>
-                    <span className="text-gray-300 text-xs">{expandedCards.has(i) ? "−" : "+"}</span>
+                    <span className="text-sm font-medium text-gray-900">{item.title}</span>
                   </div>
-                  {expandedCards.has(i) && (
-                    <p className="mt-2 ml-7 text-[13px] text-gray-500 leading-relaxed">{item.desc}</p>
-                  )}
-                </button>
+                  <p className="mt-1 ml-7 text-[13px] text-gray-500 leading-relaxed">{item.desc}</p>
+                </div>
               ))}
             </div>
           )}
