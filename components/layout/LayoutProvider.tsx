@@ -42,7 +42,6 @@ export function LayoutProvider({
   // Persisted UI state — sidebar and Ask AI panels remember their last state
   // across reloads (localStorage).
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [aiOpen, setAiOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [standupOpen, setStandupOpen] = useState(false);
   const [eodOpen, setEodOpen] = useState(false);
@@ -55,8 +54,6 @@ export function LayoutProvider({
     try {
       const savedSidebar = window.localStorage.getItem("celeste-sidebar-open");
       if (savedSidebar !== null) setSidebarOpen(savedSidebar === "1");
-      const savedAi = window.localStorage.getItem("celeste-ai-open");
-      if (savedAi !== null) setAiOpen(savedAi === "1");
     } catch {
       /* localStorage unavailable — keep defaults */
     }
@@ -69,14 +66,6 @@ export function LayoutProvider({
       /* ignore */
     }
   }, [sidebarOpen]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("celeste-ai-open", aiOpen ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [aiOpen]);
 
   return (
     <SessionContext.Provider
@@ -123,8 +112,8 @@ export function LayoutProvider({
           }}
         />
 
-        {/* Ask AI — right column, pushes the main content when open */}
-        <AskAIChat open={aiOpen} onOpenChange={setAiOpen} />
+        {/* Ask AI — floating modal, manages own state */}
+        <AskAIChat />
 
         {/* Feedback widget — bottom-right floating */}
         {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
