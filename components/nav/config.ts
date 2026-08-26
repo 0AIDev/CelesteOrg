@@ -43,6 +43,7 @@ export const mainNav: NavItem[] = [
   { label: "Prompt Vault", href: "/prompt-vault", icon: Lightning },
   { label: "Tasks", href: "/tasks", icon: Kanban },
   { label: "Recordings", href: "/recordings", icon: VideoCamera },
+  { label: "CRM", href: "/crm", icon: UsersThree },
 ];
 
 export const shortcuts: NavItem[] = [
