@@ -140,7 +140,7 @@ export async function resendInvite(id: string): Promise<
     const admin = createAdminClient();
     const { data: invite, error: findErr } = await admin
       .from("invites")
-      .select("id, email, token, status")
+      .select("id, email, token, status, role_title")
       .eq("id", id)
       .maybeSingle();
     if (findErr || !invite) return { ok: false, error: "Invite not found." };
@@ -149,17 +149,9 @@ export async function resendInvite(id: string): Promise<
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    // Land on the client callback first: it exchanges the magic-link hash for
-    // a server-visible session, then forwards to the invite completion page.
-    const next = encodeURIComponent(`/invite/complete?invite=${invite.token}`);
-    const redirectTo = `${appUrl}/auth/callback?next=${next}`;
-    const { data: linkData, error } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email: invite.email,
-      options: { redirectTo },
-    });
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, link: linkData?.properties?.action_link };
+    const inviteLink = `${appUrl}/invito?token=${invite.token}`;
+    await sendInviteEmail(invite.email, inviteLink, invite.role_title);
+    return { ok: true, link: inviteLink };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not resend invite";
     return { ok: false, error: msg };
@@ -278,34 +270,15 @@ export async function inviteTeammate(
       token = invite.token;
     }
 
-    // Generate a full magic-link URL (works without SMTP configured). Land on
-    // the client callback first so the hash session becomes server-visible,
-    // then forward to the invite completion page.
+    // Build a custom invite link (no Supabase magic link).
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const next = encodeURIComponent(`/invite/complete?invite=${token}`);
-    const redirectTo = `${appUrl}/auth/callback?next=${next}`;
+    const inviteLink = `${appUrl}/invito?token=${token}`;
 
-    const { data: linkData, error: linkError } =
-      await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo },
-      });
-
-    if (linkError) {
-      // Cleanup the invite row so a retry is clean.
-      await admin.from("invites").delete().eq("id", inviteId).is("status", "pending");
-      return { ok: false, error: linkError.message };
-    }
-
-    const actionLink = linkData?.properties?.action_link as string | undefined;
-    if (!actionLink) {
-      await admin.from("invites").delete().eq("id", inviteId).is("status", "pending");
-      return { ok: false, error: "Could not build invite link." };
-    }
+    // Send the invite email via Resend.
+    await sendInviteEmail(email, inviteLink, parsed.roleTitle);
 
     revalidatePath("/teams");
-    return { ok: true, link: actionLink, token, email };
+    return { ok: true, link: inviteLink, token, email };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not create invite";
     return { ok: false, error: msg };
@@ -410,5 +383,54 @@ export async function acceptInvite(
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not accept invite";
     return { ok: false, error: msg };
+  }
+}
+
+// ─── Email helper ────────────────────────────────────────────────────────────
+
+async function sendInviteEmail(
+  to: string,
+  inviteLink: string,
+  roleTitle?: string | null,
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) {
+    console.warn("[invite] RESEND_API_KEY or RESEND_FROM_EMAIL not set — email not sent");
+    return;
+  }
+
+  const roleLine = roleTitle ? ` as <strong>${roleTitle}</strong>` : '';
+
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to,
+        subject: "You're invited to join Celeste HQ",
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+            <h1 style="font-size: 24px; font-weight: 600; color: #111; margin-bottom: 8px;">You're invited to Celeste HQ</h1>
+            <p style="font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 24px;">
+              You've been invited${roleLine} to join the Celeste HQ workspace.
+              Click the button below to accept and set up your account.
+            </p>
+            <a href="${inviteLink}" style="display: inline-block; background: #111; color: #fff; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none; margin-bottom: 24px;">
+              Accept Invite
+            </a>
+            <p style="font-size: 13px; color: #999; line-height: 1.5;">
+              This link will expire in 7 days. If you weren't expecting this invite, you can safely ignore this email.
+            </p>
+          </div>
+        `,
+      }),
+    });
+  } catch (err) {
+    console.error("[invite] Failed to send email:", err);
   }
 }
