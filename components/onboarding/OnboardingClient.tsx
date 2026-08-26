@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Spinner } from "@phosphor-icons/react";
 
@@ -117,6 +117,16 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
       setErr("");
     }, 150);
   }, [STEP_META.length]);
+
+  // Auto-advance informational steps after 2.5 seconds
+  const autoAdvanceSteps = ["welcome", "team", "goals", "culture", "tools"];
+  useEffect(() => {
+    const currentStepId = STEP_META[step]?.id;
+    if (autoAdvanceSteps.includes(currentStepId) && !busy) {
+      const timer = setTimeout(() => goNext(), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [step, busy]);
 
   const goPrev = useCallback(() => {
     setTransitioning(true);
@@ -538,21 +548,19 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {/* Error */}
         {err && <p className="mt-3 text-center text-xs text-red-600">{err}</p>}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between py-6">
-          <div className="flex items-center gap-2">
-            {step > 0 && (
-              <button type="button" onClick={goPrev}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                Back
-              </button>
-            )}
-          </div>
+        {/* Navigation — minimal, right-aligned */}
+        <div className="flex items-center justify-end gap-3 py-6">
+          {step > 0 && (
+            <button type="button" onClick={goPrev}
+              className="text-[13px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
+              Back
+            </button>
+          )}
           <button
             type="button"
             onClick={getNextAction()}
             disabled={isNextDisabled()}
-            className="inline-flex items-center justify-center rounded-[10px] bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center rounded-[10px] bg-gray-900 px-5 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {busy ? <Spinner className="h-4 w-4 animate-spin" /> : isLast ? (s5.signed ? "Continue to dashboard" : "Sign & finish") : "Next"}
           </button>
