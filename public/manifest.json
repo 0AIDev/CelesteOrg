@@ -4,8 +4,8 @@
   "description": "Internal operating system for the Celeste team",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#f7f8fa",
-  "theme_color": "#111217",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "orientation": "any",
   "icons": [
     {

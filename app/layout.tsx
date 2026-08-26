@@ -23,7 +23,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111217",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F0F0F" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -52,8 +55,8 @@ export default function RootLayout({
         {/* Dynamic favicon - dark mode */}
         <link rel="icon" type="image/svg+xml" href="/Vector (3).svg" media="(prefers-color-scheme: dark)" />
         {/* Prevent browser address bar color flash */}
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#111217" media="(prefers-color-scheme: light)" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
       </head>
       <body className="font-sans antialiased">
