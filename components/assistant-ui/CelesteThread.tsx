@@ -9,16 +9,75 @@ type Message = {
   content: string;
 };
 
+const POSITION_KEY = "celeste-ask-button-position";
+
 /** Floating button + chat modal */
 export function CelesteAssistantModal() {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ x: 20, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+
+  // Load persisted position
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(POSITION_KEY);
+      if (saved) setPosition(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Save position on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(POSITION_KEY, JSON.stringify(position));
+    } catch { /* ignore */ }
+  }, [position]);
+
+  function handleMouseDown(e: React.MouseEvent) {
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y,
+    };
+    e.preventDefault();
+  }
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    function handleMouseMove(e: MouseEvent) {
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      const newX = Math.max(0, Math.min(window.innerWidth - 140, dragStartRef.current.posX - dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - 40, dragStartRef.current.posY - dy));
+      setPosition({ x: newX, y: newY });
+    }
+
+    function handleMouseUp() {
+      setIsDragging(false);
+    }
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
 
   return (
     <>
-      {/* Ask Celeste button — white glassmorphism */}
+      {/* Ask Celeste button — white glassmorphism, draggable */}
       <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 flex h-10 items-center gap-2 rounded-full border border-white/40 bg-white/70 px-3.5 text-[13px] font-medium text-gray-800 shadow-lg backdrop-blur-xl transition-all duration-150 hover:bg-white/90 hover:shadow-xl active:scale-95"
+        onClick={() => !isDragging && setOpen(true)}
+        onMouseDown={handleMouseDown}
+        className={cn(
+          "fixed z-50 flex h-10 items-center gap-2 rounded-full border border-white/40 bg-white/70 px-3.5 text-[13px] font-medium text-gray-800 shadow-lg backdrop-blur-xl transition-shadow duration-150 hover:shadow-xl",
+          isDragging ? "cursor-grabbing scale-105" : "cursor-grab active:scale-95",
+        )}
+        style={{ right: position.x, bottom: position.y }}
       >
         <Sparkle className="h-4 w-4 text-gray-600" />
         Ask Celeste
@@ -26,7 +85,10 @@ export function CelesteAssistantModal() {
 
       {/* Modal */}
       {open && (
-        <div className="fixed bottom-[68px] right-5 z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
+        <div
+          className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200"
+          style={{ right: position.x, bottom: position.y + 52 }}
+        >
           <Chat onClose={() => setOpen(false)} />
         </div>
       )}
