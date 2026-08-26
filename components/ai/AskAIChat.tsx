@@ -1,24 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { ArrowUp, Loader2, X } from "lucide-react";
-import { askAi } from "@/app/actions/ai-assistant";
-import { StreamingText, type Segment } from "@/components/elements/streaming-text";
-import { ThinkingIndicator } from "@/components/elements/thinking-indicator";
+import { useState } from "react";
+import { X } from "lucide-react";
+import { Assistant } from "@/components/ai/Assistant";
 import { cn } from "@/lib/utils";
-
-type Msg = {
-  role: "user" | "ai";
-  text: string;
-  actions?: string[];
-};
-
-const SUGGESTIONS = [
-  "Who's on vacation today?",
-  "What do I need to approve?",
-  "Create a meeting tomorrow at 10am called Team Sync",
-  "Invite alice@company.com as Head of Marketing",
-];
 
 export function AskAIChat({
   open,
@@ -27,105 +12,6 @@ export function AskAIChat({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [streamingIdx, setStreamingIdx] = useState<number | null>(null);
-  const [streamCount, setStreamCount] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const [thinkingLabel, setThinkingLabel] = useState("Thinking…");
-  const listRef = useRef<HTMLDivElement>(null);
-  const streamTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [msgs, thinking, streamCount]);
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (streamTimerRef.current) clearInterval(streamTimerRef.current);
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-    };
-  }, []);
-
-  // Start elapsed timer when thinking begins
-  useEffect(() => {
-    if (thinking) {
-      setElapsed(0);
-      setThinkingLabel("Thinking…");
-      elapsedTimerRef.current = setInterval(() => {
-        setElapsed((prev) => prev + 1);
-      }, 1000);
-      // Cycle through labels
-      const labels = ["Thinking…", "Reading workspace data…", "Analyzing context…", "Drafting a reply…"];
-      let labelIdx = 0;
-      const labelTimer = setInterval(() => {
-        labelIdx = (labelIdx + 1) % labels.length;
-        setThinkingLabel(labels[labelIdx]);
-      }, 2500);
-      return () => {
-        clearInterval(labelTimer);
-      };
-    } else {
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-    }
-  }, [thinking]);
-
-  const startStream = useCallback((text: string, msgIndex: number) => {
-    // Split into words for streaming
-    const words = text.split(" ");
-    const totalWords = words.length;
-    let count = 0;
-
-    setStreamingIdx(msgIndex);
-    setStreamCount(0);
-
-    streamTimerRef.current = setInterval(() => {
-      count += 1;
-      setStreamCount(count);
-
-      if (count >= totalWords) {
-        if (streamTimerRef.current) clearInterval(streamTimerRef.current);
-        // Finalize: set streaming to done after a short delay
-        setTimeout(() => {
-          setStreamingIdx(null);
-          setStreamCount(0);
-        }, 800);
-      }
-    }, 25); // ~25ms per word = fast but readable
-  }, []);
-
-  async function send(text: string) {
-    const question = text.trim();
-    if (!question || thinking) return;
-
-    setMsgs((m) => [...m, { role: "user", text: question }]);
-    setInput("");
-    setThinking(true);
-
-    const res = await askAi(question);
-    setThinking(false);
-
-    const aiText = res.ok ? res.answer : res.error;
-    const newMsg: Msg = {
-      role: "ai",
-      text: aiText,
-      actions: res.ok ? res.actions : undefined,
-    };
-
-    setMsgs((m) => {
-      const updated = [...m, newMsg];
-      // Start streaming the new AI message
-      const idx = updated.length - 1;
-      startStream(aiText, idx);
-      return updated;
-    });
-  }
-
   return (
     <>
       {/* Minimal black floating button — bottom right, hidden while the drawer is open */}
@@ -184,106 +70,10 @@ export function AskAIChat({
             </button>
           </div>
 
-          {/* Messages */}
-          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
-            {msgs.length === 0 && !thinking && (
-              <div className="space-y-2 pt-1">
-                <p className="text-[13px] text-gray-500">
-                  Hi! Ask me anything about the workspace — calendar, approvals, documents, team.
-                </p>
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-[12.5px] text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {msgs.map((m, i) => {
-              const isStreaming = streamingIdx === i;
-              const isAi = m.role === "ai";
-
-              return (
-                <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-2xl px-3.5 py-2.5",
-                      m.role === "user"
-                        ? "rounded-br-md bg-gray-900 text-white"
-                        : "rounded-bl-md border border-gray-100 bg-gray-50",
-                    )}
-                  >
-                    {/* Streaming text for AI, static text for user */}
-                    {isAi ? (
-                      <StreamingText
-                        segments={[{ text: m.text }]}
-                        count={isStreaming ? streamCount : m.text.split(" ").length}
-                        streaming={isStreaming}
-                      />
-                    ) : (
-                      <p className="text-[13px] leading-relaxed text-white whitespace-pre-wrap">
-                        {m.text}
-                      </p>
-                    )}
-
-                    {/* Action results */}
-                    {m.actions && m.actions.length > 0 && (
-                      <div className="mt-2 border-t border-gray-200 pt-2">
-                        {m.actions.map((a, j) => (
-                          <p key={j} className="text-[12px] text-green-700">{a}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {thinking && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-4 py-3">
-                  <ThinkingIndicator
-                    label={thinkingLabel}
-                    elapsed={elapsed > 0 ? `${elapsed}s` : undefined}
-                  />
-                </div>
-              </div>
-            )}
+          {/* Assistant UI Thread */}
+          <div className="flex-1 overflow-hidden">
+            <Assistant />
           </div>
-
-          {/* Input — send arrow appears inside only while typing */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-            className="relative border-t border-gray-100 p-3"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Celeste…"
-              className="input h-9 w-full pr-10 text-[13px]"
-            />
-            {input.trim().length > 0 && (
-              <button
-                type="submit"
-                disabled={thinking}
-                className="absolute right-[1.15rem] top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-40"
-                aria-label="Send"
-              >
-                {thinking ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ArrowUp className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
-          </form>
         </div>
       </div>
     </>
