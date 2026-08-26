@@ -24,9 +24,16 @@ export function CelesteAssistantModal() {
     <AssistantModalPrimitive.Root>
       <AssistantModalPrimitive.Anchor className="fixed bottom-5 right-5 z-50">
         <AssistantModalPrimitive.Trigger asChild>
-          <button className="flex h-10 items-center gap-2 rounded-full border border-gray-900 bg-gray-900 px-3 text-[13px] font-medium text-white shadow-lg transition-all duration-150 hover:bg-gray-800 active:scale-95">
-            <Sparkle className="h-4 w-4" />
-            Ask Celeste
+          <button className="group relative flex h-10 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-white transition-all duration-200 active:scale-95">
+            {/* Animated gradient border */}
+            <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_var(--angle),transparent_25%,gray-400_50%,gray-600_75%,transparent_100%)] opacity-60 [animation:spin-border_4s_linear_infinite] group-hover:opacity-100" />
+            {/* Inner fill */}
+            <span className="absolute inset-[1.5px] rounded-full bg-gray-900" />
+            {/* Content */}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Sparkle className="h-4 w-4" />
+              Ask Celeste
+            </span>
           </button>
         </AssistantModalPrimitive.Trigger>
       </AssistantModalPrimitive.Anchor>

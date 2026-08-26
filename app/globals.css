@@ -377,3 +377,19 @@ html {
     transform: translateX(100%);
   }
 }
+
+/* Animated gradient border for Ask Celeste button */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin-border {
+  from {
+    --angle: 0deg;
+  }
+  to {
+    --angle: 360deg;
+  }
+}
