@@ -14,7 +14,6 @@ import {
   Spinner,
   Check,
   X,
-  Coins,
   Lightning,
   ChartLineUp,
 } from "@phosphor-icons/react";
@@ -109,14 +108,6 @@ export function RoleDashboardClient({ data }: { data: DashboardData }) {
     return () => { channel.unsubscribe(); };
   }, []);
 
-  // Simulated ARR data (in production, this would come from a billing table)
-  const arr = {
-    mrr: 12400,
-    arr: 148800,
-    growth: 12.5,
-    customers: 47,
-  };
-
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       {/* Header */}
@@ -149,44 +140,9 @@ export function RoleDashboardClient({ data }: { data: DashboardData }) {
         <Stat icon={FileText} label="Recent documents" value={String(data.docs.length)} />
       </div>
 
-      {/* CEO-only: ARR & Revenue + AI Metrics */}
+      {/* CEO-only: AI Metrics Realtime */}
       {isCEO && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          {/* ARR / Revenue */}
-          <div className="card p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Coins className="h-4 w-4 text-gray-400" />
-              <h2 className="text-[13px] font-semibold text-gray-900">Revenue & ARR</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-2xl font-bold tabular-nums text-gray-900">${arr.mrr.toLocaleString()}</p>
-                <p className="text-[11px] text-gray-400">Monthly Recurring</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold tabular-nums text-gray-900">${arr.arr.toLocaleString()}</p>
-                <p className="text-[11px] text-gray-400">Annual Run Rate</p>
-              </div>
-              <div>
-                <p className="text-lg font-semibold tabular-nums text-gray-900">+{arr.growth}%</p>
-                <p className="text-[11px] text-gray-400">Month over month</p>
-              </div>
-              <div>
-                <p className="text-lg font-semibold tabular-nums text-gray-900">{arr.customers}</p>
-                <p className="text-[11px] text-gray-400">Active customers</p>
-              </div>
-            </div>
-            {/* Simple bar chart */}
-            <div className="mt-3 flex items-end gap-1 h-12">
-              {[65, 72, 68, 80, 85, 92, 100].map((h, i) => (
-                <div key={i} className="flex-1 rounded-t bg-gray-900 transition-all" style={{ height: `${h}%`, opacity: 0.15 + (i * 0.12) }} />
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between text-[9px] text-gray-400">
-              <span>7 months ago</span><span>Now</span>
-            </div>
-          </div>
-
           {/* AI Metrics Realtime */}
           <div className="card p-4">
             <div className="mb-3 flex items-center gap-2">

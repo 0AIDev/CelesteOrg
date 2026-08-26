@@ -22,6 +22,7 @@ import {
   setUserRole,
   setFounderStatus,
   setAdminStatus,
+  removeUserFromWorkspace,
 } from "@/app/actions/permission-actions";
 import type { TeamPermissionRow } from "@/app/actions/permission-actions";
 import { cn } from "@/lib/utils";
@@ -166,6 +167,22 @@ export function PermissionsManager({
   }
 
   const isSelf = (id: string) => id === currentUserId;
+  const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  async function handleRemove() {
+    if (!selected) return;
+    setRemoving(true);
+    const res = await removeUserFromWorkspace(selected.id);
+    setRemoving(false);
+    setConfirmRemove(false);
+    if (res.ok) {
+      setMembers((ms) => ms.filter((m) => m.id !== selected.id));
+      setSelectedId(null);
+    } else {
+      setError(res.error);
+    }
+  }
 
   return (
     <div className="card mt-6 overflow-hidden">
@@ -307,6 +324,44 @@ export function PermissionsManager({
                 <p className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[12px] text-gray-600">
                   {error}
                 </p>
+              )}
+
+              {/* Remove from workspace */}
+              {!isSelf(selected.id) && !selected.is_founder && (
+                <div className="mt-5 border-t border-gray-100 pt-4">
+                  {!confirmRemove ? (
+                    <button
+                      onClick={() => setConfirmRemove(true)}
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-[12.5px] font-medium text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    >
+                      Remove from workspace
+                    </button>
+                  ) : (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                      <p className="text-[13px] font-medium text-red-700">
+                        Remove {selected.full_name ?? "this person"}?
+                      </p>
+                      <p className="mt-1 text-[11.5px] text-red-500">
+                        They will lose access to CelesteHQ immediately. This cannot be undone.
+                      </p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={() => setConfirmRemove(false)}
+                          className="rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-gray-500 hover:text-gray-700"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={removing}
+                          onClick={handleRemove}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12.5px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {removing ? "Removing…" : "Remove"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Permission matrix */}

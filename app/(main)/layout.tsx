@@ -37,15 +37,32 @@ export default async function ProtectedLayout({
     departmentName = data?.name ?? null;
   }
 
-  // One dashboard per role in the org chart (everyone sees them all).
-  const { data: roleRows } = await supabase
+  // Hierarchical dashboards: viewer sees their own dashboard + all subordinate roles.
+  const { data: allRoles } = await supabase
     .from("roles")
-    .select("id, title")
+    .select("id, title, level, reports_to, profile_id")
     .order("level", { ascending: true });
-  const dashboards = (roleRows ?? []).map((r) => ({
-    slug: r.id,
-    title: shortRoleTitle(r.title),
-  }));
+
+  const viewerRoleId = (allRoles ?? []).find((r) => r.profile_id === profile?.id)?.id ?? null;
+
+  // Recursively collect all role IDs that report (directly or indirectly) to the viewer.
+  function collectSubordinates(roleId: string | null, roles: { id: string; reports_to: string | null }[]): string[] {
+    if (!roleId) return [];
+    const children = roles.filter((r) => r.reports_to === roleId).map((r) => r.id);
+    return [...children, ...children.flatMap((cid) => collectSubordinates(cid, roles))];
+  }
+
+  const visibleRoleIds = viewerRoleId
+    ? [viewerRoleId, ...collectSubordinates(viewerRoleId, allRoles ?? [])]
+    : (allRoles ?? []).map((r) => r.id); // fallback: see everything
+
+  const dashboards = (allRoles ?? [])
+    .filter((r) => visibleRoleIds.includes(r.id))
+    .map((r) => ({
+      slug: r.id,
+      title: shortRoleTitle(r.title),
+      isOwn: viewerRoleId ? r.id === viewerRoleId : false,
+    }));
 
   return (
     <LayoutProvider

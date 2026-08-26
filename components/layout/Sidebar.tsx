@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { X, Gauge } from "@phosphor-icons/react";
+import { X, Folder, FolderDashed } from "@phosphor-icons/react";
 import { mainNav, shortcuts, bottomNav } from "@/components/nav/config";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +40,7 @@ export function Sidebar({
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string }[];
+  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -145,7 +145,7 @@ function SidebarInner({
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string }[];
+  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
 }) {
   const pathname = usePathname();
   // The invite card always comes back: dismissing only hides it for the
@@ -232,7 +232,7 @@ function SidebarInner({
                   key={d.slug}
                   label={`${d.title} Dashboard`}
                   href={`/dashboards/${d.slug}`}
-                  icon={Gauge}
+                  icon={d.isOwn ? Folder : FolderDashed}
                   active={pathname.startsWith(`/dashboards/${d.slug}`)}
                   onClick={navClick}
                 />

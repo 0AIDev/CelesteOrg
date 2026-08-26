@@ -226,6 +226,47 @@ export async function setAdminStatus(
   }
 }
 
+export async function removeUserFromWorkspace(
+  userId: string,
+): Promise<ActionResult> {
+  try {
+    const me = await requireManager();
+    if (userId === me.userId) {
+      return { ok: false, error: "You cannot remove yourself from the workspace" };
+    }
+    // Check the target is not a founder
+    const supabase = userClient();
+    const { data: target } = await supabase
+      .from("profiles")
+      .select("is_founder, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (target?.is_founder) {
+      return { ok: false, error: "Cannot remove a founder from the workspace" };
+    }
+    // Remove role from org chart
+    await supabase.from("roles").delete().eq("profile_id", userId);
+    // Log the removal
+    await supabase.from("audit_log").insert({
+      actor_id: me.userId,
+      action: "member.removed",
+      target_id: userId,
+      meta: { removed_name: target?.full_name ?? "Unknown" },
+    });
+    // Delete auth account (cascades to profiles via FK)
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/teams");
+    revalidatePath("/org-chart");
+    revalidatePath("/dashboards");
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not remove user";
+    return { ok: false, error: msg };
+  }
+}
+
 // ─── Enforcement helper (used by every gated server action) ────────────────
 // Only founders bypass the matrix (like Discord's owner). Admins are subject
 // to feature toggles like everyone else. Missing row = allowed (default-open,

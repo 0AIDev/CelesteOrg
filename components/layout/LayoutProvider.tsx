@@ -34,7 +34,7 @@ export function LayoutProvider({
   user: SessionUser | null;
   canManage?: boolean;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string }[];
+  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
   children: React.ReactNode;
 }) {
   // Persisted UI state — sidebar and Ask AI panels remember their last state
