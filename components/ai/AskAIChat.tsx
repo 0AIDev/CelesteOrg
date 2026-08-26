@@ -85,7 +85,7 @@ export function AskAIChat({
         )}
         aria-hidden={!open}
       >
-        <div className="m-4 mr-6 flex h-[calc(100vh-2rem)] w-[min(24rem,100vw)] shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-xl">
+        <div className="m-4 mr-6 flex h-[calc(100vh-2rem)] w-[min(24rem,100vw)] shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
           {/* Header — plain text + close */}
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <div>

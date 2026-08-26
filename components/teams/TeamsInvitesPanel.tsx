@@ -191,7 +191,7 @@ export function TeamsInvitesPanel({
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg animate-fade-in">
           {toast}
         </div>
       )}

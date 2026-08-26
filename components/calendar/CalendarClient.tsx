@@ -341,7 +341,7 @@ export function CalendarClient({
           onClick={() => setShowForm(false)}
         >
           <div
-            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white/80 p-5 shadow-2xl backdrop-blur-xl animate-fade-in sm:rounded-2xl sm:p-6"
+            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white p-5 shadow-2xl animate-fade-in sm:rounded-2xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -502,7 +502,7 @@ export function CalendarClient({
           onClick={() => setConfirmDelete(null)}
         >
           <div
-            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h4 className="text-sm font-semibold text-gray-900">Delete event</h4>
@@ -531,7 +531,7 @@ export function CalendarClient({
 
       {/* Toast for drag-and-drop errors (auto-dismiss) */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg animate-fade-in">
           {toast}
         </div>
       )}

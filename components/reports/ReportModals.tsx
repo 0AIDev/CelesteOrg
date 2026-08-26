@@ -181,7 +181,7 @@ function Overlay({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-2xl backdrop-blur-xl animate-fade-in"
+        className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         {!persistent && (

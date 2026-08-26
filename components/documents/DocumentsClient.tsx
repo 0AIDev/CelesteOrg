@@ -586,7 +586,7 @@ export function DocumentsClient({
           onClick={() => setConfirmDelete(null)}
         >
           <div
-            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h4 className="text-sm font-semibold text-gray-900">Delete document</h4>
@@ -615,7 +615,7 @@ export function DocumentsClient({
 
       {/* Toast for upload errors */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg animate-fade-in">
           {toast}
         </div>
       )}
@@ -879,7 +879,7 @@ function PreviewModal({
           onClick={() => setShowConfirm(false)}
         >
           <div
-            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h4 className="text-sm font-semibold text-gray-900">Delete document</h4>
@@ -1145,7 +1145,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-2xl backdrop-blur-xl animate-fade-in"
+        className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

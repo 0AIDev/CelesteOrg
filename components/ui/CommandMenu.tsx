@@ -129,7 +129,7 @@ export function CommandMenu({
         {/* Always perfectly centered — flex centering on the wrapper avoids
             transform conflicts with the fade-in animation */}
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
-        <Dialog.Content className="pointer-events-auto w-full max-w-[38rem] overflow-hidden rounded-2xl border border-gray-200 bg-white/85 shadow-2xl backdrop-blur-xl data-[state=open]:animate-fade-in">
+        <Dialog.Content className="pointer-events-auto w-full max-w-[38rem] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl data-[state=open]:animate-fade-in">
           <Command className="flex h-full w-full flex-col overflow-hidden rounded-2xl text-gray-900">
             {/* Input */}
             <div className="group flex h-[54px] items-center gap-2.5 border-b border-gray-100 px-4">
