@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { X, Folder, FolderDashed, CaretDown } from "@phosphor-icons/react";
+import { X, Folder, FolderDashed, CaretDown, PushPin, RocketLaunch } from "@phosphor-icons/react";
 import {
   categories,
   topNav,
@@ -13,7 +13,6 @@ import {
   togglePin,
   type NavItem,
 } from "@/components/nav/config";
-import { RocketLaunch } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 // ─── Toggle icons ───────────────────────────────────────────────────
@@ -31,19 +30,6 @@ function SidebarCollapseIcon({ className }: { className?: string }) {
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect x="7" y="6.5" width="7" height="1.5" rx="0.75" transform="rotate(90 7 6.5)" fill="currentColor" />
       <rect x="3" y="4" width="14" height="12" rx="2.8" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-// ─── Pin icon (appears on hover) ────────────────────────────────────
-function PinIcon({ pinned, className }: { pinned: boolean; className?: string }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={className}>
-      {pinned ? (
-        <path d="M8.5 1.5L12.5 5.5L9 9L10 13L7 10L4 13L5 9L1.5 5.5L5.5 1.5L8.5 1.5Z" fill="currentColor" />
-      ) : (
-        <path d="M8.5 1.5L12.5 5.5L9 9L10 13L7 10L4 13L5 9L1.5 5.5L5.5 1.5L8.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      )}
     </svg>
   );
 }
@@ -156,7 +142,7 @@ function NavItem({
           )}
           title={isPinned ? "Unpin" : "Pin to sidebar"}
         >
-          <PinIcon pinned={!!isPinned} />
+          <PushPin size={14} weight={isPinned ? "fill" : "regular"} />
         </button>
       )}
     </div>
@@ -192,11 +178,9 @@ function CategorySection({
   pinnedItems: string[];
   onTogglePin: (label: string) => void;
 }) {
-  // Auto-expand if any child is active
   const hasActive = items.some((i) => i.href && pathname.startsWith(i.href));
   const [expanded, setExpanded] = useState(hasActive);
 
-  // Re-expand when navigated to a child
   useEffect(() => {
     if (hasActive) setExpanded(true);
   }, [hasActive]);
@@ -250,7 +234,6 @@ function SidebarInner({
   const [inviteDismissed, setInviteDismissed] = useState(false);
   const [pinnedItems, setPinnedItems] = useState<string[]>([]);
 
-  // Load pinned items from localStorage on mount
   useEffect(() => {
     setPinnedItems(getPinnedItems());
   }, []);
@@ -269,7 +252,7 @@ function SidebarInner({
     onClose();
   }
 
-  // Resolve pinned NavItems from allNavItems
+  // Resolve pinned NavItems
   const allItems = [
     ...topNav,
     ...categories.flatMap((c) => c.items),
@@ -292,8 +275,8 @@ function SidebarInner({
 
       {/* Scrollable nav */}
       <nav className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
-        {/* Top-level: Home */}
-        <div className="mb-2 space-y-0.5">
+        {/* Top-level items (always visible) */}
+        <div className="mb-3 space-y-0.5">
           {topNav.map((item) => (
             <NavItem
               key={item.href ?? item.label}
@@ -307,7 +290,7 @@ function SidebarInner({
           ))}
         </div>
 
-        {/* Categorized nav */}
+        {/* Collapsible categories (less important) */}
         {categories.map((cat) => (
           <CategorySection
             key={cat.label}
