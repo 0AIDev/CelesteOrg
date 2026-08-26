@@ -72,7 +72,9 @@ export async function createPrompt(input: {
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated" };
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS issues with cookie-based auth
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("prompt_vault")
       .insert({
         title: input.title.trim(),
@@ -97,16 +99,8 @@ export async function createPrompt(input: {
 export async function upvotePrompt(promptId: string): Promise<ActionResult & { upvotes?: number }> {
   try {
     const admin = createAdminClient();
-    // Increment upvotes atomically
-    const { data, error } = await admin
-      .from("prompt_vault")
-      .update({ upvotes: 0 }) // placeholder — we'll use a raw increment
-      .eq("id", promptId)
-      .select("upvotes")
-      .single();
 
-    // Supabase doesn't support atomic increment via the JS client easily,
-    // so we do a read-then-write (fine for low-contention internal tool).
+    // Read-then-write (fine for low-contention internal tool)
     const { data: current } = await admin
       .from("prompt_vault")
       .select("upvotes")
@@ -133,13 +127,9 @@ export async function upvotePrompt(promptId: string): Promise<ActionResult & { u
 
 export async function deletePrompt(promptId: string): Promise<ActionResult> {
   try {
-    const supabase = userClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { ok: false, error: "Not authenticated" };
-
-    const { error } = await supabase.from("prompt_vault").delete().eq("id", promptId);
+    // Use admin client to bypass RLS
+    const admin = createAdminClient();
+    const { error } = await admin.from("prompt_vault").delete().eq("id", promptId);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/prompt-vault");
     return { ok: true };

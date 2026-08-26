@@ -37,6 +37,7 @@ const CATEGORIES = [
   "System Prompt",
   "Workflow",
   "DevOps",
+  "Skills.md",
   "General",
 ];
 
@@ -50,6 +51,7 @@ const CATEGORY_ICON: Record<string, typeof Lightning> = {
   "System Prompt": Terminal,
   Workflow: Code,
   DevOps: DevToLogo,
+  "Skills.md": Code,
   General: Lightning,
 };
 
@@ -346,6 +348,37 @@ function PromptCard({
 }
 
 // ── Create modal ────────────────────────────────────────────────────────────
+const SKILLS_MD_TEMPLATE = `# Skills.md — Agent Skill Definition
+
+## Skill Name
+\`\`\`
+your-skill-name
+\`\`\`
+
+## Description
+What this skill does and when to use it.
+
+## Trigger
+- When the user asks to...
+- When a file matching pattern...
+
+## Implementation
+\`\`\`typescript
+// Your implementation here
+\`\`\`
+
+## Parameters
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| param1 | string | yes | Description |
+
+## Example Usage
+\`\`\`
+User: Do something with this skill
+Agent: [uses the skill]
+\`\`\`
+`;
+
 function CreateModal({
   onClose,
   onSubmit,
@@ -375,6 +408,12 @@ function CreateModal({
       prompt_content: promptContent.trim(),
     });
     setSaving(false);
+  }
+
+  function applySkillsTemplate() {
+    setCategory("Skills.md");
+    setPromptContent(SKILLS_MD_TEMPLATE);
+    if (!title.trim()) setTitle("New Skill");
   }
 
   return (
@@ -429,6 +468,21 @@ function CreateModal({
               </button>
             ))}
           </div>
+
+          {/* Skills.md template button */}
+          {category === "Skills.md" && !promptContent.trim() && (
+            <button
+              type="button"
+              onClick={applySkillsTemplate}
+              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 text-left transition-colors hover:border-gray-400 hover:bg-gray-100"
+            >
+              <Code className="h-4 w-4 text-gray-500" />
+              <div>
+                <p className="text-[12px] font-medium text-gray-700">Use Skills.md template</p>
+                <p className="text-[11px] text-gray-400">Pre-filled structure for agent skill definitions</p>
+              </div>
+            </button>
+          )}
 
           <textarea
             value={promptContent}
