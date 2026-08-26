@@ -17,6 +17,7 @@ export type Profile = {
   role_title: string | null;
   department_id: string | null;
   is_founder: boolean;
+  onboarding_completed: boolean;
   joined_at: string | null;
 };
 

@@ -66,6 +66,7 @@ export default async function OrgChartPage({
       // what the filter tabs count) and fall back to the profile's.
       department_id: r.department_id ?? p.department_id,
       is_founder: p.is_founder,
+      onboarding_completed: p.onboarding_completed,
       joined_at: p.joined_at,
       roleId: r.id,
       title: r.title,

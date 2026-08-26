@@ -17,13 +17,8 @@ export default async function ProtectedLayout({
   // and modal must not appear (or silently fail) for everyone else.
   const canManage = profile?.is_founder === true || user.app_metadata?.role === "admin";
 
-  // Onboarding counts as "done" once the new member filled in their profile
-  // (step 1 of the wizard) — hide the Onboarding entry from the sidebar then.
-  const isOnboarded = Boolean(
-    profile?.bio?.trim() ||
-      profile?.location?.trim() ||
-      (profile?.previous_companies && profile.previous_companies.length > 0),
-  );
+  // Onboarding is marked complete in the DB by completeOnboarding().
+  const isOnboarded = profile?.onboarding_completed === true;
 
   // Resolve the department name for a subtle context tag in the header.
   const supabase = createClient();
@@ -54,7 +49,7 @@ export default async function ProtectedLayout({
 
   const visibleRoleIds = viewerRoleId
     ? [viewerRoleId, ...collectSubordinates(viewerRoleId, allRoles ?? [])]
-    : (allRoles ?? []).map((r) => r.id); // fallback: see everything
+    : []; // no role → see nothing (prevents new users from seeing all dashboards)
 
   const dashboards = (allRoles ?? [])
     .filter((r) => visibleRoleIds.includes(r.id))

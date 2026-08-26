@@ -305,7 +305,9 @@ export async function completeOnboarding(): Promise<ActionResult> {
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated" };
 
-    const { error } = await supabase.from("profiles").update({
+    // Use admin client to bypass potential RLS/cookie issues
+    const admin = createAdminClient();
+    const { error } = await admin.from("profiles").update({
       onboarding_completed: true,
       updated_at: new Date().toISOString(),
     }).eq("id", user.id);
@@ -314,7 +316,6 @@ export async function completeOnboarding(): Promise<ActionResult> {
     // Ensure the user has a role in the org chart. The first user gets the
     // root CEO role (reports_to = null, level = 1). Subsequent users get a
     // teammate role under the existing root.
-    const admin = createAdminClient();
     const { data: existingRole } = await admin
       .from("roles")
       .select("id")
