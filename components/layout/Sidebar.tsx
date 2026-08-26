@@ -13,6 +13,7 @@ import {
   togglePin,
   type NavItem,
 } from "@/components/nav/config";
+import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 
 // ─── Toggle icons ───────────────────────────────────────────────────
@@ -90,7 +91,7 @@ export function Sidebar({
 function Brand() {
   return (
     <div className="flex items-center px-4 pt-4 pb-3">
-      <span className="text-[15px] font-semibold tracking-tight text-gray-950 dark:text-gray-100">CelesteHQ</span>
+      <Logo className="h-6 w-auto" />
     </div>
   );
 }
