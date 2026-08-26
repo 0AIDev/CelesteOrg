@@ -41,6 +41,8 @@ import {
 } from "@/app/actions/issue-actions";
 import { useSession } from "@/components/layout/LayoutProvider";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+import { CompactSelect } from "@/components/ui/CompactSelect";
 import { cn } from "@/lib/utils";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -201,21 +203,21 @@ export function IssueTracker() {
         </div>
 
         {/* Priority filter */}
-        <CustomSelect
+        <LocalCustomSelect
           value={filterPriority}
           onChange={(v) => setFilterPriority(v as IssuePriority | "")}
           options={[{ value: "", label: "All priorities" }, ...PRIORITY_ORDER.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))]}
         />
 
         {/* Track filter */}
-        <CustomSelect
+        <LocalCustomSelect
           value={filterTrack}
           onChange={setFilterTrack}
           options={PROJECT_TRACKS.map((t) => ({ value: t, label: t }))}
         />
 
         {/* Assignee filter */}
-        <CustomSelect
+        <LocalCustomSelect
           value={filterAssignee}
           onChange={setFilterAssignee}
           options={[
@@ -529,7 +531,8 @@ function PriorityIcon({ priority }: { priority: IssuePriority }) {
 
 // ─── Dropdowns ───────────────────────────────────────────────────────────────
 
-function CustomSelect({
+// Re-export the Radix-based CustomSelect with the same props as the old one
+function LocalCustomSelect({
   value,
   onChange,
   options,
@@ -539,20 +542,12 @@ function CustomSelect({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 appearance-none rounded-lg border border-gray-200 bg-white pl-2.5 pr-7 text-[12px] text-gray-700 outline-none focus:border-gray-300"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
-    </div>
+    <CustomSelect
+      value={value}
+      onValueChange={onChange}
+      options={options}
+      className="h-8 text-[12px]"
+    />
   );
 }
 
@@ -564,19 +559,12 @@ function StatusDropdown({
   onChange: (s: IssueStatus) => void;
 }) {
   return (
-    <div className="relative">
-      <select
-        value={status}
-        onChange={(e) => onChange(e.target.value as IssueStatus)}
-        onClick={(e) => e.stopPropagation()}
-        className="h-6 appearance-none rounded-md border border-gray-200 bg-white pl-2 pr-6 text-[11px] text-gray-600 outline-none focus:border-gray-300"
-      >
-        {COLUMNS.map((c) => (
-          <option key={c.key} value={c.key}>{c.label}</option>
-        ))}
-      </select>
-      <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 text-gray-400" />
-    </div>
+    <CompactSelect
+      value={status}
+      onValueChange={(v) => onChange(v as IssueStatus)}
+      options={COLUMNS.map((c) => ({ value: c.key, label: c.label }))}
+      onClick={(e) => e.stopPropagation()}
+    />
   );
 }
 
@@ -588,19 +576,12 @@ function PriorityDropdown({
   onChange: (p: IssuePriority) => void;
 }) {
   return (
-    <div className="relative">
-      <select
-        value={priority}
-        onChange={(e) => onChange(e.target.value as IssuePriority)}
-        onClick={(e) => e.stopPropagation()}
-        className="h-6 appearance-none rounded-md border border-gray-200 bg-white pl-2 pr-6 text-[11px] text-gray-600 outline-none focus:border-gray-300"
-      >
-        {PRIORITY_ORDER.map((p) => (
-          <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-        ))}
-      </select>
-      <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 text-gray-400" />
-    </div>
+    <CompactSelect
+      value={priority}
+      onValueChange={(v) => onChange(v as IssuePriority)}
+      options={PRIORITY_ORDER.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+      onClick={(e) => e.stopPropagation()}
+    />
   );
 }
 
@@ -701,7 +682,7 @@ function CreateIssueModal({
             </div>
             <div>
               <label className="mb-1 block text-[12px] font-medium text-gray-500">Track</label>
-              <CustomSelect
+              <LocalCustomSelect
                 value={track}
                 onChange={setTrack}
                 options={PROJECT_TRACKS.filter((t) => t !== "All").map((t) => ({ value: t, label: t }))}
@@ -712,7 +693,7 @@ function CreateIssueModal({
           {/* Assignee */}
           <div>
             <label className="mb-1 block text-[12px] font-medium text-gray-500">Assignee</label>
-            <CustomSelect
+            <LocalCustomSelect
               value={assignee}
               onChange={setAssignee}
               options={[
@@ -876,7 +857,7 @@ function IssueDetailPanel({
 
             {/* Track */}
             <MetaRow label="Track">
-              <CustomSelect
+              <LocalCustomSelect
                 value={issue.project_track}
                 onChange={(v) => onUpdate({ project_track: v })}
                 options={PROJECT_TRACKS.filter((t) => t !== "All").map((t) => ({ value: t, label: t }))}
@@ -885,7 +866,7 @@ function IssueDetailPanel({
 
             {/* Assignee */}
             <MetaRow label="Assignee">
-              <CustomSelect
+              <LocalCustomSelect
                 value={issue.assignee_id || ""}
                 onChange={(v) => onUpdate({ assignee_id: v || null })}
                 options={[

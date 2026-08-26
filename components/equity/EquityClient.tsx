@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   createEquityGrant,
   updateEquityGrant,
@@ -387,11 +388,10 @@ function GrantModal({
           </div>
           <div>
             <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Vesting start</label>
-            <input
-              type="date"
+            <DatePicker
               value={draft.vesting_start}
-              onChange={(e) => setDraft({ ...draft, vesting_start: e.target.value })}
-              className="input"
+              onChange={(v) => setDraft({ ...draft, vesting_start: v })}
+              placeholder="Select date"
             />
           </div>
           <div>

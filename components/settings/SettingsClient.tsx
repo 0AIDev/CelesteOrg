@@ -114,7 +114,7 @@ function ProfileTab({
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setErr("La foto deve essere al massimo 2 MB.");
+      setErr("Photo must be 2 MB or less.");
       return;
     }
     setUploading(true);
@@ -177,8 +177,8 @@ function ProfileTab({
               onClick={open}
               disabled={uploading}
               className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full focus:outline-none focus:ring-2 focus:ring-gray-900/30"
-              aria-label="Cambia foto profilo"
-              title="Cambia foto profilo"
+              aria-label="Change profile photo"
+              title="Change profile photo"
             >
               <SquircleAvatar
                 name={profile?.full_name}

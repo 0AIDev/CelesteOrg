@@ -27,6 +27,7 @@ import {
   type SocialPlatform,
   type DraftStatus,
 } from "@/app/actions/social-draft-actions";
+import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { useSession } from "@/components/layout/LayoutProvider";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { cn } from "@/lib/utils";
@@ -522,11 +523,10 @@ function DraftModal({
           {/* Schedule */}
           <div>
             <label className="mb-1 block text-[12px] font-medium text-gray-500">Schedule (optional)</label>
-            <input
-              type="datetime-local"
+            <DateTimePicker
               value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] text-gray-700 outline-none transition-colors focus:border-gray-300 focus:bg-white"
+              onChange={setScheduleDate}
+              placeholder="Select date & time"
             />
           </div>
 
