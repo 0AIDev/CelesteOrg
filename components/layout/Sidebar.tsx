@@ -361,22 +361,22 @@ function SidebarInner({
           <div className="group/card relative mb-2">
             <button
               onClick={() => { navClick(); onOpenInvite(); }}
-              className="flex w-full items-center gap-2.5 rounded-[14px] border border-gray-200/80 bg-white p-3 text-left transition-all hover:border-gray-300/80 hover:bg-gray-50/80"
+              className="flex w-full items-center gap-2.5 rounded-[14px] border border-gray-200/80 bg-white p-3 text-left transition-all hover:border-gray-300/80 hover:bg-gray-50/80 dark:border-[rgba(255,255,255,0.06)] dark:bg-[rgba(255,255,255,0.03)] dark:hover:bg-[rgba(255,255,255,0.06)]"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-[rgba(255,255,255,0.06)] dark:text-gray-500">
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]">
                   <path d="M14.1874 3.53647C14.5628 2.46674 13.5339 1.43787 12.4642 1.81326L2.22247 5.40722C1.05947 5.81532 1.00461 7.43953 2.13734 7.92526L6.29334 9.70733L8.07541 13.8633C8.56107 14.9961 10.1853 14.9412 10.5934 13.7782L14.1874 3.53647Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="min-w-0 grow px-1">
-                <p className="text-[13px] font-medium text-gray-950">Grow your team</p>
-                <p className="mt-0.5 text-[11.5px] leading-snug text-gray-500">Invite colleagues to Celeste HQ and start collaborating.</p>
+                <p className="text-[13px] font-medium text-gray-950 dark:text-gray-200">Grow your team</p>
+                <p className="mt-0.5 text-[11.5px] leading-snug text-gray-500 dark:text-gray-500">Invite colleagues to Celeste HQ and start collaborating.</p>
               </div>
             </button>
             <button
               aria-label="Dismiss"
               onClick={(e) => { e.stopPropagation(); dismissInvite(); }}
-              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm transition-opacity duration-200 group-hover/card:opacity-100 hover:bg-gray-100 hover:text-gray-600"
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm transition-opacity duration-200 group-hover/card:opacity-100 hover:bg-gray-100 hover:text-gray-600 dark:bg-[#161616] dark:text-gray-500 dark:hover:bg-[rgba(255,255,255,0.1)]"
             >
               <svg fill="none" xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" width="14" height="14" viewBox="0 0 14 14" style={{ strokeWidth: 1.5 }}>
                 <path d="M9.82843 4.17144L7 6.99987M7 6.99987L4.17157 9.8283M7 6.99987L4.17157 4.17144M7 6.99987L9.82843 9.8283" stroke="currentColor" strokeLinecap="round" />
