@@ -8,7 +8,7 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
 } from "@assistant-ui/react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   ArrowUp,
   Copy,
@@ -120,7 +120,7 @@ function Thread() {
           </div>
         </form>
 
-        {/* Welcome suggestions — real workspace questions */}
+        {/* Welcome suggestions — send real messages */}
         <div className="flex flex-wrap items-center justify-center gap-2">
           <SuggestionPill text="What's on my calendar today?" />
           <SuggestionPill text="Show pending approvals" />
@@ -131,12 +131,35 @@ function Thread() {
   );
 }
 
-/** Suggestion pill */
+/** Suggestion pill — sends the message when clicked */
 function SuggestionPill({ text }: { text: string }) {
+  const handleClick = useCallback(() => {
+    // Find the composer input and set its value, then submit
+    const input = document.querySelector('[name="input"]') as HTMLTextAreaElement | HTMLInputElement | null;
+    if (input) {
+      // Set the value using native setter to trigger React state update
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value"
+      )?.set ?? Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      nativeInputValueSetter?.call(input, text);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+
+      // Find and click the send button after a short delay
+      setTimeout(() => {
+        const form = input.closest("form");
+        if (form) {
+          form.requestSubmit();
+        }
+      }, 50);
+    }
+  }, [text]);
+
   return (
     <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
       <button
         type="button"
+        onClick={handleClick}
         className="inline-flex shrink-0 items-center justify-center rounded-full border border-gray-200/60 bg-white px-3.5 py-1.5 text-[13px] font-normal text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
       >
         {text}
