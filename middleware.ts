@@ -91,6 +91,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Onboarding is always accessible (no auth required)
+  if (pathname.startsWith("/onboarding")) {
+    return withFreshHtml(request, response);
+  }
+
   // Redirect incomplete onboarding to /onboarding (skip the redirect for
   // /onboarding itself to avoid loops, and for /sign-in /auth/callback).
   if (

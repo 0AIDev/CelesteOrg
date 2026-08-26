@@ -1,19 +1,13 @@
-import { redirect } from "next/navigation";
 import { getOnboardingData } from "@/app/actions/onboarding-actions";
 import { OnboardingClient } from "@/components/onboarding/OnboardingClient";
 
 export const metadata = { title: "Onboarding — Celeste HQ" };
 
 export default async function OnboardingPage() {
+  // This page works WITHOUT login - shows account creation first
   const data = await getOnboardingData();
 
-  // If user is not logged in, pass null data so the client shows step 0 (account creation)
-  if (!data) {
-    return <OnboardingClient data={null} />;
-  }
-
-  // Already completed? Go to dashboard.
-  if (data.profile?.onboarding_completed) redirect("/dashboard");
-
+  // If user is logged in, pass their data
+  // If not logged in, data will be null and client shows step 0 (account creation)
   return <OnboardingClient data={data} />;
 }
