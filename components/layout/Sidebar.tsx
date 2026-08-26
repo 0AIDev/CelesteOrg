@@ -174,7 +174,7 @@ function SidebarInner({
       </div>
 
       {/* Scrollable nav */}
-      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
+      <nav className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
         {/* Main nav */}
         <div className="space-y-0.5">
           {mainNav.map((item) => (
