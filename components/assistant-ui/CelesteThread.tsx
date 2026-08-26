@@ -43,15 +43,15 @@ export function CelesteAssistantModal() {
   );
 }
 
-/** Full thread — exact replica of assistant-ui layout */
+/** Full thread — clean minimal layout */
 function Thread() {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col">
       {/* Messages viewport */}
-      <ThreadPrimitive.Viewport className="flex flex-1 flex-col px-4 pt-4">
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col px-5 pt-6">
         {/* Welcome */}
         <ThreadPrimitive.Empty>
-          <div className="mb-6 flex flex-col items-center px-4 text-center">
+          <div className="mb-6 flex flex-col items-center text-center">
             <h1 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
               How can I help you today?
             </h1>
@@ -64,18 +64,18 @@ function Thread() {
         </div>
       </ThreadPrimitive.Viewport>
 
-      {/* Footer — composer + suggestions */}
-      <div className="flex flex-col gap-4 overflow-visible bg-white pb-4 md:pb-6">
-        {/* Composer */}
+      {/* Footer — composer + suggestions, detached from edges */}
+      <div className="flex flex-col gap-4 overflow-visible px-5 pb-5">
+        {/* Composer — detached from borders */}
         <form className="relative flex w-full flex-col">
-          <div className="flex w-full cursor-text flex-col gap-2 rounded-[18px] border border-gray-200/60 bg-white p-3 transition-[border-color] focus-within:border-gray-300">
+          <div className="flex w-full cursor-text flex-col gap-2 rounded-2xl border border-gray-200 bg-gray-50/50 p-3 transition-[border-color,background-color] focus-within:border-gray-300 focus-within:bg-white">
             {/* Attachments */}
             <div className="flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden" />
 
             {/* Input */}
             <ComposerPrimitive.Input
-              placeholder="Send a message..."
-              className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 text-gray-900 outline-none placeholder:text-gray-400/60"
+              placeholder="Ask Celeste..."
+              className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-[14px] leading-6 text-gray-900 outline-none placeholder:text-gray-400"
               rows={1}
             />
 
@@ -84,7 +84,7 @@ function Thread() {
               {/* Plus button */}
               <button
                 type="button"
-                className="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 active:scale-[0.96]"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-200/60 hover:text-gray-600 active:scale-[0.96]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14" />
@@ -97,7 +97,7 @@ function Thread() {
                 {/* Mic */}
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 active:scale-90"
+                  className="flex size-7 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-200/60 hover:text-gray-600 active:scale-90"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 19v3" />
@@ -120,27 +120,26 @@ function Thread() {
           </div>
         </form>
 
-        {/* Welcome suggestions */}
-        <div className="flex w-full flex-wrap items-center justify-center gap-2 px-4">
-          <SuggestionPill text1="What's the weather" text2="in San Francisco?" />
-          <SuggestionPill text1="Explain React hooks" text2="like useState and useEffect" />
-          <SuggestionPill text1="Show a live dashboard" text2="with the present tool" />
+        {/* Welcome suggestions — real workspace questions */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <SuggestionPill text="What's on my calendar today?" />
+          <SuggestionPill text="Show pending approvals" />
+          <SuggestionPill text="Summarize recent activity" />
         </div>
       </div>
     </ThreadPrimitive.Root>
   );
 }
 
-/** Suggestion pill — matches assistant-ui welcome suggestions */
-function SuggestionPill({ text1, text2 }: { text1: string; text2: string }) {
+/** Suggestion pill */
+function SuggestionPill({ text }: { text: string }) {
   return (
     <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
       <button
         type="button"
-        className="inline-flex shrink-0 items-center justify-center rounded-full border border-gray-200/60 bg-white px-3.5 py-1.5 text-sm font-normal text-gray-900 transition-colors hover:bg-gray-50 hover:text-gray-900"
+        className="inline-flex shrink-0 items-center justify-center rounded-full border border-gray-200/60 bg-white px-3.5 py-1.5 text-[13px] font-normal text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
       >
-        <span>{text1}</span>
-        {text2 && <span className="ml-1 text-gray-500">{text2}</span>}
+        {text}
       </button>
     </div>
   );
