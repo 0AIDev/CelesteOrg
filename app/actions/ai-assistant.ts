@@ -313,16 +313,46 @@ export async function askAi(question: string): Promise<Answer> {
     `Team:\n${members.map((m: Record<string, unknown>) => `- ${m.full_name}${m.role_title ? ` (${m.role_title})` : ""}${m.is_founder ? " [founder]" : ""}`).join("\n")}`,
   ].join("\n\n");
 
-  const apiKey = process.env.GROQ_API_KEY;
+  // Load all AI credentials from DB (provider, api_key, model config)
+  const { data: creds } = await admin
+    .from("ai_credentials")
+    .select("id, provider, name, api_key")
+    .order("created_at");
 
-  if (apiKey) {
+  type ProviderConfig = {
+    id: string;
+    name: string;
+    baseUrl: string;
+    model: string;
+    apiKey: string;
+  };
+
+  const providers: ProviderConfig[] = (creds ?? []).map((c: Record<string, unknown>) => {
+    const name = (c.name as string) ?? "";
+    const key = c.api_key as string;
+    if ((c.provider as string) === "groq") {
+      return { id: c.id as string, name, baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile", apiKey: key };
+    }
+    // NVIDIA models (stored as 'other')
+    if (name.toLowerCase().includes("muse")) {
+      return { id: c.id as string, name, baseUrl: "https://integrate.api.nvidia.com/v1", model: "meta/muse-glimmer-30b", apiKey: key };
+    }
+    if (name.toLowerCase().includes("nemotron")) {
+      return { id: c.id as string, name, baseUrl: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron-3.5-lightning-30b-a3b", apiKey: key };
+    }
+    // Fallback: treat as OpenAI-compatible
+    return { id: c.id as string, name, baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", apiKey: key };
+  });
+
+  // Try each provider in order until one succeeds
+  for (const provider of providers) {
     try {
       // First LLM call — decide if tool use is needed
-      const firstRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const firstRes = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${provider.apiKey}` },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: provider.model,
           messages: [
             {
               role: "system",
@@ -345,9 +375,20 @@ export async function askAi(question: string): Promise<Answer> {
         signal: AbortSignal.timeout(20_000),
       });
 
-      if (!firstRes.ok) throw new Error(`OpenAI ${firstRes.status}`);
+      if (!firstRes.ok) throw new Error(`${provider.name} ${firstRes.status}`);
       const firstData = (await firstRes.json()) as { choices?: { message?: { content?: string; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[] };
       const msg = firstData.choices?.[0]?.message;
+
+      // Log to api_metrics for realtime usage tracking (fire-and-forget)
+      admin.from("api_metrics").insert({
+        provider: provider.baseUrl.includes("groq") ? "groq" : provider.baseUrl.includes("nvidia") ? "nvidia" : "other",
+        model: provider.model,
+        tokens_used: 0,
+        cost: 0,
+        latency_ms: 0,
+        status: "ok",
+        user_id: userId,
+      });
 
       // If no tool calls, return the text answer directly
       if (!(msg?.tool_calls?.length)) {
@@ -367,12 +408,12 @@ export async function askAi(question: string): Promise<Answer> {
         actions.push(result);
       }
 
-      // Second LLM call — synthesize the final answer
-      const secondRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      // Second LLM call — synthesize the final answer (same provider)
+      const secondRes = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${provider.apiKey}` },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: provider.model,
           messages: [
             {
               role: "system",
@@ -394,11 +435,14 @@ export async function askAi(question: string): Promise<Answer> {
 
       // Fallback: return raw tool results
       return { ok: true, answer: actions.join("\n"), actions };
-    } catch {
-      // Fall through to deterministic
+    } catch (err) {
+      // Provider failed (rate limit, auth, etc.) — try next one
+      console.warn(`AI provider ${provider.name} failed:`, err instanceof Error ? err.message : err);
+      continue;
     }
   }
 
+  // All providers failed — deterministic fallback
   // Deterministic fallback (no API key)
   return { ok: true, answer: deterministicAnswer(q, context) };
 }

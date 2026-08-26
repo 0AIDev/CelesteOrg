@@ -49,6 +49,7 @@ const PROVIDERS: SelectOption[] = [
   { value: "anthropic", label: "Anthropic" },
   { value: "google", label: "Google Gemini" },
   { value: "groq", label: "Groq" },
+  { value: "nvidia", label: "NVIDIA" },
   { value: "mistral", label: "Mistral" },
   { value: "together", label: "Together AI" },
   { value: "perplexity", label: "Perplexity" },
@@ -96,6 +97,11 @@ const PROVIDER_LOGO: Record<string, (props: { className?: string }) => React.Rea
       <path d="M12 3v18M12 3l-4 7h8l-4-7Zm0 18-4-7h8l-4 7Z" strokeLinejoin="round"/>
     </svg>
   ),
+  nvidia: ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="NVIDIA">
+      <path d="M12.527 3.216c-1.384 0-3.08.405-4.968 1.213C5.539 5.36 3.6 6.603 2.033 8.35l10.04 13.738c.266-.36.5-.742.704-1.143h3.357c.266.36.5.742.704 1.143L24 8.35c-1.567-1.747-3.506-2.99-5.526-3.92C16.587 3.62 14.795 3.216 12.527 3.216zM7.49 10.18c-.528 0-.957-.43-.957-.957s.43-.957.957-.957.957.43.957.957-.43.957-.957.957zm4.037 0c-.528 0-.957-.43-.957-.957s.43-.957.957-.957.957.43.957.957-.43.957-.957.957zm4.037 0c-.528 0-.957-.43-.957-.957s.43-.957.957-.957.957.43.957.957-.43.957-.957.957z"/>
+    </svg>
+  ),
   other: ({ className }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="Other">
       <circle cx="12" cy="12" r="8"/>
@@ -137,6 +143,7 @@ const PROVIDER_BAR_COLOR: Record<string, string> = {
   anthropic: "#111217",
   google: "#111217",
   groq: "#111217",
+  nvidia: "#111217",
   mistral: "#111217",
   together: "#111217",
   perplexity: "#111217",
