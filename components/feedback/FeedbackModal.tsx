@@ -29,7 +29,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-[340px] animate-fade-in">
+    <div className="fixed bottom-5 right-5 z-[9999] w-[340px] animate-fade-in">
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">

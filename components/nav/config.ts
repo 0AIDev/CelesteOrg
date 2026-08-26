@@ -17,6 +17,7 @@ import {
   Lightning,
   Kanban,
   VideoCamera,
+  ChatCircleText,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -33,6 +34,7 @@ export const mainNav: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: House },
   { label: "Org Chart", href: "/org-chart", icon: TreeStructure },
   { label: "Teams", href: "/teams", icon: UsersThree },
+  { label: "Chat", href: "/chat", icon: ChatCircleText },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Calendar", href: "/calendar", icon: CalendarBlank },
   { label: "Ideas", href: "/ideas", icon: Lightbulb },
