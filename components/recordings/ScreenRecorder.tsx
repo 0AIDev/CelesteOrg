@@ -18,7 +18,8 @@ import {
   Camera,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { uploadRecording } from "@/app/actions/recording-actions";
+import { createRecordingMeta } from "@/app/actions/recording-actions";
+import { createClient } from "@/lib/supabase/client";
 
 type RecorderState =
   | "idle"
@@ -199,7 +200,7 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
     setMinimized(false);
   }
 
-  // ── Upload to Supabase ────────────────────────────────────────────────
+  // ── Upload to Supabase Storage (direct from browser, no base64) ──────
   async function handleUpload() {
     const blob = recordedBlobRef.current;
     if (!blob) return;
@@ -215,40 +216,59 @@ export function ScreenRecorder({ onClose }: { onClose?: () => void }) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      setProgress(50);
+    try {
+      const sb = createClient();
+      const {
+        data: { user },
+      } = await sb.auth.getUser();
+      if (!user) {
+        setError("Not authenticated");
+        setState("error");
+        return;
+      }
 
-      try {
-        const res = await uploadRecording({
-          blob: base64,
-          fileName: `recording-${Date.now()}.webm`,
-          mimeType: "video/webm",
-          title: title.trim() || `Recording ${new Date().toLocaleString()}`,
-          durationSec: duration,
+      const fileName = `recording-${Date.now()}.webm`;
+      const filePath = `${user.id}/${fileName}`;
+
+      // Upload blob directly to Supabase Storage (no base64, no size limit from Server Actions)
+      setProgress(20);
+      const { error: uploadErr } = await sb.storage
+        .from("screen-recordings")
+        .upload(filePath, blob, {
+          contentType: "video/webm",
+          upsert: false,
         });
 
-        setProgress(100);
+      if (uploadErr) {
+        setError(`Upload failed: ${uploadErr.message}`);
+        setState("error");
+        return;
+      }
 
-        if (res.ok) {
-          setState("done");
-        } else {
-          setError(res.error);
-          setState("error");
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Upload failed");
+      setProgress(70);
+
+      // Insert metadata via server action (no blob, just text)
+      const res = await createRecordingMeta({
+        filePath,
+        fileName,
+        fileSize: blob.size,
+        mimeType: "video/webm",
+        title: title.trim() || `Recording ${new Date().toLocaleString()}`,
+        durationSec: duration,
+      });
+
+      setProgress(100);
+
+      if (res.ok) {
+        setState("done");
+      } else {
+        setError(res.error);
         setState("error");
       }
-    };
-
-    reader.onerror = () => {
-      setError("Failed to process recording");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
       setState("error");
-    };
-
-    reader.readAsDataURL(blob);
+    }
   }
 
   function formatTime(secs: number) {

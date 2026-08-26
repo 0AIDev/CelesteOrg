@@ -63,7 +63,7 @@ export async function getRecordingUrl(filePath: string): Promise<ActionResult & 
     const supabase = userClient();
     const { data, error } = await supabase.storage
       .from("screen-recordings")
-      .createSignedUrl(filePath, 3600); // 1 hour
+      .createSignedUrl(filePath, 3600);
 
     if (error) return { ok: false, error: error.message };
     return { ok: true, url: data.signedUrl };
@@ -72,10 +72,11 @@ export async function getRecordingUrl(filePath: string): Promise<ActionResult & 
   }
 }
 
-// ── Upload recording blob ───────────────────────────────────────────────────
-export async function uploadRecording(input: {
-  blob: string; // base64 encoded
+// ── Insert recording metadata (browser uploads blob directly to Supabase Storage) ──
+export async function createRecordingMeta(input: {
+  filePath: string;
   fileName: string;
+  fileSize: number;
   mimeType: string;
   title: string;
   description?: string;
@@ -88,43 +89,14 @@ export async function uploadRecording(input: {
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated" };
 
-    // Decode base64 to buffer
-    const base64Data = input.blob.replace(/^data:[^;]+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
-
-    // Check file size (Supabase free tier has 50MB limit per upload)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (buffer.length > maxSize) {
-      return { ok: false, error: "Recording too large (max 50MB). Try a shorter recording." };
-    }
-
-    // Upload to storage
-    const filePath = `${user.id}/${Date.now()}-${input.fileName}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("screen-recordings")
-      .upload(filePath, buffer, {
-        contentType: input.mimeType,
-        upsert: false,
-      });
-
-    if (uploadErr) return { ok: false, error: `Upload failed: ${uploadErr.message}` };
-
-    // Get file size from storage
-    const { data: fileData } = await supabase.storage
-      .from("screen-recordings")
-      .list(user.id, { limit: 1, search: filePath.split("/").pop() });
-
-    const actualSize = fileData?.[0]?.metadata?.size ?? buffer.length;
-
-    // Insert metadata
     const { data, error: insertErr } = await supabase
       .from("screen_recordings")
       .insert({
         title: input.title.trim() || "Untitled recording",
         description: input.description?.trim() || null,
-        file_path: filePath,
+        file_path: input.filePath,
         file_name: input.fileName,
-        file_size: actualSize,
+        file_size: input.fileSize,
         mime_type: input.mimeType,
         duration_sec: input.durationSec,
         author_id: user.id,
@@ -138,7 +110,7 @@ export async function uploadRecording(input: {
     revalidatePath("/recordings");
     return { ok: true, id: data.id };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Upload failed" };
+    return { ok: false, error: e instanceof Error ? e.message : "Save failed" };
   }
 }
 
@@ -147,7 +119,6 @@ export async function deleteRecording(recordingId: string): Promise<ActionResult
   try {
     const supabase = userClient();
 
-    // Get file path first
     const { data: recording } = await supabase
       .from("screen_recordings")
       .select("file_path")
