@@ -90,8 +90,9 @@ export function Sidebar({
 // ─── Brand ──────────────────────────────────────────────────────────
 function Brand() {
   return (
-    <div className="flex items-center px-4 pt-4 pb-3">
+    <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
       <Logo className="h-6 w-auto" />
+      <span className="text-[15px] font-semibold tracking-tight text-gray-950 dark:text-white">Celeste HQ</span>
     </div>
   );
 }
