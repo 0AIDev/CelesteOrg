@@ -68,27 +68,6 @@ export default async function ProtectedLayout({
     profileNameMap.set(p.id, p.full_name ?? "");
   }
 
-  const dashboards = (allRoles ?? [])
-    .filter((r) => visibleRoleIds.includes(r.id))
-    .map((r) => {
-      const roleName = shortRoleTitle(r.title);
-      const profileName = profileNameMap.get(r.profile_id) ?? "";
-      const firstName = profileName.split(" ")[0] || "";
-      // Generic roles like "Teammate" → use "Name Dashboard"
-      // Named roles like "CEO" → use "CEO Dashboard"
-      const isGenericRole = ["teammate", "member", "user"].includes(r.title.toLowerCase());
-      let title = isGenericRole && firstName
-        ? `${firstName} Dashboard`
-        : `${roleName} Dashboard`;
-      // Prevent double "Dashboard" in title
-      title = title.replace(/Dashboard\s*Dashboard/gi, "Dashboard").trim();
-      return {
-        slug: r.id,
-        title,
-        isOwn: viewerRoleId ? r.id === viewerRoleId : false,
-      };
-    });
-
   // Detect onboarding page from the URL pathname (server-side)
   // The onboarding page should not show sidebar/header.
   const isOnboardingPage = false; // Handled client-side by LayoutProvider
@@ -97,7 +76,6 @@ export default async function ProtectedLayout({
     <LayoutProvider
       canManage={canManage}
       isOnboarded={isOnboarded}
-      dashboards={dashboards}
       user={
         user
           ? {

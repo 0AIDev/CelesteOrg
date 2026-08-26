@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { X, Folder, FolderDashed, CaretDown, PushPin, RocketLaunch } from "@phosphor-icons/react";
+import { X, CaretDown, PushPin, RocketLaunch } from "@phosphor-icons/react";
 import {
   categories,
   topNav,
@@ -41,14 +41,12 @@ export function Sidebar({
   onOpenInvite,
   onOpenStandup,
   isOnboarded,
-  dashboards,
 }: {
   open: boolean;
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -76,7 +74,6 @@ export function Sidebar({
             onOpenInvite={onOpenInvite}
             onOpenStandup={onOpenStandup}
             isOnboarded={isOnboarded}
-            dashboards={dashboards}
           />
         </div>
       </aside>
@@ -222,13 +219,11 @@ function SidebarInner({
   onOpenInvite,
   onOpenStandup,
   isOnboarded,
-  dashboards,
 }: {
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
 }) {
   const pathname = usePathname();
   const [inviteDismissed, setInviteDismissed] = useState(false);
@@ -354,26 +349,7 @@ function SidebarInner({
           </div>
         )}
 
-        {/* Role dashboards */}
-        {dashboards && dashboards.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Dashboards</p>
-            <div className="space-y-0.5">
-              {dashboards.map((d) => (
-                <NavItem
-                  key={d.slug}
-                  item={{
-                    label: `${d.title} Dashboard`,
-                    href: `/dashboards/${d.slug}`,
-                    icon: d.isOwn ? Folder : FolderDashed,
-                  }}
-                  active={pathname.startsWith(`/dashboards/${d.slug}`)}
-                  onClick={navClick}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+
       </nav>
 
       {/* Bottom: invite card + nav */}

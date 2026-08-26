@@ -29,14 +29,12 @@ export function LayoutProvider({
   user,
   canManage,
   isOnboarded,
-  dashboards,
   onboardingMode = false,
   children,
 }: {
   user: SessionUser | null;
   canManage?: boolean;
   isOnboarded?: boolean;
-  dashboards?: { slug: string; title: string; isOwn?: boolean }[];
   onboardingMode?: boolean;
   children: React.ReactNode;
 }) {
@@ -82,7 +80,6 @@ export function LayoutProvider({
             onOpenInvite={canManage ? () => setInviteOpen(true) : undefined}
             onOpenStandup={() => setStandupOpen(true)}
             isOnboarded={isOnboarded}
-            dashboards={dashboards}
           />
         )}
 
