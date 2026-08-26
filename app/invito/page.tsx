@@ -15,15 +15,15 @@ export default async function InvitePage({
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F]">
         <div className="text-center">
-          <h1 className="text-lg font-semibold text-gray-900">Invalid Invite</h1>
-          <p className="mt-2 text-sm text-gray-500">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Invalid Invite</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             This invite link is invalid or has expired.
           </p>
           <Link
             href="/sign-in"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
           >
             Sign In
           </Link>
@@ -34,23 +34,47 @@ export default async function InvitePage({
 
   // Look up the invite to get role info
   const sb = await createClient();
-  const { data: invite } = await sb
+  const { data: invite, error: inviteError } = await sb
     .from("invites")
     .select("email, role_title, status, departments(name)")
     .eq("token", token)
     .maybeSingle();
 
-  if (!invite || invite.status !== "pending") {
+  // Debug: log the error if any
+  if (inviteError) {
+    console.error("Invite lookup error:", inviteError);
+  }
+
+  if (!invite) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F]">
         <div className="text-center">
-          <h1 className="text-lg font-semibold text-gray-900">Invite Not Found</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            This invite has already been used or is no longer valid.
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Invite Not Found</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            This invite link is invalid. Please request a new invite.
           </p>
           <Link
             href="/sign-in"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (invite.status !== "pending") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F]">
+        <div className="text-center">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Invite Already Used</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            This invite has already been accepted. Please sign in with your account.
+          </p>
+          <Link
+            href="/sign-in"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
           >
             Sign In
           </Link>
@@ -76,11 +100,11 @@ export default async function InvitePage({
 
   // Not logged in — show the invite landing page
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
       <div className="w-full max-w-sm text-center">
         {/* Icon */}
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 dark:bg-white">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white dark:text-black">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <line x1="19" x2="19" y1="8" y2="14" />
@@ -89,36 +113,36 @@ export default async function InvitePage({
         </div>
 
         {/* Title */}
-        <h1 className="text-xl font-semibold text-gray-900">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
           Join Celeste HQ
         </h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           You&apos;ve been invited to join the workspace
           {invite.role_title && (
             <>
               {" "}as{" "}
-              <span className="font-medium text-gray-700">{invite.role_title}</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{invite.role_title}</span>
             </>
           )}
           {departmentName && (
             <>
               {" "}in{" "}
-              <span className="font-medium text-gray-700">{departmentName}</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{departmentName}</span>
             </>
           )}
           .
         </p>
 
         {/* Email hint */}
-        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-[13px] text-gray-500">Invited as</p>
-          <p className="text-sm font-medium text-gray-900">{invite.email}</p>
+        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-[rgba(255,255,255,0.08)] dark:bg-[rgba(255,255,255,0.03)]">
+          <p className="text-[13px] text-gray-500 dark:text-gray-400">Invited as</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{invite.email}</p>
         </div>
 
         {/* CTA */}
         <Link
           href={`/sign-in?next=${encodeURIComponent(`/invite/complete?invite=${token}`)}`}
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
         >
           Sign in to Accept
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
@@ -128,7 +152,7 @@ export default async function InvitePage({
 
         <p className="mt-8 text-[12px] text-gray-400">
           Don&apos;t have an account?{" "}
-          <Link href="/sign-up" className="font-medium text-gray-600 hover:text-gray-900">
+          <Link href="/sign-up" className="font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
             Sign up
           </Link>
         </p>

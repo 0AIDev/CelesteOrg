@@ -54,10 +54,11 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/Vector (2).svg" media="(prefers-color-scheme: light)" />
         {/* Dynamic favicon - dark mode */}
         <link rel="icon" type="image/svg+xml" href="/Vector (3).svg" media="(prefers-color-scheme: dark)" />
-        {/* Prevent browser address bar color flash */}
+        {/* Status bar color - matches theme */}
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ffffff" />
+        {/* For PWA dark mode support */}
+        <meta name="color-scheme" content="light dark" />
       </head>
       <body className="font-sans antialiased">
         {children}

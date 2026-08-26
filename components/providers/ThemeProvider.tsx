@@ -42,6 +42,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.remove("dark");
     }
     
+    // Update theme-color meta tag for status bar
+    const themeColor = theme === "dark" ? "#0F0F0F" : "#ffffff";
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", themeColor);
+    }
+    
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch { /* ignore */ }
