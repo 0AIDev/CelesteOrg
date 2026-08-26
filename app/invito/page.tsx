@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { acceptInvite } from "@/app/actions/invite-actions";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
 export const metadata = { title: "Join Celeste HQ" };
@@ -32,15 +32,14 @@ export default async function InvitePage({
     );
   }
 
-  // Look up the invite to get role info
-  const sb = await createClient();
-  const { data: invite, error: inviteError } = await sb
+  // Look up the invite using admin client (public page, no auth session yet)
+  const admin = createAdminClient();
+  const { data: invite, error: inviteError } = await admin
     .from("invites")
-    .select("email, role_title, status, departments(name)")
+    .select("email, role_title, status, department_id, departments(name)")
     .eq("token", token)
     .maybeSingle();
 
-  // Debug: log the error if any
   if (inviteError) {
     console.error("Invite lookup error:", inviteError);
   }
