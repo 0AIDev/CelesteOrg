@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -59,9 +60,30 @@ export default function RootLayout({
         <meta name="theme-color" content="#ffffff" />
         {/* For PWA dark mode support */}
         <meta name="color-scheme" content="light dark" />
+        {/* Prevent flash of wrong theme on load - runs before body renders */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var t = localStorage.getItem('celeste-theme');
+              var isDark = t === 'dark';
+              if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.style.backgroundColor = '#0F0F0F';
+                document.body.style.backgroundColor = '#0F0F0F';
+              } else {
+                document.documentElement.style.backgroundColor = '#ffffff';
+                document.body.style.backgroundColor = '#ffffff';
+              }
+              var meta = document.querySelector('meta[name="theme-color"]');
+              if (meta) meta.setAttribute('content', isDark ? '#0F0F0F' : '#ffffff');
+            } catch(e) {}
+          })();
+        ` }} />
       </head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased bg-white dark:bg-[#0F0F0F]">
+        <ThemeProvider>
         {children}
+        </ThemeProvider>
         {/* Register service worker for PWA */}
         <Script id="sw-register" strategy="afterInteractive">
           {`
