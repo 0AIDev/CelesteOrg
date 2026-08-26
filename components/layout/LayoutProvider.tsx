@@ -7,6 +7,7 @@ import { InviteModal } from "@/components/teams/InviteModal";
 import { MorningModal, EodModal } from "@/components/reports/ReportModals";
 import { CommandMenu } from "@/components/ui/CommandMenu";
 import { AskAIChat } from "@/components/ai/AskAIChat";
+import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 
 type SessionUser = {
   id: string;
@@ -46,6 +47,7 @@ export function LayoutProvider({
   const [standupOpen, setStandupOpen] = useState(false);
   const [eodOpen, setEodOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [revision, setRevision] = useState(0);
 
 
@@ -100,6 +102,7 @@ export function LayoutProvider({
               sidebarOpen={sidebarOpen}
               toggleSidebar={() => setSidebarOpen((o) => !o)}
               onOpenCmdk={() => setCmdkOpen(true)}
+              onOpenFeedback={() => setFeedbackOpen(true)}
             />
           )}
           <main className="flex-1">{children}</main>
@@ -122,6 +125,9 @@ export function LayoutProvider({
 
         {/* Ask AI — right column, pushes the main content when open */}
         <AskAIChat open={aiOpen} onOpenChange={setAiOpen} />
+
+        {/* Feedback widget — bottom-right floating */}
+        {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
       </div>
     </Suspense>
     </SessionContext.Provider>
