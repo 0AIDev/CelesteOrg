@@ -80,6 +80,22 @@
 .dark .lucide { color: inherit; }
 .dark [data-phosphor] { color: inherit; }
 
+/* Command palette (cmdk) dark mode */
+.dark [cmdk-root] { background-color: #161616 !important; color: #f0f0f0 !important; }
+.dark [cmdk-input] { color: #f0f0f0 !important; }
+.dark [cmdk-input]::placeholder { color: #606060 !important; }
+.dark [cmdk-list] { background-color: #161616 !important; }
+.dark [cmdk-item] { color: #c0c0c0 !important; }
+.dark [cmdk-item][data-selected="true"] { background-color: #1E1F20 !important; color: #ffffff !important; }
+.dark [cmdk-separator] { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark [cmdk-group-heading] { color: #606060 !important; }
+.dark [cmdk-empty] { color: #606060 !important; }
+
+/* Tab active state */
+.dark .data-\[state\=active\]\:text-gray-900[data-state="active"] { color: #ffffff !important; }
+.dark [role="tab"][data-state="active"] { color: #ffffff !important; }
+.dark [data-state="active"]::after { background-color: #ffffff !important; }
+
 * {
   border-color: var(--edge);
 }
