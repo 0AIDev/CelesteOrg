@@ -48,6 +48,7 @@ export const mainNav: NavItem[] = [
   { label: "Issues", href: "/issues", icon: Warning },
   { label: "Recordings", href: "/recordings", icon: VideoCamera },
   { label: "CRM", href: "/crm", icon: UsersThree },
+  { label: "Social Planner", href: "/social-planner", icon: RocketLaunch },
 ];
 
 export const shortcuts: NavItem[] = [
