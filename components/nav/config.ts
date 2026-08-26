@@ -16,6 +16,7 @@ import {
   GithubLogo,
   Lightning,
   Kanban,
+  VideoCamera,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -41,6 +42,7 @@ export const mainNav: NavItem[] = [
   { label: "GitHub", href: "/github", icon: GithubLogo },
   { label: "Prompt Vault", href: "/prompt-vault", icon: Lightning },
   { label: "Tasks", href: "/tasks", icon: Kanban },
+  { label: "Recordings", href: "/recordings", icon: VideoCamera },
 ];
 
 export const shortcuts: NavItem[] = [
