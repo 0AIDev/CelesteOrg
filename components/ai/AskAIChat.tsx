@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ArrowUp, Loader2, X } from "lucide-react";
 import { askAi } from "@/app/actions/ai-assistant";
+import { StreamingText, type Segment } from "@/components/elements/streaming-text";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "ai"; text: string; actions?: string[] };
+type Msg = {
+  role: "user" | "ai";
+  text: string;
+  actions?: string[];
+};
 
 const SUGGESTIONS = [
   "Who's on vacation today?",
@@ -24,23 +29,73 @@ export function AskAIChat({
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [streamingIdx, setStreamingIdx] = useState<number | null>(null);
+  const [streamCount, setStreamCount] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const streamTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [msgs, thinking]);
+  }, [msgs, thinking, streamCount]);
+
+  // Cleanup streaming timer on unmount
+  useEffect(() => {
+    return () => {
+      if (streamTimerRef.current) clearInterval(streamTimerRef.current);
+    };
+  }, []);
+
+  const startStream = useCallback((text: string, msgIndex: number) => {
+    // Split into words for streaming
+    const words = text.split(" ");
+    const totalWords = words.length;
+    let count = 0;
+
+    setStreamingIdx(msgIndex);
+    setStreamCount(0);
+
+    streamTimerRef.current = setInterval(() => {
+      count += 1;
+      setStreamCount(count);
+
+      if (count >= totalWords) {
+        if (streamTimerRef.current) clearInterval(streamTimerRef.current);
+        // Finalize: set streaming to done after a short delay
+        setTimeout(() => {
+          setStreamingIdx(null);
+          setStreamCount(0);
+        }, 800);
+      }
+    }, 25); // ~25ms per word = fast but readable
+  }, []);
 
   async function send(text: string) {
     const question = text.trim();
     if (!question || thinking) return;
+
     setMsgs((m) => [...m, { role: "user", text: question }]);
     setInput("");
     setThinking(true);
+
     const res = await askAi(question);
     setThinking(false);
-    setMsgs((m) => [...m, { role: "ai", text: res.ok ? res.answer : res.error, actions: res.ok ? res.actions : undefined }]);
+
+    const aiText = res.ok ? res.answer : res.error;
+    const newMsg: Msg = {
+      role: "ai",
+      text: aiText,
+      actions: res.ok ? res.actions : undefined,
+    };
+
+    setMsgs((m) => {
+      const updated = [...m, newMsg];
+      // Start streaming the new AI message
+      const idx = updated.length - 1;
+      startStream(aiText, idx);
+      return updated;
+    });
   }
 
   return (
@@ -119,27 +174,47 @@ export function AskAIChat({
                 ))}
               </div>
             )}
-            {msgs.map((m, i) => (
-              <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
-                    m.role === "user"
-                      ? "rounded-br-md bg-gray-900 text-white"
-                      : "rounded-bl-md border border-gray-100 bg-gray-50 text-gray-800",
-                  )}
-                >
-                  {m.text}
-                  {m.actions && m.actions.length > 0 && (
-                    <div className="mt-2 border-t border-gray-200 pt-2">
-                      {m.actions.map((a, i) => (
-                        <p key={i} className="text-[12px] text-green-700">{a}</p>
-                      ))}
-                    </div>
-                  )}
+
+            {msgs.map((m, i) => {
+              const isStreaming = streamingIdx === i;
+              const isAi = m.role === "ai";
+
+              return (
+                <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-3.5 py-2.5",
+                      m.role === "user"
+                        ? "rounded-br-md bg-gray-900 text-white"
+                        : "rounded-bl-md border border-gray-100 bg-gray-50",
+                    )}
+                  >
+                    {/* Streaming text for AI, static text for user */}
+                    {isAi ? (
+                      <StreamingText
+                        segments={[{ text: m.text }]}
+                        count={isStreaming ? streamCount : m.text.split(" ").length}
+                        streaming={isStreaming}
+                      />
+                    ) : (
+                      <p className="text-[13px] leading-relaxed text-white whitespace-pre-wrap">
+                        {m.text}
+                      </p>
+                    )}
+
+                    {/* Action results */}
+                    {m.actions && m.actions.length > 0 && (
+                      <div className="mt-2 border-t border-gray-200 pt-2">
+                        {m.actions.map((a, j) => (
+                          <p key={j} className="text-[12px] text-green-700">{a}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
             {thinking && (
               <div className="flex justify-start">
                 <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-4 py-3">
