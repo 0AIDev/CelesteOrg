@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { acceptInvite } from "@/app/actions/invite-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Logo } from "@/components/ui/Logo";
 import Link from "next/link";
 
 export const metadata = { title: "Join Celeste HQ" };
@@ -103,8 +102,9 @@ export default async function InvitePage({
     <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
       <div className="w-full max-w-sm text-center">
         {/* Logo */}
-        <div className="mx-auto mb-6">
-          <Logo className="h-12 w-auto" />
+        <div className="mx-auto mb-6 flex justify-center">
+          <img src="/Vector (2).svg" alt="Celeste" className="h-12 w-auto dark:hidden" />
+          <img src="/Vector (3).svg" alt="Celeste" className="h-12 w-auto hidden dark:block" />
         </div>
 
         {/* Title */}
