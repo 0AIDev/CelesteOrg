@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Sparkle, Copy, Check, X } from "lucide-react";
+import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReasoningPanel } from "@/components/elements/reasoning-panel";
 
@@ -11,6 +11,31 @@ type Message = {
 };
 
 const POSITION_KEY = "celeste-ask-button-position";
+const CHAT_STORAGE_KEY = "celeste-chat-history";
+
+/** Load chat history from localStorage */
+function loadChatHistory(): Message[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Message[];
+    // Only keep last 50 messages to avoid bloat
+    return parsed.slice(-50);
+  } catch {
+    return [];
+  }
+}
+
+/** Save chat history to localStorage */
+function saveChatHistory(messages: Message[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-50)));
+  } catch {
+    // ignore
+  }
+}
 
 /** Floating button + chat modal */
 export function CelesteAssistantModal() {
@@ -89,14 +114,12 @@ export function CelesteAssistantModal() {
   // Calculate modal position: centered above the button
   const modalWidth = 420;
   const modalHeight = 520;
-  const buttonWidth = 136; // approx
+  const buttonWidth = 136;
   const gap = 12;
 
-  // Button's left edge on screen (button uses `right: position.x`)
   const btnLeft = btnRect ? btnRect.left : window.innerWidth - position.x - buttonWidth;
   const btnTop = btnRect ? btnRect.top : window.innerHeight - position.y - 40;
 
-  // Center modal above button, clamped to viewport
   const modalLeft = Math.max(
     16,
     Math.min(btnLeft + buttonWidth / 2 - modalWidth / 2, window.innerWidth - modalWidth - 16)
@@ -109,25 +132,27 @@ export function CelesteAssistantModal() {
 
   return (
     <>
-      {/* Ask Celeste button — white glassmorphism, draggable */}
+      {/* Ask Celeste button — draggable */}
       <button
         ref={btnRef}
         onClick={handleOpen}
         onMouseDown={handleMouseDown}
         className={cn(
-          "fixed z-50 flex h-10 items-center gap-2 rounded-full border border-white/40 bg-white/70 px-3.5 text-[13px] font-medium text-gray-800 shadow-lg backdrop-blur-xl transition-shadow duration-150 hover:shadow-xl",
+          "fixed z-50 flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 text-[13px] font-medium text-gray-800 shadow-lg transition-shadow duration-150 hover:shadow-xl",
           isDragging ? "cursor-grabbing scale-105" : "cursor-grab active:scale-95",
         )}
         style={{ right: position.x, bottom: position.y }}
       >
-        <Sparkle className="h-4 w-4 text-gray-600" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+        </svg>
         Ask Celeste
       </button>
 
-      {/* Modal — positioned above button, centered */}
+      {/* Modal */}
       {open && (
         <div
-          className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 duration-200"
+          className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in-0 zoom-in-95 duration-200"
           style={{ left: modalLeft, top: modalTop }}
         >
           <Chat onClose={() => setOpen(false)} />
@@ -137,16 +162,28 @@ export function CelesteAssistantModal() {
   );
 }
 
-/** Simple chat component */
+/** Simple chat component with persistence */
 function Chat({ onClose }: { onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => loadChatHistory());
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Persist messages whenever they change
+  useEffect(() => {
+    saveChatHistory(messages);
+  }, [messages]);
+
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-focus input
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
@@ -211,7 +248,6 @@ function Chat({ onClose }: { onClose: () => void }) {
           { role: "assistant", content: "Sorry, I couldn't generate a response. Please try again." },
         ]);
       } else {
-        // Clean the final response
         const cleaned = cleanResponse(assistantContent);
         setMessages((prev) => {
           const updated = [...prev];
@@ -243,31 +279,22 @@ function Chat({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200/50 px-5 py-3">
-        <div className="flex items-center gap-2">
-          <Sparkle className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-semibold text-gray-900">Ask Celeste</span>
-        </div>
-        <button
-          onClick={onClose}
-          className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+      {/* Close button — top right, no header */}
+      <button
+        onClick={onClose}
+        className="absolute right-3 top-3 z-10 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+      >
+        <X className="h-4 w-4" />
+      </button>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 no-scrollbar">
+      <div className="flex-1 overflow-y-auto px-5 pt-10 pb-4 no-scrollbar">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <Sparkle className="h-8 w-8 text-gray-300" />
-            <p className="mt-3 text-sm font-medium text-gray-600">
-              How can I help you today?
-            </p>
+            <p className="text-sm text-gray-400">How can I help you today?</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {messages.map((msg, i) => (
               <MessageBubble key={i} message={msg} />
             ))}
@@ -290,22 +317,26 @@ function Chat({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Input */}
-      <div className="border-t border-gray-200/50 px-5 py-3">
+      <div className="px-5 pb-4">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask Celeste..."
-            className="flex-1 rounded-xl border border-gray-200/60 bg-white/50 px-3.5 py-2.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white backdrop-blur-sm"
+            className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white transition-colors"
             disabled={loading}
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="flex size-9 items-center justify-center rounded-xl bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 active:scale-90 transition-all"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </button>
+          {/* Send button — circular, only visible when typing */}
+          {input.trim() && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 active:scale-90 transition-all animate-in fade-in duration-150"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </button>
+          )}
         </form>
       </div>
     </div>
@@ -316,51 +347,34 @@ function Chat({ onClose }: { onClose: () => void }) {
 function cleanResponse(text: string): string {
   if (!text) return "";
   let cleaned = text;
-  // Strip thinking blocks
   cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, "");
   cleaned = cleaned.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
-  // Strip lines that look like thinking
   cleaned = cleaned.replace(/^\s*(?:Here'?s a thinking|Let me|I need to|First,|Analysis:|Step \d|\d+\.\s*(?:Analyze|Deconstruct|Check|Formulate)).*$/gim, "");
-  // Strip "Here's a thinking process:" blocks
   cleaned = cleaned.replace(/Here's a thinking process:[\s\S]*?(?=\n[A-Z])/i, "");
-  // Strip thinking steps
   cleaned = cleaned.replace(/\d+\.\s*\*\*[^*]+\*\*[\s\S]*?(?=\n\d+\.|\n[A-Z]|$)/g, "");
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
   return cleaned;
 }
 
-/** Message bubble — clean, no background, no avatar */
+/** Message bubble — user gets gray bg, AI is plain */
 function MessageBubble({ message }: { message: Message }) {
-  const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const content = isUser ? message.content : cleanResponse(message.content);
-
-  function copyToClipboard() {
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
 
   if (!content) return null;
 
   return (
-    <div className={cn("group", isUser ? "text-right" : "text-left")}>
+    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "inline-block max-w-[85%] whitespace-pre-wrap text-[13px] leading-relaxed",
-          isUser ? "text-gray-900" : "text-gray-700",
+          "max-w-[80%] whitespace-pre-wrap text-[13px] leading-relaxed",
+          isUser
+            ? "rounded-2xl rounded-br-md bg-gray-100 px-3.5 py-2.5 text-gray-800"
+            : "text-gray-700",
         )}
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-      {!isUser && (
-        <button
-          onClick={copyToClipboard}
-          className="mt-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
-        >
-          {copied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-      )}
+      >
+        {content}
+      </div>
     </div>
   );
 }
@@ -371,7 +385,7 @@ function SuggestionPill({ text, onClick }: { text: string; onClick: (text: strin
     <button
       type="button"
       onClick={() => onClick(text)}
-      className="inline-flex shrink-0 items-center rounded-full border border-gray-200/60 bg-white/60 px-3.5 py-1.5 text-[12px] text-gray-600 backdrop-blur-sm transition-colors hover:border-gray-300 hover:bg-white hover:text-gray-900"
+      className="inline-flex shrink-0 items-center rounded-full border border-gray-200 bg-gray-50 px-3.5 py-1.5 text-[12px] text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900"
     >
       {text}
     </button>
