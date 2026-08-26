@@ -10,11 +10,14 @@ export default async function EquityPage() {
   const [user, profile] = await Promise.all([getUser().catch(() => null), getProfile().catch(() => null)]);
 
   // RLS on equity_grants: everyone sees their own row; admins/founders see all.
-  const { data: grants } = await supabase
-    .from("equity_grants")
-    .select(`id, user_id, total_shares, vested_shares, unvested_shares, vesting_start, cliff_months, schedule_type,
-             user:profiles!equity_grants_user_id_fkey(id, full_name, avatar_url)`)
-    .order("user_id");
+  const [{ data: grants }, { data: members }] = await Promise.all([
+    supabase
+      .from("equity_grants")
+      .select(`id, user_id, total_shares, vested_shares, unvested_shares, vesting_start, cliff_months, schedule_type,
+               user:profiles!equity_grants_user_id_fkey(id, full_name, avatar_url)`)
+      .order("user_id"),
+    supabase.from("profiles").select("id, full_name, avatar_url").order("full_name"),
+  ]);
 
   const isAdminOrFounder = !!profile?.is_founder || user?.app_metadata?.role === "admin";
 
@@ -38,6 +41,13 @@ export default async function EquityPage() {
         currentUserId={profile?.id ?? null}
         isAdminOrFounder={isAdminOrFounder}
         grants={all}
+        members={
+          members?.map((m) => ({
+            id: m.id,
+            full_name: m.full_name,
+            avatar_url: m.avatar_url,
+          })) ?? []
+        }
       />
     </Suspense>
   );

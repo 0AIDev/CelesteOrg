@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { X, Gauge } from "@phosphor-icons/react";
 import { mainNav, shortcuts, bottomNav } from "@/components/nav/config";
 import { cn } from "@/lib/utils";
 
@@ -32,11 +32,15 @@ export function Sidebar({
   onClose,
   onOpenInvite,
   onOpenStandup,
+  isOnboarded,
+  dashboards,
 }: {
   open: boolean;
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
+  isOnboarded?: boolean;
+  dashboards?: { slug: string; title: string }[];
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -56,7 +60,7 @@ export function Sidebar({
         className={cn(
           "relative z-40 flex flex-col overflow-hidden border-r border-gray-200 bg-white/70 backdrop-blur-xl transition-[width,transform] duration-200 ease-in-out",
           isMobile
-            ? cn("fixed inset-y-0 left-0 w-[260px]", open ? "translate-x-0" : "-translate-x-full")
+            ? cn("fixed inset-y-0 left-0 w-[280px] max-w-[85vw]", open ? "translate-x-0" : "-translate-x-full")
             : cn("sticky top-0 h-screen shrink-0", open ? "w-[260px]" : "w-0"),
         )}
       >
@@ -66,6 +70,8 @@ export function Sidebar({
             onClose={onClose}
             onOpenInvite={onOpenInvite}
             onOpenStandup={onOpenStandup}
+            isOnboarded={isOnboarded}
+            dashboards={dashboards}
           />
         </div>
       </aside>
@@ -132,10 +138,14 @@ function SidebarInner({
   onClose,
   onOpenInvite,
   onOpenStandup,
+  isOnboarded,
+  dashboards,
 }: {
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
+  isOnboarded?: boolean;
+  dashboards?: { slug: string; title: string }[];
 }) {
   const pathname = usePathname();
   // The invite card always comes back: dismissing only hides it for the
@@ -184,7 +194,9 @@ function SidebarInner({
         <div className="mt-4">
           <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Pinned</p>
           <div className="space-y-0.5">
-            {shortcuts.map((item) =>
+            {shortcuts
+              .filter((item) => !(isOnboarded && item.href === "/onboarding"))
+              .map((item) =>
               item.action === "standup" ? (
                 <NavItem
                   key={item.label}
@@ -209,6 +221,25 @@ function SidebarInner({
             )}
           </div>
         </div>
+
+        {/* Role dashboards — one per role in the org chart, above Settings */}
+        {dashboards && dashboards.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Dashboards</p>
+            <div className="space-y-0.5">
+              {dashboards.map((d) => (
+                <NavItem
+                  key={d.slug}
+                  label={`${d.title} Dashboard`}
+                  href={`/dashboards/${d.slug}`}
+                  icon={Gauge}
+                  active={pathname.startsWith(`/dashboards/${d.slug}`)}
+                  onClick={navClick}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Bottom: invite card + nav */}

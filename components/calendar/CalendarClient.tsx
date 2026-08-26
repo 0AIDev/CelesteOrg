@@ -1,25 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import FullCalendar from "@fullcalendar/react";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import { useRouter } from "next/navigation";
-import { Spinner, X } from "@phosphor-icons/react";
+import { Spinner, Trash, X } from "@phosphor-icons/react";
 import { DateTimePicker, localTimezoneLabel } from "@/components/ui/DateTimePicker";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
-
-// FullCalendar touches the DOM on mount, so load it client-only.
-const LoadedCalendar = dynamic(() => import("@fullcalendar/react"), {
-  ssr: false,
-});
-// The React wrapper is typed loosely by the plugin; treat it as a ref-capable
-// component so we can drive prev/next and view changes.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Calendar = LoadedCalendar as unknown as React.ForwardRefExoticComponent<any>;
-import { createCalendarEvent, updateCalendarEvent, setEventAttendees } from "@/app/actions/calendar-actions";
+import {
+  createCalendarEvent,
+  updateCalendarEvent,
+  setEventAttendees,
+  deleteCalendarEvent,
+  moveCalendarEvent,
+} from "@/app/actions/calendar-actions";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type Person = { id: string; full_name: string | null; avatar_url: string | null };
@@ -36,11 +33,12 @@ type CalEvent = {
   user: { id: string; full_name: string | null } | null;
 };
 
-// Monochrome: all event types render in the same dark gray.
+// Restrained per-type colors — vacation teal, remote amber, sick red,
+// meeting neutral gray. Pending (unapproved) events stay light gray.
 const typeColor: Record<string, string> = {
-  vacation: "#374151",
-  remote: "#374151",
-  sick: "#374151",
+  vacation: "#0f766e",
+  remote: "#b45309",
+  sick: "#b91c1c",
   meeting: "#374151",
 };
 
@@ -79,6 +77,8 @@ export function CalendarClient({
   const [form, setForm] = useState<FormState>(() => emptyForm(localTimezoneLabel()));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<null | { id: string; title: string }>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const [view, setView] = useState(() => {
     if (typeof window === "undefined") return "dayGridMonth";
     const saved = window.localStorage.getItem("celeste-calendar-view");
@@ -89,17 +89,27 @@ export function CalendarClient({
   function changeView(v: string) {
     setView(v);
     try { window.localStorage.setItem("celeste-calendar-view", v); } catch { /* ignore */ }
-    calRef.current?.getApi().changeView(v);
   }
+
+  // Sync view state to FullCalendar API after mount
+  useEffect(() => {
+    if (calRef.current) {
+      calRef.current.getApi().changeView(view);
+    }
+  }, [view]);
 
   const calendarEvents = events.map((e) => {
     const pending = e.status === "pending";
+    // Vacation / remote / sick are all-day blocks. Meetings are timed.
+    const isAllDay = e.type !== "meeting";
     return {
       id: e.id,
       title: e.title,
       start: e.start_time,
       end: e.end_time,
-      color: pending ? "#9ca3af" : typeColor[e.type] ?? "#374151",
+      allDay: isAllDay,
+      color: pending ? "#d1d5db" : typeColor[e.type] ?? "#374151",
+      borderColor: "transparent",
       extendedProps: { type: e.type, user: e.user?.full_name, status: e.status, attendees: e.attendees },
     };
   });
@@ -108,9 +118,14 @@ export function CalendarClient({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function renderEventContent(arg: any) {
     const att = (arg.event.extendedProps?.attendees as Person[] | undefined) ?? [];
+    const isAllDay = arg.event.allDay;
     return (
-      <div className="flex w-full items-center gap-1 overflow-hidden">
-        <span className="min-w-0 flex-1 truncate text-[11.5px]">{arg.timeText} {arg.event.title}</span>
+      <div className="flex w-full items-center gap-1 overflow-hidden px-1 py-0.5">
+        {isAllDay ? (
+          <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium">{arg.event.title}</span>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[11.5px]">{arg.timeText} {arg.event.title}</span>
+        )}
         {att.length > 0 && (
           <span className="flex shrink-0 -space-x-1.5">
             {att.slice(0, 3).map((p) => (
@@ -192,9 +207,50 @@ export function CalendarClient({
     router.refresh();
   }
 
+  // Show the custom confirm modal instead of window.confirm
+  function promptDelete() {
+    if (!form.id) return;
+    setConfirmDelete({ id: form.id, title: form.title || "Untitled event" });
+  }
+
+  async function removeEvent(id?: string) {
+    const eventId = id ?? form.id;
+    if (!eventId) return;
+    setConfirmDelete(null);
+    setSaving(true);
+    setErr("");
+    const res = await deleteCalendarEvent(eventId);
+    setSaving(false);
+    if (!res.ok) {
+      setErr(res.error);
+      return;
+    }
+    setShowForm(false);
+    router.refresh();
+  }
+
+  // Drag-and-drop move: persist the new range, revert visually on failure.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function onEventDrop(info: any) {
+    const { event, revert } = info;
+    if (!event.start || !event.end) return;
+    const res = await moveCalendarEvent(
+      event.id,
+      new Date(event.start).toISOString(),
+      new Date(event.end).toISOString(),
+    );
+    if (!res.ok) {
+      revert();
+      setToast(res.error);
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
+    router.refresh();
+  }
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-8">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-gray-900">
             Calendar
@@ -202,13 +258,13 @@ export function CalendarClient({
           <p className="mt-1 text-sm text-gray-500">
             Team time off, remote days, and meetings.
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+        </div>          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="hidden items-center gap-3 text-xs text-gray-500 md:flex">
-            <Legend color="#374151" label="Vacation" />
-            <Legend color="#374151" label="Remote" />
-            <Legend color="#374151" label="Sick" />
-            <Legend color="#374151" label="Meeting" />
+            <Legend color={typeColor.vacation} label="Vacation" />
+            <Legend color={typeColor.remote} label="Remote" />
+            <Legend color={typeColor.sick} label="Sick" />
+            <Legend color={typeColor.meeting} label="Meeting" />
+            <Legend color="#d1d5db" label="Pending" />
           </div>
           <div className="flex rounded-lg border border-gray-200 p-0.5">
             {[
@@ -247,8 +303,8 @@ export function CalendarClient({
         </div>
       </div>
 
-      <div className="card overflow-hidden p-3">
-        <Calendar
+      <div className="card overflow-hidden p-2 sm:p-3">
+        <FullCalendar
           ref={calRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           headerToolbar={{
@@ -256,27 +312,36 @@ export function CalendarClient({
             center: "",
             right: "prev,next today",
           }}
-          initialView={view}
+          initialView="dayGridMonth"
+
           dayMaxEvents={3}
           navLinks
           dateClick={onDateClick}
           eventClick={onEventClick}
           eventContent={renderEventContent}
           events={calendarEvents}
+          editable
+          eventDrop={onEventDrop}
+          eventResizableFromStart
           height="auto"
-          slotMinTime="08:00:00"
-          slotMaxTime="20:00:00"
+          slotMinTime="06:00:00"
+          slotMaxTime="22:00:00"
+          allDaySlot
+          allDayText=""
           nowIndicator
+          weekends
+          weekNumbers={false}
+          displayEventEnd
         />
       </div>
 
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setShowForm(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-2xl backdrop-blur-xl animate-fade-in"
+            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white/80 p-5 shadow-2xl backdrop-blur-xl animate-fade-in sm:rounded-2xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -402,12 +467,23 @@ export function CalendarClient({
               </div>
             </div>
 
-            {err && <p className="mt-3 text-xs text-gray-600">{err}</p>}
+            {err && <p className="mt-3 text-xs text-red-600">{err}</p>}
 
             <div className="mt-5 flex items-center justify-between gap-2">
-              <button onClick={() => setShowForm(false)} className="px-2 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900">
-                Cancel
-              </button>
+              <div className="flex items-center gap-1">
+                {isEditing && (
+                  <button
+                    onClick={promptDelete}
+                    disabled={saving}
+                    className="px-2 py-1.5 text-sm font-medium text-gray-400 transition-colors hover:text-red-600"
+                  >
+                    Delete
+                  </button>
+                )}
+                <button onClick={() => setShowForm(false)} className="px-2 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900">
+                  Cancel
+                </button>
+              </div>
               <button
                 onClick={submit}
                 disabled={saving || !form.title || !form.start}
@@ -417,6 +493,46 @@ export function CalendarClient({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Custom delete confirm modal — replaces window.confirm */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900">Delete event</h4>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              Delete &ldquo;{confirmDelete.title}&rdquo;? This cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="text-sm font-medium text-gray-400 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void removeEvent(confirmDelete.id)}
+                disabled={saving}
+                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {saving ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <Trash className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast for drag-and-drop errors (auto-dismiss) */}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+          {toast}
         </div>
       )}
     </div>

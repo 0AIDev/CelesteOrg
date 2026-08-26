@@ -54,6 +54,16 @@ body {
   font-feature-settings: "cv11", "ss01", "ss03";
 }
 
+/* Electronic signature — the typed name rendered in handwriting, the way
+   e-signature platforms show the captured signature. */
+.font-signature {
+  font-family: "Segoe Script", "Bradley Hand", "Brush Script MT",
+    "Snell Roundhand", "Apple Chancery", "Comic Sans MS", cursive;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 /* Hide scrollbars entirely (command palette, dense panels) */
 .no-scrollbar {
   scrollbar-width: none; /* Firefox */
@@ -272,4 +282,74 @@ body {
   border-radius: 7px;
   padding: 2px 6px;
   font-size: 12px;
+  border: none !important;
+}
+/* All-day row: a bit taller so colored chips are visible */
+.fc .fc-daygrid-day-events .fc-event {
+  margin-bottom: 2px;
+}
+.fc .fc-timegrid-event {
+  border-radius: 7px !important;
+  border-left-width: 3px !important;
+  border-left-style: solid !important;
+  padding: 2px 8px;
+}
+/* Remove the ugly all-day divider background */
+.fc .fc-bg-event {
+  border-radius: 7px;
+}
+/* Week/Day header cells */
+.fc .fc-col-header-cell {
+  padding: 8px 0;
+}
+/* Slot labels: smaller, subtler */
+.fc .fc-timegrid-slot-label {
+  font-size: 11px;
+}
+/* Now indicator line */
+.fc .fc-now-indicator-line {
+  border-color: #111217;
+  border-width: 1.5px;
+}
+.fc .fc-now-indicator-arrow {
+  border-color: #111217;
+}
+
+/* ============================================================
+   Mobile / touch optimizations
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Larger tap targets on mobile */
+  .btn, .btn-primary, .btn-secondary, .btn-ghost {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .pill {
+    min-height: 36px;
+  }
+  /* Inputs slightly larger on mobile */
+  .input {
+    font-size: 16px; /* prevents iOS zoom on focus */
+    padding: 12px 14px;
+  }
+  /* Cards full-width on mobile */
+  .card {
+    border-radius: 12px;
+  }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Smooth scrolling, no bounce on iOS */
+html {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }

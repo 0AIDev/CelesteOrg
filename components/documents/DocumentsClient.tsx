@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Checkbox from "@radix-ui/react-checkbox";
 import {
@@ -18,6 +18,7 @@ import {
   PaperPlaneTilt,
   ArrowCounterClockwise,
   Bell,
+  Trash,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
@@ -28,6 +29,7 @@ import {
   createUploadUrl,
   createDocumentRecord,
   getDocumentSignedUrl,
+  deleteDocument,
 } from "@/app/actions/document-actions";
 import {
   signDocument,
@@ -55,6 +57,16 @@ type Member = {
   role_title: string | null;
 };
 
+type Signature = {
+  id: string;
+  document_id: string;
+  signer_id: string;
+  typed_name: string;
+  signature_hash: string | null;
+  signed_at: string;
+  signer: { id: string; full_name: string | null; avatar_url: string | null } | null;
+};
+
 type SigRequest = {
   id: string;
   document_id: string;
@@ -62,6 +74,12 @@ type SigRequest = {
   requested_at: string;
   signed_at: string | null;
   signer: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  signature: {
+    id: string;
+    typed_name: string | null;
+    signature_hash: string | null;
+    signed_at: string | null;
+  } | null;
 };
 
 export function DocumentsClient({
@@ -69,17 +87,23 @@ export function DocumentsClient({
   mine,
   members,
   requests,
+  canDelete,
+  signatures,
+  initialDocId = null,
 }: {
   docs: Doc[];
   mine: string | null;
   members: Member[];
   requests: SigRequest[];
+  canDelete: boolean;
+  signatures: Signature[];
+  initialDocId?: string | null;
 }) {
   const router = useRouter();
   const [view, setView] = useState<"list" | "grid">(() =>
     typeof window !== "undefined" && window.localStorage.getItem("celeste-docs-view") === "grid" ? "grid" : "list",
   );
-  const [tab, setTab] = useState<"all" | "tosign">("all");
+  const [tab, setTab] = useState<"all" | "tosign" | "signed">("all");
   const [query, setQuery] = useState("");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<Doc | null>(null);
@@ -88,6 +112,21 @@ export function DocumentsClient({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
   const [member, setMember] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Doc | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  async function handleDelete(d: Doc) {
+    if (deletingId) return;
+    setDeletingId(d.id);
+    const res = await deleteDocument(d.id);
+    setDeletingId(null);
+    setConfirmDelete(null);
+    if (!res.ok) {
+      return;
+    }
+    router.refresh();
+  }
 
   const ownerOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -107,6 +146,17 @@ export function DocumentsClient({
     return map;
   }, [requests]);
 
+  // Real captured signatures per document (direct signatures + request ones).
+  const sigByDoc = useMemo(() => {
+    const map = new Map<string, Signature[]>();
+    for (const s of signatures) {
+      const arr = map.get(s.document_id) ?? [];
+      arr.push(s);
+      map.set(s.document_id, arr);
+    }
+    return map;
+  }, [signatures]);
+
   const myPendingDocIds = useMemo(() => {
     const set = new Set<string>();
     for (const r of requests) {
@@ -115,8 +165,24 @@ export function DocumentsClient({
     return set;
   }, [requests, mine]);
 
+  // Signed = has at least one real captured signature, or every request is
+  // signed. Direct signatures (no request row) count too.
+  const signedDocIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of docs) {
+      if ((sigByDoc.get(d.id) ?? []).length > 0) {
+        set.add(d.id);
+        continue;
+      }
+      const reqs = reqByDoc.get(d.id) ?? [];
+      if (reqs.length > 0 && reqs.every((r) => r.status === "signed")) set.add(d.id);
+    }
+    return set;
+  }, [docs, sigByDoc, reqByDoc]);
+
   const filtered = docs.filter((d) => {
     if (tab === "tosign" && !myPendingDocIds.has(d.id)) return false;
+    if (tab === "signed" && !signedDocIds.has(d.id)) return false;
     if (!d.title.toLowerCase().includes(query.toLowerCase())) return false;
     if (range.start && range.end) {
       const dt = d.uploaded_at.slice(0, 10);
@@ -138,20 +204,22 @@ export function DocumentsClient({
         requiresSignature: true,
       });
       if (!prep.ok) {
-        alert(prep.error);
+        setToast(prep.error);
+        setTimeout(() => setToast(null), 3000);
         setUploading(false);
         return;
       }
-      if (!prep.path) {
-        alert("Could not allocate an upload path.");
+      if (!prep.signedUrl) {
+        setToast("Could not allocate an upload path.");
+        setTimeout(() => setToast(null), 3000);
         setUploading(false);
         return;
       }
-      // Upload the bytes to the signed upload URL from the same origin as Supabase.
-      // The storage API requires content-type + x-upsert on this endpoint.
-      const apiUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const url = `${apiUrl}/storage/v1/object/upload/${prep.path}`;
-      const res = await fetch(url, {
+      // Upload the bytes to the signed upload URL returned by Supabase.
+      // It already contains the /sign/{bucket}/{path}?token=... contract that
+      // the storage API requires (matching storage-js uploadToSignedUrl),
+      // plus content-type and x-upsert headers.
+      const res = await fetch(prep.signedUrl, {
         method: "PUT",
         headers: {
           "Content-Type": file.type || "application/octet-stream",
@@ -160,7 +228,8 @@ export function DocumentsClient({
         body: file,
       });
       if (!res.ok) {
-        alert(`Upload failed (${res.status})`);
+        setToast(`Upload failed (${res.status})`);
+        setTimeout(() => setToast(null), 3000);
         setUploading(false);
         return;
       }
@@ -173,7 +242,10 @@ export function DocumentsClient({
         file_size: file.size,
         mime_type: file.type || undefined,
       });
-      if (!record.ok) alert(record.error);
+      if (!record.ok) {
+        setToast(record.error);
+        setTimeout(() => setToast(null), 3000);
+      }
       router.refresh();
     } finally {
       setUploading(false);
@@ -187,8 +259,24 @@ export function DocumentsClient({
     if (url.ok && url.url) setPreviewUrl(url.url);
   }
 
+  // Deep link from ⌘K — open the requested document's preview on arrival.
+  useEffect(() => {
+    if (!initialDocId) return;
+    const doc = docs.find((d) => d.id === initialDocId);
+    if (doc) void openPreview(doc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDocId]);
+
   function statusText(d: Doc): { label: string; awaitingMine: boolean } {
+    const sigs = sigByDoc.get(d.id) ?? [];
     const reqs = reqByDoc.get(d.id) ?? [];
+    // A real signature is the strongest signal — the document is signed.
+    if (sigs.length > 0) {
+      return {
+        label: sigs.length === 1 ? "signed" : `signed by ${sigs.length}`,
+        awaitingMine: false,
+      };
+    }
     if (reqs.length === 0) return { label: "requires signature", awaitingMine: false };
     const pending = reqs.filter((r) => r.status === "pending");
     const minePending = pending.some((r) => r.signer?.id === mine);
@@ -281,6 +369,22 @@ export function DocumentsClient({
             </span>
           )}
         </button>
+        <button
+          onClick={() => setTab("signed")}
+          className={`flex items-center gap-1.5 border-b-2 px-3 pb-2 text-sm font-medium transition-colors ${
+            tab === "signed"
+              ? "border-gray-900 text-gray-900"
+              : "border-transparent text-gray-400 hover:text-gray-700"
+          }`}
+        >
+          <Check className="h-3.5 w-3.5" />
+          Signed
+          {signedDocIds.size > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-semibold text-white">
+              {signedDocIds.size}
+            </span>
+          )}
+        </button>
       </div>
 
       <div className="mb-4">
@@ -300,12 +404,13 @@ export function DocumentsClient({
 
       {view === "list" ? (
         <div className="card divide-y divide-gray-100 overflow-hidden">
-          <div className="grid grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr] gap-3 bg-gray-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          <div className="grid grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr_0.3fr] gap-3 bg-gray-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             <span>Name</span>
             <span>Owner</span>
             <span>Category</span>
             <span>Size</span>
             <span className="text-right">Date</span>
+            <span />  {/* delete column */}
           </div>
           {filtered.length === 0 && (
             <div className="px-5 py-10 text-center text-sm text-gray-400">
@@ -314,11 +419,15 @@ export function DocumentsClient({
           )}
           {filtered.map((d) => {
             const st = statusText(d);
+            const canRemoveRow = canDelete || d.owner?.id === mine;
             return (
-              <button
+              <div
                 key={d.id}
                 onClick={() => openPreview(d)}
-                className="grid w-full grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr] items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openPreview(d); }}
+                className="grid w-full grid-cols-[2fr_1.2fr_1fr_0.7fr_0.8fr_0.3fr] items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50 cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 shrink-0 text-gray-400" />
@@ -347,7 +456,23 @@ export function DocumentsClient({
                 </div>
                 <span className="text-sm text-gray-500">{fmtBytes(d.file_size)}</span>
                 <span className="text-right text-sm text-gray-400">{relativeTime(d.uploaded_at)}</span>
-              </button>
+                <div className="flex justify-end">
+                  {canRemoveRow && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(d); }}
+                      disabled={deletingId === d.id}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all hover:bg-gray-100 hover:text-gray-600 focus-visible:opacity-100 group-focus-visible:opacity-100 disabled:opacity-40 [div:hover>&]:opacity-100"
+                      title="Delete document"
+                    >
+                      {deletingId === d.id ? (
+                        <Spinner className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -355,8 +480,30 @@ export function DocumentsClient({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((d) => {
             const st = statusText(d);
+            const canRemoveRow = canDelete || d.owner?.id === mine;
             return (
-              <button key={d.id} onClick={() => openPreview(d)} className="card card-hover text-left">
+              <div
+                key={d.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPreview(d)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openPreview(d); }}
+                className="card card-hover group/card relative cursor-pointer text-left"
+              >
+                {canRemoveRow && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(d); }}
+                    disabled={deletingId === d.id}
+                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-600 group-hover/card:opacity-100 disabled:opacity-40"
+                    title="Delete document"
+                  >
+                    {deletingId === d.id ? (
+                      <Spinner className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                )}
                 <File className="h-5 w-5 text-gray-400" />
                 <p className="mt-3 truncate text-sm font-semibold text-gray-900">{d.title}</p>
                 <p className="mt-0.5 text-xs text-gray-400">
@@ -375,7 +522,7 @@ export function DocumentsClient({
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -386,8 +533,14 @@ export function DocumentsClient({
           doc={preview}
           mine={mine}
           reqs={reqByDoc.get(preview.id) ?? []}
+          signatures={sigByDoc.get(preview.id) ?? []}
           previewUrl={previewUrl}
+          canDelete={canDelete}
           onClose={() => setPreview(null)}
+          onDeleted={() => {
+            setPreview(null);
+            router.refresh();
+          }}
           onSign={() => {
             setSigningDoc(preview);
             setPreview(null);
@@ -425,6 +578,47 @@ export function DocumentsClient({
           }}
         />
       )}
+
+      {/* Custom delete confirm modal */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900">Delete document</h4>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              Delete &ldquo;{confirmDelete.title}&rdquo; permanently? This cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="text-sm font-medium text-gray-400 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleDelete(confirmDelete)}
+                disabled={!!deletingId}
+                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingId ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <Trash className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast for upload errors */}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -433,20 +627,38 @@ function PreviewModal({
   doc,
   mine,
   reqs,
+  signatures,
   previewUrl,
+  canDelete,
   onClose,
+  onDeleted,
   onSign,
   onSend,
 }: {
   doc: Doc;
   mine: string | null;
   reqs: SigRequest[];
+  signatures: Signature[];
   previewUrl: string | null;
+  canDelete: boolean;
   onClose: () => void;
+  onDeleted: () => void;
   onSign: () => void;
   onSend: () => void;
 }) {
   const isOwner = doc.owner?.id === mine;
+  const canRemove = isOwner || canDelete;
+  const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  async function remove() {
+    setDeleting(true);
+    const res = await deleteDocument(doc.id);
+    setDeleting(false);
+    setShowConfirm(false);
+    if (!res.ok) return;
+    onDeleted();
+  }
   const pending = reqs.filter((r) => r.status === "pending");
   const signed = reqs.filter((r) => r.status === "signed");
   const [reminding, setReminding] = useState(false);
@@ -454,7 +666,6 @@ function PreviewModal({
 
   async function revoke(id: string) {
     const res = await revokeSignatureRequest({ requestId: id });
-    if (!res.ok) alert(res.error);
     window.location.reload();
   }
 
@@ -492,7 +703,7 @@ function PreviewModal({
         {previewUrl ? (
           doc.mime_type === "application/pdf" ? (
             <iframe
-              src={previewUrl}
+              src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
               title={doc.title}
               className="h-full w-full"
             />
@@ -511,6 +722,36 @@ function PreviewModal({
           </div>
         )}
       </div>
+
+      {/* Real captured signatures — typed names rendered in handwriting */}
+      {signatures.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Signatures ({signatures.length})
+          </p>
+          <div className="mt-2 space-y-3 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
+            {signatures.map((s) => (
+              <div key={s.id} className="flex items-center gap-3">
+                <SquircleAvatar name={s.signer?.full_name} src={s.signer?.avatar_url} size="xs" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-signature truncate text-xl leading-none text-gray-900">
+                    {s.typed_name}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-gray-400">
+                    <Check className="h-3 w-3 shrink-0" />
+                    {s.signer?.full_name ?? "Signer"}
+                    <span>·</span>
+                    {s.signed_at ? relativeTime(s.signed_at) : ""}
+                    {s.signature_hash ? (
+                      <span className="font-mono">· {s.signature_hash.slice(0, 10)}…</span>
+                    ) : null}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {doc.requires_signature && (
         <div className="mt-4">
@@ -571,10 +812,20 @@ function PreviewModal({
                     </>
                   )}
                   {r.status === "signed" && (
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-gray-700">
-                      <Check className="h-3 w-3" />
-                      Signed {r.signed_at ? relativeTime(r.signed_at) : ""}
-                    </span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      {/* The real signature — the signer's typed name, rendered
+                          in handwriting, exactly as it was captured. */}
+                      <span className="font-signature max-w-[10rem] truncate text-xl leading-none text-gray-900">
+                        {r.signature?.typed_name ?? r.signer?.full_name ?? "Signed"}
+                      </span>
+                      <span className="flex items-center gap-1 text-[10.5px] text-gray-400">
+                        <Check className="h-3 w-3" />
+                        Signed {r.signed_at ? relativeTime(r.signed_at) : ""}
+                        {r.signature?.signature_hash
+                          ? ` · ${r.signature.signature_hash.slice(0, 10)}…`
+                          : ""}
+                      </span>
+                    </div>
                   )}
                   {r.status === "revoked" && (
                     <span className="text-[11px] font-medium text-gray-400">Revoked</span>
@@ -586,26 +837,74 @@ function PreviewModal({
         </div>
       )}
 
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose} className="btn-secondary">
-          Close
-        </button>
-        {doc.requires_signature && (
+      <div className="mt-4 flex items-center justify-between gap-2">
+        {canRemove ? (
           <button
-            onClick={onSign}
-            className="btn-primary"
-            disabled={pending.length === 0 && reqs.length > 0}
-            title={
-              pending.length === 0 && reqs.length > 0
-                ? "All requested signers have already signed"
-                : undefined
-            }
+            onClick={() => setShowConfirm(true)}
+            disabled={deleting}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
           >
-            <PenNib className="h-4 w-4" />
-            Sign Document
+            {deleting ? <Spinner className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+            Delete
           </button>
+        ) : (
+          <span />
         )}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="btn-secondary">
+            Close
+          </button>
+          {doc.requires_signature && (
+            <button
+              onClick={onSign}
+              className="btn-primary"
+              disabled={pending.length === 0 && reqs.length > 0}
+              title={
+                pending.length === 0 && reqs.length > 0
+                  ? "All requested signers have already signed"
+                  : undefined
+              }
+            >
+              <PenNib className="h-4 w-4" />
+              Sign Document
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Custom delete confirm modal */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setShowConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900">Delete document</h4>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              Delete &ldquo;{doc.title}&rdquo; permanently? This cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="text-sm font-medium text-gray-400 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={remove}
+                disabled={deleting}
+                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <Trash className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

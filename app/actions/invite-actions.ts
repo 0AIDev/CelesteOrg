@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notify";
+import { requirePermission } from "@/app/actions/permission-actions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -217,8 +218,9 @@ export async function inviteTeammate(
     const parsed = inviteSchema.parse(input);
     const email = parsed.email.toLowerCase();
 
-    if (!(await isFounderOrAdmin())) {
-      return { ok: false, error: "Only founders and admins can invite teammates." };
+    // Founders/admins bypass; other members need the invites.send grant.
+    if (!(await requirePermission("invites.send"))) {
+      return { ok: false, error: "You don't have permission to invite teammates." };
     }
 
     const cookieStore = cookies();
@@ -345,14 +347,17 @@ export async function acceptInvite(
       return { ok: false, error: "This invite was issued for a different email." };
     }
 
-    // Assign department on the caller's profile.
-    if (invite.department_id) {
-      const { error: deptErr } = await admin
-        .from("profiles")
-        .update({ department_id: invite.department_id })
-        .eq("id", user.id);
-      if (deptErr) return { ok: false, error: deptErr.message };
-    }
+    // Assign department + role + onboarding flag on the caller's profile.
+    const profileUpdate: Record<string, unknown> = {
+      onboarding_completed: false,
+    };
+    if (invite.department_id) profileUpdate.department_id = invite.department_id;
+    if (invite.role_title) profileUpdate.role_title = invite.role_title;
+    const { error: deptErr } = await admin
+      .from("profiles")
+      .update(profileUpdate)
+      .eq("id", user.id);
+    if (deptErr) return { ok: false, error: deptErr.message };
 
     // Create a role so the person shows on the org chart immediately, under
     // the CEO (the root role). The invited position is the one chosen by the

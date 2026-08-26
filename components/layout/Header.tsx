@@ -15,6 +15,7 @@ import {
   Check,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
+import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 import { createClient } from "@/lib/supabase/client";
 import { cn, relativeTime } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ export function Header({
 }) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Resolve the current user's id once (StrictMode-safe: guarded by `mounted`,
   // so the double mount in dev can't double-subscribe the realtime channel).
@@ -267,7 +269,7 @@ export function Header({
               <MenuItem icon={<GearSix className="h-4 w-4" />} onClick={() => go("/settings")}>
                 Settings
               </MenuItem>
-              <MenuItem icon={<ChatCircleText className="h-4 w-4" />} onClick={() => go("/ideas")}>
+              <MenuItem icon={<ChatCircleText className="h-4 w-4" />} onClick={() => setFeedbackOpen(true)}>
                 Feedback
               </MenuItem>
               <div className="my-1 h-px bg-gray-100" />
@@ -287,6 +289,9 @@ export function Header({
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </div>
+
+      {/* Team feedback — not ideas: anything that helps the team improve */}
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </header>
   );
 }

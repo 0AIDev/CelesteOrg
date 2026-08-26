@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { TrendUp, Lock, Coin } from "@phosphor-icons/react";
+import { TrendUp, Lock, Coin, Plus, PencilSimple, Trash, X, Spinner } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+import {
+  createEquityGrant,
+  updateEquityGrant,
+  deleteEquityGrant,
+} from "@/app/actions/equity-actions";
 
 type Grant = {
   id: string;
@@ -20,17 +26,87 @@ type Grant = {
   user: { id: string; full_name: string | null; avatar_url: string | null } | null;
 };
 
+type Member = { id: string; full_name: string | null; avatar_url: string | null };
+
+type Draft = {
+  user_id: string;
+  total_shares: string;
+  vested_shares: string;
+  vesting_start: string;
+  cliff_months: string;
+  schedule_type: string;
+};
+
 export function EquityClient({
   currentUserId,
   isAdminOrFounder,
   grants,
+  members,
 }: {
   currentUserId: string | null;
   isAdminOrFounder: boolean;
   grants: Grant[];
+  members: Member[];
 }) {
   const myGrant = grants.find((g) => g.user_id === currentUserId) ?? null;
   const teamGrants = isAdminOrFounder ? grants : [];
+  const [modal, setModal] = useState<{ grant: Grant | null } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [confirmGrant, setConfirmGrant] = useState<Grant | null>(null);
+
+  const memberOptions = useMemo(
+    () =>
+      members.map((m) => ({
+        value: m.id,
+        label: m.full_name ?? "Unnamed",
+      })),
+    [members],
+  );
+
+  function openCreate() {
+    setModal({ grant: null });
+    setErr("");
+  }
+  function openEdit(grant: Grant) {
+    setModal({ grant });
+    setErr("");
+  }
+
+  async function submit(draft: Draft) {
+    setBusy(true);
+    setErr("");
+    const payload = {
+      user_id: draft.user_id,
+      total_shares: Number(draft.total_shares) || 0,
+      vested_shares: Number(draft.vested_shares) || 0,
+      vesting_start: draft.vesting_start || undefined,
+      cliff_months: Number(draft.cliff_months) || 12,
+      schedule_type: draft.schedule_type as "monthly" | "yearly",
+    };
+    const res = modal?.grant
+      ? await updateEquityGrant(modal.grant.id, payload)
+      : await createEquityGrant(payload);
+    setBusy(false);
+    if (!res.ok) {
+      setErr(res.error);
+      return;
+    }
+    setModal(null);
+    window.location.reload();
+  }
+
+  async function remove(grant: Grant) {
+    setBusy(true);
+    const res = await deleteEquityGrant(grant.id);
+    setBusy(false);
+    setConfirmGrant(null);
+    if (!res.ok) {
+      setErr(res.error);
+      return;
+    }
+    window.location.reload();
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-5">
@@ -42,7 +118,7 @@ export function EquityClient({
             Equity
           </h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            Il tuo grant, il vesting e la cap table. Visibile solo a te e ai founder.
+            Your grant, vesting, and cap table. Visible only to you and the founders.
           </p>
         </div>
         <Badge tone="neutral">
@@ -93,10 +169,21 @@ export function EquityClient({
         <Card padding={false} className="mt-4 overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
             <h2 className="text-[13px] font-semibold text-gray-900">Cap table</h2>
-            <span className="text-[11px] tabular-nums text-gray-400">{teamGrants.length} grants</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] tabular-nums text-gray-400">{teamGrants.length} grants</span>
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-1 rounded-lg bg-gray-900 px-2.5 py-1 text-[12px] font-medium text-white transition-colors hover:bg-gray-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New grant
+              </button>
+            </div>
           </div>
           {teamGrants.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-gray-400">No grants issued yet.</p>
+            <p className="px-4 py-10 text-center text-sm text-gray-400">
+              No grants issued yet — create the first one.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -107,6 +194,7 @@ export function EquityClient({
                   <TableHead className="text-right">Unvested</TableHead>
                   <TableHead className="text-right">Vested %</TableHead>
                   <TableHead>Start</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -131,6 +219,25 @@ export function EquityClient({
                     <TableCell className="text-gray-400">
                       {format(new Date(g.vesting_start), "MMM yyyy")}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          onClick={() => openEdit(g)}
+                          title="Edit grant"
+                          className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                        >
+                          <PencilSimple className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmGrant(g)}
+                          title="Delete grant"
+                          disabled={busy}
+                          className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+                        >
+                          <Trash className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -138,6 +245,193 @@ export function EquityClient({
           )}
         </Card>
       )}
+
+      {/* Create / edit modal */}
+      {modal && (
+        <GrantModal
+          grant={modal.grant}
+          members={memberOptions}
+          currentUserId={currentUserId ?? ""}
+          busy={busy}
+          err={err}
+          onClose={() => setModal(null)}
+          onSubmit={submit}
+        />
+      )}
+
+      {/* Custom delete confirm modal */}
+      {confirmGrant && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setConfirmGrant(null)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white/90 p-5 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900">Delete grant</h4>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              Delete {confirmGrant.user?.full_name ?? "this"} grant? This cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <button
+                onClick={() => setConfirmGrant(null)}
+                className="text-sm font-medium text-gray-400 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void remove(confirmGrant)}
+                disabled={busy}
+                className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {busy ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <Trash className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GrantModal({
+  grant,
+  members,
+  currentUserId,
+  busy,
+  err,
+  onClose,
+  onSubmit,
+}: {
+  grant: Grant | null;
+  members: { value: string; label: string }[];
+  currentUserId: string;
+  busy: boolean;
+  err: string;
+  onClose: () => void;
+  onSubmit: (draft: Draft) => void;
+}) {
+  const [draft, setDraft] = useState<Draft>(() =>
+    grant
+      ? {
+          user_id: grant.user_id,
+          total_shares: String(grant.total_shares),
+          vested_shares: String(grant.vested_shares),
+          vesting_start: grant.vesting_start.slice(0, 10),
+          cliff_months: String(grant.cliff_months),
+          schedule_type: grant.schedule_type,
+        }
+      : {
+          user_id: currentUserId,
+          total_shares: "",
+          vested_shares: "0",
+          vesting_start: new Date().toISOString().slice(0, 10),
+          cliff_months: "12",
+          schedule_type: "monthly",
+        },
+  );
+
+  const valid = Number(draft.total_shares) > 0 && !!draft.user_id;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-2xl backdrop-blur-xl animate-fade-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">
+            {grant ? "Edit grant" : "New grant"}
+          </h3>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {!grant && (
+          <>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Member</label>
+            <CustomSelect
+              value={draft.user_id}
+              onValueChange={(v) => setDraft({ ...draft, user_id: v })}
+              options={members}
+              placeholder="Select member…"
+            />
+          </>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Total shares</label>
+            <input
+              type="number"
+              min={0}
+              value={draft.total_shares}
+              onChange={(e) => setDraft({ ...draft, total_shares: e.target.value })}
+              className="input"
+              placeholder="e.g. 100000"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Vested shares</label>
+            <input
+              type="number"
+              min={0}
+              value={draft.vested_shares}
+              onChange={(e) => setDraft({ ...draft, vested_shares: e.target.value })}
+              className="input"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Vesting start</label>
+            <input
+              type="date"
+              value={draft.vesting_start}
+              onChange={(e) => setDraft({ ...draft, vesting_start: e.target.value })}
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Cliff (months)</label>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              value={draft.cliff_months}
+              onChange={(e) => setDraft({ ...draft, cliff_months: e.target.value })}
+              className="input"
+            />
+          </div>
+        </div>
+
+        <label className="mb-1.5 mt-4 block text-[13px] font-medium text-gray-700">Schedule</label>
+        <CustomSelect
+          value={draft.schedule_type}
+          onValueChange={(v) => setDraft({ ...draft, schedule_type: v || "monthly" })}
+          options={[
+            { value: "monthly", label: "Monthly" },
+            { value: "yearly", label: "Yearly" },
+          ]}
+        />
+
+        {err && <p className="mt-3 text-xs text-gray-600">{err}</p>}
+
+        <div className="mt-5 flex items-center justify-between gap-2">
+          <button onClick={onClose} className="px-2 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSubmit(draft)}
+            disabled={busy || !valid}
+            className="btn-primary disabled:opacity-50"
+          >
+            {busy ? <Spinner className="h-4 w-4 animate-spin" /> : grant ? "Save changes" : "Issue grant"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

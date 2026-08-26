@@ -130,14 +130,14 @@ export function DashboardClient({
   ];
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 py-5">
+    <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5">
       {/* Header — one glance */}
-      <div className="mb-4 flex items-end justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-gray-900">
             Welcome back, {firstName}
           </h1>
-          <p className="text-xs text-gray-500">Ecco cosa succede a Celeste oggi.</p>
+          <p className="text-xs text-gray-500">Here&apos;s what&apos;s happening at Celeste today.</p>
         </div>
         <div className="flex items-center gap-3">
           {range.start && (
@@ -149,13 +149,13 @@ export function DashboardClient({
             value={range}
             onChange={onRangeChange}
             placeholder="Filter by date…"
-            className="w-44"
+            className="w-full sm:w-44"
           />
         </div>
       </div>
 
       {/* Stats — compact tiles */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <StatCard label="Pending approvals" value={stats.approvals} href="#approvals" icon={<ShieldCheck className="h-4 w-4" />} tone="text-gray-900" />
         <StatCard label="Time off this week" value={stats.timeOff} href="/calendar" icon={<CalendarPlus className="h-4 w-4" />} tone="text-gray-900" />
         <StatCard label="Open ideas" value={stats.ideas} href="/ideas" icon={<Lightbulb className="h-4 w-4" />} tone="text-gray-900" />

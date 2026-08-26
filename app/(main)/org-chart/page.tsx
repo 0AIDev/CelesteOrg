@@ -4,7 +4,11 @@ import type { OrgNode } from "@/lib/types";
 
 export const metadata = { title: "Org Chart" };
 
-export default async function OrgChartPage() {
+export default async function OrgChartPage({
+  searchParams,
+}: {
+  searchParams?: { member?: string };
+}) {
   const supabase = createClient();
 
   const [
@@ -117,6 +121,7 @@ export default async function OrgChartPage() {
       }}
       currentUserId={user?.id ?? null}
       myNotes={Object.fromEntries(noteBySubject)}
+      initialMemberId={searchParams?.member ?? null}
     />
   );
 }

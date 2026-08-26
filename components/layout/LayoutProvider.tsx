@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { InviteModal } from "@/components/teams/InviteModal";
@@ -26,10 +27,14 @@ export const useSession = () => useContext(SessionContext);
 export function LayoutProvider({
   user,
   canManage,
+  isOnboarded,
+  dashboards,
   children,
 }: {
   user: SessionUser | null;
   canManage?: boolean;
+  isOnboarded?: boolean;
+  dashboards?: { slug: string; title: string }[];
   children: React.ReactNode;
 }) {
   // Persisted UI state — sidebar and Ask AI panels remember their last state
@@ -41,6 +46,8 @@ export function LayoutProvider({
   const [eodOpen, setEodOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [revision, setRevision] = useState(0);
+  const pathname = usePathname();
+  const onboardingMode = pathname.startsWith("/onboarding");
 
   useEffect(() => {
     try {
@@ -74,20 +81,26 @@ export function LayoutProvider({
       value={{ user, refresh: () => setRevision((r) => r + 1) }}
     >
       <div className="flex min-h-screen bg-white">
-        <Sidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          onOpenInvite={canManage ? () => setInviteOpen(true) : undefined}
-          onOpenStandup={() => setStandupOpen(true)}
-        />
+        {!onboardingMode && (
+          <Sidebar
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onOpenInvite={canManage ? () => setInviteOpen(true) : undefined}
+            onOpenStandup={() => setStandupOpen(true)}
+            isOnboarded={isOnboarded}
+            dashboards={dashboards}
+          />
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <Header
-            profile={user}
-            sidebarOpen={sidebarOpen}
-            toggleSidebar={() => setSidebarOpen((o) => !o)}
-            onOpenCmdk={() => setCmdkOpen(true)}
-          />
+          {!onboardingMode && (
+            <Header
+              profile={user}
+              sidebarOpen={sidebarOpen}
+              toggleSidebar={() => setSidebarOpen((o) => !o)}
+              onOpenCmdk={() => setCmdkOpen(true)}
+            />
+          )}
           <main className="flex-1">{children}</main>
         </div>
 

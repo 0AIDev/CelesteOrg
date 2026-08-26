@@ -6,6 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserId } from "./document-actions";
+import { requirePermission } from "./permission-actions";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -37,6 +38,9 @@ const credentialSchema = z.object({
 export async function saveAiCredential(input: Record<string, unknown>): Promise<ActionResult> {
   try {
     const parsed = credentialSchema.parse(input);
+    if (!(await requirePermission("ai_usage.manage"))) {
+      return { ok: false, error: "You don't have permission to manage AI provider keys" };
+    }
     const userId = await getCurrentUserId();
     if (!userId) return { ok: false, error: "Not authenticated" };
 

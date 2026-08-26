@@ -26,6 +26,7 @@ export function TeamsInvitesPanel({
   const [loading, setLoading] = useState(canManage);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
 
   // Bootstrap state
   const [bootstrapBusy, setBootstrapBusy] = useState(false);
@@ -65,9 +66,11 @@ export function TeamsInvitesPanel({
       try {
         await navigator.clipboard.writeText(res.link);
         setErr("");
-        alert("New invite link copied to clipboard.");
+        setToast("New invite link copied to clipboard.");
+        setTimeout(() => setToast(null), 3000);
       } catch {
-        alert(`New invite link: ${res.link}`);
+        setToast(`New invite link: ${res.link}`);
+        setTimeout(() => setToast(null), 5000);
       }
     }
   }
@@ -185,6 +188,13 @@ export function TeamsInvitesPanel({
 
         {err && <p className="mt-3 text-xs text-gray-600">{err}</p>}
       </Card>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white/90 px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg backdrop-blur-xl animate-fade-in">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -50,6 +50,7 @@ export function OrgChartClient({
   equity,
   currentUserId,
   myNotes = {},
+  initialMemberId = null,
 }: {
   trees: OrgNode[];
   departments: Dept[];
@@ -67,6 +68,7 @@ export function OrgChartClient({
   };
   currentUserId?: string | null;
   myNotes?: Record<string, string>;
+  initialMemberId?: string | null;
 }) {
   const [activeDept, setActiveDept] = useState<string | null>(null);
   const [selected, setSelected] = useState<PersonPanel | null>(null);
@@ -105,6 +107,14 @@ export function OrgChartClient({
     };
     setSelected(obj);
   }
+
+  // Deep link from ⌘K ("member" search result) — open that person's panel.
+  useEffect(() => {
+    if (!initialMemberId) return;
+    const node = profileById.get(initialMemberId);
+    if (node) openPerson(node);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMemberId]);
 
   return (
     <div>

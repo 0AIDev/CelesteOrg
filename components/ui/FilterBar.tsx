@@ -45,7 +45,7 @@ export function FilterBar({
         value={range}
         onChange={onRangeChange}
         placeholder="Date range…"
-        className={compact ? "w-40" : "w-52"}
+        className={`${compact ? "w-40" : "w-52"} !h-8 !py-0 text-[12.5px]`}
       />
       {members && onMemberChange && (
         <CustomSelect
@@ -53,7 +53,7 @@ export function FilterBar({
           onValueChange={onMemberChange}
           options={members}
           placeholder="All members…"
-          className={compact ? "w-40" : "w-44"}
+          className={`${compact ? "w-40" : "w-44"} !h-8 !py-0 text-[12.5px]`}
         />
       )}
       {statuses && onStatusChange && (
@@ -62,7 +62,7 @@ export function FilterBar({
           onValueChange={onStatusChange}
           options={statuses}
           placeholder="All statuses…"
-          className={compact ? "w-36" : "w-40"}
+          className={`${compact ? "w-36" : "w-40"} !h-8 !py-0 text-[12.5px]`}
         />
       )}
       {hasAny && (

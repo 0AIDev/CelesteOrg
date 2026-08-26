@@ -32,6 +32,7 @@ export async function middleware(request: NextRequest) {
     "/ai-usage",
     "/approvals",
     "/equity",
+    "/dashboards",
   ];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
@@ -89,6 +90,27 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  // Redirect incomplete onboarding to /onboarding (skip the redirect for
+  // /onboarding itself to avoid loops, and for /sign-in /auth/callback).
+  if (
+    user &&
+    isProtected &&
+    !pathname.startsWith("/onboarding") &&
+    pathname !== "/sign-in" &&
+    !pathname.startsWith("/auth")
+  ) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile && !profile.onboarding_completed) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
   }
 
   return withFreshHtml(request, response);

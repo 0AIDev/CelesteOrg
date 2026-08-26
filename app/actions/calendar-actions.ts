@@ -7,6 +7,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notify";
 import { resolveApprover } from "@/app/actions/approval-actions";
+import { requirePermission } from "@/app/actions/permission-actions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -39,6 +40,9 @@ export async function createCalendarEvent(
 ): Promise<ActionResult & { id?: string }> {
   try {
     const parsed = eventSchema.parse(input);
+    if (!(await requirePermission("calendar.edit"))) {
+      return { ok: false, error: "You don't have permission to edit the calendar" };
+    }
     const supabase = userClient();
     const {
       data: { user },
@@ -108,6 +112,9 @@ export async function updateCalendarEvent(
     const id = typeof input.id === "string" ? input.id : null;
     if (!id) return { ok: false, error: "Event id is required" };
 
+    if (!(await requirePermission("calendar.edit"))) {
+      return { ok: false, error: "You don't have permission to edit the calendar" };
+    }
     const supabase = userClient();
     const {
       data: { user },
@@ -120,14 +127,16 @@ export async function updateCalendarEvent(
       .eq("id", id)
       .maybeSingle();
     if (!existing) return { ok: false, error: "Event not found" };
-    // Only the owner can edit (admins skip the ownership check).
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_founder")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (existing.user_id !== user.id && !(profile?.is_founder ?? false)) {
-      return { ok: false, error: "You can only edit your own events" };
+    // Owner, founders, and admins can edit any event.
+    if (existing.user_id !== user.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_founder, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!(profile?.is_founder ?? false) && !(profile?.is_admin ?? false)) {
+        return { ok: false, error: "You can only edit your own events" };
+      }
     }
 
     const { error } = await supabase
@@ -164,32 +173,144 @@ export async function updateCalendarEvent(
   }
 }
 
-// Replace the tagged attendees on an event (create + delete the diff).
-export async function setEventAttendees(
-  eventId: string,
-  attendeeIds: string[],
-): Promise<ActionResult> {
+export async function deleteCalendarEvent(eventId: string): Promise<ActionResult> {
   try {
+    if (!(await requirePermission("calendar.edit"))) {
+      return { ok: false, error: "You don't have permission to edit the calendar" };
+    }
     const supabase = userClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated" };
 
-    // Ownership check (same rule as updateCalendarEvent).
     const { data: existing } = await supabase
       .from("calendar_events")
       .select("user_id")
       .eq("id", eventId)
       .maybeSingle();
     if (!existing) return { ok: false, error: "Event not found" };
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_founder")
-      .eq("id", user.id)
+
+    // Owner, founders, and admins can delete any event.
+    if (existing.user_id !== user.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_founder, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!(profile?.is_founder ?? false) && !(profile?.is_admin ?? false)) {
+        return { ok: false, error: "You can only delete your own events" };
+      }
+    }
+
+    const { error } = await supabase.from("calendar_events").delete().eq("id", eventId);
+    if (error) return { ok: false, error: error.message };
+
+    revalidatePath("/calendar");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not delete event";
+    return { ok: false, error: msg };
+  }
+}
+
+// Drag-and-drop move from the calendar. Same ownership rule as updates; a
+// time change voids any previous time-off approval (re-approval needed).
+export async function moveCalendarEvent(
+  eventId: string,
+  startTime: string,
+  endTime: string,
+): Promise<ActionResult> {
+  try {
+    if (!(await requirePermission("calendar.edit"))) {
+      return { ok: false, error: "You don't have permission to edit the calendar" };
+    }
+    const supabase = userClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated" };
+
+    const { data: existing } = await supabase
+      .from("calendar_events")
+      .select("user_id, type")
+      .eq("id", eventId)
       .maybeSingle();
-    if (existing.user_id !== user.id && !(profile?.is_founder ?? false)) {
-      return { ok: false, error: "You can only tag people on your own events" };
+    if (!existing) return { ok: false, error: "Event not found" };
+
+    // Owner, founders, and admins can move any event.
+    if (existing.user_id !== user.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_founder, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!(profile?.is_founder ?? false) && !(profile?.is_admin ?? false)) {
+        return { ok: false, error: "You can only move your own events" };
+      }
+    }
+
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({
+        start_time: startTime,
+        end_time: endTime,
+        // A time change voids the previous approval (if any).
+        status: existing.type === "meeting" ? "approved" : "pending",
+      })
+      .eq("id", eventId);
+    if (error) return { ok: false, error: error.message };
+
+    if (existing.type !== "meeting") {
+      const admin = createAdminClient();
+      await admin
+        .from("approvals")
+        .update({ status: "pending" })
+        .eq("target_id", eventId)
+        .eq("type", "timeoff");
+    }
+
+    revalidatePath("/calendar");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not move event";
+    return { ok: false, error: msg };
+  }
+}
+
+// Replace the tagged attendees on an event (create + delete the diff).
+export async function setEventAttendees(
+  eventId: string,
+  attendeeIds: string[],
+): Promise<ActionResult> {
+  try {
+    if (!(await requirePermission("calendar.edit"))) {
+      return { ok: false, error: "You don't have permission to edit the calendar" };
+    }
+    const supabase = userClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated" };
+
+    // Owner, founders, and admins can tag attendees on any event.
+    const { data: existing } = await supabase
+      .from("calendar_events")
+      .select("user_id")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (!existing) return { ok: false, error: "Event not found" };
+    if (existing.user_id !== user.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_founder, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!(profile?.is_founder ?? false) && !(profile?.is_admin ?? false)) {
+        return { ok: false, error: "You can only tag people on your own events" };
+      }
     }
 
     const { data: current } = await supabase

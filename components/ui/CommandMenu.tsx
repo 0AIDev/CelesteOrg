@@ -11,9 +11,16 @@ import {
   Lightbulb,
   CalendarPlus,
   ArrowUUpLeft,
+  UsersThree,
+  FileText,
+  Gauge,
+  CalendarBlank,
+  ShieldCheck,
 } from "@phosphor-icons/react";
 import { mainNav, shortcuts, bottomNav, type NavItem } from "@/components/nav/config";
+import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { cn } from "@/lib/utils";
+import { getSearchIndex, type SearchIndex } from "@/app/actions/search-actions";
 
 type Action = {
   label: string;
@@ -49,6 +56,21 @@ export function CommandMenu({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onOpenChange]);
+
+  // Fetch the workspace search index once when the palette opens, so people,
+  // documents, ideas, events, roles and approvals are all searchable.
+  const [index, setIndex] = useState<SearchIndex | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let mounted = true;
+    setIndex(null);
+    getSearchIndex().then((res) => {
+      if (mounted && res.ok) setIndex(res.index);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   const quickActions: Action[] = [
     {
@@ -159,6 +181,116 @@ export function CommandMenu({
                   );
                 })}
               </Command.Group>
+
+              {index && index.members.length > 0 && (
+                <Command.Group heading="People" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.members.map((m) => (
+                    <CommandItem
+                      key={m.id}
+                      label={m.full_name ?? "Unnamed"}
+                      sub={m.role_title ? `${m.role_title} · ${m.email}` : m.email}
+                      icon={
+                        <SquircleAvatar name={m.full_name} src={m.avatar_url} size="sm" />
+                      }
+                      keywords={`${m.full_name ?? ""} ${m.email} ${m.role_title ?? ""} member teammate people profile`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/org-chart?member=${m.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
+
+              {index && index.documents.length > 0 && (
+                <Command.Group heading="Documents" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.documents.map((d) => (
+                    <CommandItem
+                      key={d.id}
+                      label={d.title}
+                      sub={`${d.category ?? "General"}${d.owner_name ? ` · ${d.owner_name}` : ""}`}
+                      icon={<FileText size={18} className="text-gray-500" />}
+                      keywords={`${d.title} ${d.category ?? ""} ${d.owner_name ?? ""} document file`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/documents?doc=${d.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
+
+              {index && index.roles.length > 0 && (
+                <Command.Group heading="Roles" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.roles.map((r) => (
+                    <CommandItem
+                      key={r.id}
+                      label={r.title}
+                      sub={r.holder ? `${r.holder} · Dashboard` : "Dashboard"}
+                      icon={<Gauge size={18} className="text-gray-500" />}
+                      keywords={`${r.title} ${r.holder ?? ""} role dashboard position`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/dashboards/${r.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
+
+              {index && index.ideas.length > 0 && (
+                <Command.Group heading="Ideas" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.ideas.map((i) => (
+                    <CommandItem
+                      key={i.id}
+                      label={i.title}
+                      sub="Idea vault"
+                      icon={<Lightbulb size={18} className="text-gray-500" />}
+                      keywords={`${i.title} idea vault suggestion`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/ideas?idea=${i.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
+
+              {index && index.events.length > 0 && (
+                <Command.Group heading="Events" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.events.map((e) => (
+                    <CommandItem
+                      key={e.id}
+                      label={e.title}
+                      sub={`${fmtEventTime(e.start_time)} · ${typeLabel(e.type)}`}
+                      icon={<CalendarBlank size={18} className="text-gray-500" />}
+                      keywords={`${e.title} ${e.type} event calendar`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/calendar?event=${e.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
+
+              {index && index.approvals.length > 0 && (
+                <Command.Group heading="Approvals" className="px-2 pt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400">
+                  {index.approvals.map((a) => (
+                    <CommandItem
+                      key={a.id}
+                      label={a.summary}
+                      sub={`${a.status} · Approvals`}
+                      icon={<ShieldCheck size={18} className="text-gray-500" />}
+                      keywords={`${a.summary} ${a.status} approval approve`}
+                      onSelect={() => {
+                        onOpenChange(false);
+                        router.push(`/approvals?approval=${a.id}`);
+                      }}
+                    />
+                  ))}
+                </Command.Group>
+              )}
             </Command.List>
           </Command>
         </Dialog.Content>
@@ -202,4 +334,19 @@ function CommandItem({
       </div>
     </Command.Item>
   );
+}
+
+function typeLabel(type: string): string {
+  const map: Record<string, string> = {
+    vacation: "Vacation",
+    remote: "Remote",
+    sick: "Sick leave",
+    meeting: "Meeting",
+  };
+  return map[type] ?? type;
+}
+
+function fmtEventTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
