@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -14,13 +14,12 @@ import {
   Spinner,
   Check,
   X,
-  Lightning,
   ChartLineUp,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { reviewApproval } from "@/app/actions/approval-actions";
-import { createClient } from "@/lib/supabase/client"
+import { AiCostTracker } from "@/components/ai-usage/AiCostTracker"
 
 export type DashboardData = {
   role: {
@@ -70,43 +69,7 @@ export function RoleDashboardClient({ data }: { data: DashboardData }) {
     }
   }
 
-  // Realtime AI metrics
-  const [aiMetrics, setAiMetrics] = useState<{ provider: string; tokens: number; cost: number }[]>([]);
-  useEffect(() => {
-    const sb = createClient();
-    sb.from("api_metrics")
-      .select("provider, tokens_used, cost")
-      .order("recorded_at", { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        if (!data) return;
-        const agg = new Map<string, { tokens: number; cost: number }>();
-        for (const row of data) {
-          const p = row.provider ?? "unknown";
-          const prev = agg.get(p) ?? { tokens: 0, cost: 0 };
-          agg.set(p, { tokens: prev.tokens + (row.tokens_used ?? 0), cost: prev.cost + (row.cost ?? 0) });
-        }
-        setAiMetrics(Array.from(agg.entries()).map(([provider, v]) => ({ provider, ...v })));
-      });
 
-    // Subscribe to realtime inserts
-    const channel = sb.channel("ceo-ai-metrics")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "api_metrics" }, (payload) => {
-        const m = payload.new as { provider: string; tokens_used: number; cost: number };
-        setAiMetrics((prev) => {
-          const next = [...prev];
-          const idx = next.findIndex((x) => x.provider === m.provider);
-          if (idx >= 0) {
-            next[idx] = { ...next[idx], tokens: next[idx].tokens + (m.tokens_used ?? 0), cost: next[idx].cost + (m.cost ?? 0) };
-          } else {
-            next.push({ provider: m.provider ?? "unknown", tokens: m.tokens_used ?? 0, cost: m.cost ?? 0 });
-          }
-          return next;
-        });
-      })
-      .subscribe();
-    return () => { channel.unsubscribe(); };
-  }, []);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -140,36 +103,10 @@ export function RoleDashboardClient({ data }: { data: DashboardData }) {
         <Stat icon={FileText} label="Recent documents" value={String(data.docs.length)} />
       </div>
 
-      {/* CEO-only: AI Metrics Realtime */}
+      {/* CEO-only: AI Cost Tracker (full realtime dashboard) */}
       {isCEO && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          {/* AI Metrics Realtime */}
-          <div className="card p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Lightning className="h-4 w-4 text-gray-400" />
-              <h2 className="text-[13px] font-semibold text-gray-900">AI Usage</h2>
-              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" /> Live
-              </span>
-            </div>
-            {aiMetrics.length === 0 ? (
-              <p className="py-4 text-center text-xs text-gray-400">No API calls recorded yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {aiMetrics.map((m) => (
-                  <div key={m.provider} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-semibold capitalize text-gray-700">{m.provider}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] tabular-nums">
-                      <span className="text-gray-500">{(m.tokens / 1000).toFixed(1)}k tokens</span>
-                      <span className="font-medium text-gray-900">${m.cost.toFixed(4)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="mb-6">
+          <AiCostTracker />
         </div>
       )}
 
