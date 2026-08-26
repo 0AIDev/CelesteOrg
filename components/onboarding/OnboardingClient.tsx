@@ -12,9 +12,11 @@ import {
   Code,
   Sliders,
   Lock,
+  Envelope,
 } from "@phosphor-icons/react";
 
 import {
+  createAccount,
   saveOnboardingStep1,
   saveOnboardingStep2,
   saveOnboardingStep3,
@@ -23,7 +25,18 @@ import {
   completeOnboarding,
 } from "@/app/actions/onboarding-actions";
 
-const STEP_META = [
+// Steps when NOT logged in (account creation first)
+const STEPS_WITH_ACCOUNT = [
+  { id: "account", label: "Account", icon: Envelope },
+  { id: "identity", label: "Your profile", icon: User },
+  { id: "department", label: "Department", icon: Buildings },
+  { id: "tech", label: "Tech stack", icon: Code },
+  { id: "preferences", label: "Work style", icon: Sliders },
+  { id: "nda", label: "NDA & Sign", icon: Lock },
+];
+
+// Steps when already logged in (skip account creation)
+const STEPS_WITHOUT_ACCOUNT = [
   { id: "identity", label: "Your profile", icon: User },
   { id: "department", label: "Department", icon: Buildings },
   { id: "tech", label: "Tech stack", icon: Code },
@@ -44,19 +57,23 @@ type OnboardingData = {
   hasSignedNDA: boolean;
   departments: Department[];
   user: { id: string; email: string };
-};
+} | null;
 
 export function OnboardingClient({ data }: { data: OnboardingData }) {
   const router = useRouter();
-  const { profile, departments } = data;
+
+  // Determine if we need account creation step
+  const needsAccount = !data;
+  const STEP_META = needsAccount ? STEPS_WITH_ACCOUNT : STEPS_WITHOUT_ACCOUNT;
 
   // Determine starting step from existing data
   const initialStep = (() => {
-    if (data.hasSignedNDA) return 4; // already done
-    if (data.preferences) return 3;
-    if (data.techSpecs) return 2;
-    if (profile?.department_id) return 1;
-    return 0;
+    if (!data) return 0; // Start at account creation
+    if (data.hasSignedNDA) return STEP_META.length - 1;
+    if (data.preferences) return STEP_META.length - 2;
+    if (data.techSpecs) return STEP_META.length - 3;
+    if (data.profile?.department_id) return STEP_META.length - 4;
+    return needsAccount ? 0 : 0;
   })();
 
   const [step, setStep] = useState(initialStep);
@@ -64,42 +81,48 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   const [err, setErr] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
+  // ── Step 0: Account creation state ──────────────────────────────────────
+  const [s0, setS0] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+  });
+
   // ── Step 1 state ────────────────────────────────────────────────────────
   const [s1, setS1] = useState({
-    full_name: (profile?.full_name as string) ?? "",
-    location: (profile?.location as string) ?? "",
-    bio: (profile?.bio as string) ?? "",
-    companies: (profile?.previous_companies as string[]) ?? [],
+    full_name: (data?.profile?.full_name as string) ?? "",
+    location: (data?.profile?.location as string) ?? "",
+    bio: (data?.profile?.bio as string) ?? "",
+    companies: (data?.profile?.previous_companies as string[]) ?? [],
     companyInput: "",
   });
 
   // ── Step 2 state ────────────────────────────────────────────────────────
   const [departmentId, setDepartmentId] = useState(
-    (profile?.department_id as string) ?? "",
+    (data?.profile?.department_id as string) ?? "",
   );
 
   // ── Step 3 state ────────────────────────────────────────────────────────
   const [s3, setS3] = useState({
-    primary_language: (data.techSpecs?.primary_language as string) ?? "",
-    frameworks: (data.techSpecs?.frameworks as string[]) ?? [],
-    local_model: (data.techSpecs?.local_model as string) ?? "",
-    hardware_notes: (data.techSpecs?.hardware_notes as string) ?? "",
+    primary_language: (data?.techSpecs?.primary_language as string) ?? "",
+    frameworks: (data?.techSpecs?.frameworks as string[]) ?? [],
+    local_model: (data?.techSpecs?.local_model as string) ?? "",
+    hardware_notes: (data?.techSpecs?.hardware_notes as string) ?? "",
   });
-  const [langInput, setLangInput] = useState("");
 
   // ── Step 4 state ────────────────────────────────────────────────────────
   const [s4, setS4] = useState({
-    focus_hours: (data.preferences?.focus_hours as string) ?? "",
-    communication_channel: (data.preferences?.communication_channel as string) ?? "",
-    notifications_enabled: (data.preferences?.notifications_enabled as boolean) ?? true,
-    availability_status: (data.preferences?.availability_status as string) ?? "available",
+    focus_hours: (data?.preferences?.focus_hours as string) ?? "",
+    communication_channel: (data?.preferences?.communication_channel as string) ?? "",
+    notifications_enabled: (data?.preferences?.notifications_enabled as boolean) ?? true,
+    availability_status: (data?.preferences?.availability_status as string) ?? "available",
   });
 
   // ── Step 5 state ────────────────────────────────────────────────────────
   const [s5, setS5] = useState({
     typed_name: "",
     agreed: false,
-    signed: data.hasSignedNDA,
+    signed: data?.hasSignedNDA ?? false,
   });
 
   const goNext = useCallback(() => {
@@ -109,7 +132,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
       setTransitioning(false);
       setErr("");
     }, 200);
-  }, []);
+  }, [STEP_META.length]);
 
   const goPrev = useCallback(() => {
     setTransitioning(true);
@@ -121,6 +144,22 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   }, []);
 
   // ── Save handlers ───────────────────────────────────────────────────────
+  async function saveStep0() {
+    if (!s0.email.trim() || !s0.password || !s0.full_name.trim()) return;
+    setBusy(true);
+    setErr("");
+    const res = await createAccount({
+      email: s0.email,
+      password: s0.password,
+      full_name: s0.full_name,
+    });
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    // Pre-fill step 1 with the name from account creation
+    setS1((prev) => ({ ...prev, full_name: s0.full_name }));
+    goNext();
+  }
+
   async function saveStep1() {
     if (!s1.full_name.trim()) return;
     setBusy(true);
@@ -176,7 +215,6 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
   async function saveStep5() {
     if (s5.signed) {
-      // Already signed — just complete.
       const cRes = await completeOnboarding();
       if (cRes.ok) router.push("/dashboard");
       return;
@@ -200,16 +238,21 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   }
 
   const pct = Math.round(((step + 1) / STEP_META.length) * 100);
+  const displayName = needsAccount
+    ? s0.full_name.split(" ")[0] || ""
+    : s1.full_name.split(" ")[0] || (data?.profile?.full_name as string)?.split(" ")[0] || "";
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-10">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Welcome to Celeste, {s1.full_name.split(" ")[0] || (profile?.full_name as string)?.split(" ")[0] || ""}!
+          {displayName ? `Welcome to Celeste, ${displayName}!` : "Welcome to Celeste"}
         </h1>
         <p className="mt-2 text-sm text-gray-500">
-          Let&apos;s set up your profile in a few quick steps.
+          {needsAccount
+            ? "Create your account and set up your profile."
+            : "Let's set up your profile in a few quick steps."}
         </p>
       </div>
 
@@ -257,8 +300,23 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
       <div
         className={`flex-1 transition-opacity duration-200 ${transitioning ? "opacity-0" : "opacity-100"}`}
       >
+        {/* Step 0: Account Creation */}
+        {needsAccount && step === 0 && (
+          <StepCard title="Create your account" subtitle="Choose your email and password to sign in.">
+            <Field label="Full name" required>
+              <input className="input" value={s0.full_name} onChange={(e) => setS0({ ...s0, full_name: e.target.value })} placeholder="Mattia Vizzi" autoFocus />
+            </Field>
+            <Field label="Email" required className="mt-4">
+              <input className="input" type="email" value={s0.email} onChange={(e) => setS0({ ...s0, email: e.target.value })} placeholder="you@celeste.ai" />
+            </Field>
+            <Field label="Password" required className="mt-4">
+              <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder="At least 8 characters" />
+            </Field>
+          </StepCard>
+        )}
+
         {/* Step 1: Identity */}
-        {step === 0 && (
+        {((needsAccount && step === 1) || (!needsAccount && step === 0)) && (
           <StepCard title="Your profile" subtitle="Basic info that shows on your profile and the org chart.">
             <Field label="Full name" required>
               <input className="input" value={s1.full_name} onChange={(e) => setS1({ ...s1, full_name: e.target.value })} placeholder="Mattia Vizzi" autoFocus />
@@ -268,7 +326,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                 <input className="input" value={s1.location} onChange={(e) => setS1({ ...s1, location: e.target.value })} placeholder="Milan, Italy" />
               </Field>
               <Field label="Role" hint="Set by your admin">
-                <input className="input opacity-60" value={(profile?.role_title as string) ?? ""} disabled />
+                <input className="input opacity-60" value={(data?.profile?.role_title as string) ?? ""} disabled />
               </Field>
             </div>
             <Field label="About you" className="mt-4">
@@ -300,10 +358,10 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         )}
 
         {/* Step 2: Department */}
-        {step === 1 && (
+        {((needsAccount && step === 2) || (!needsAccount && step === 1)) && (
           <StepCard title="Department & track" subtitle="Choose your primary department.">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {departments.map((d) => (
+              {(data?.departments ?? []).map((d) => (
                 <button
                   key={d.id}
                   onClick={() => setDepartmentId(d.id)}
@@ -322,7 +380,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         )}
 
         {/* Step 3: Tech Stack */}
-        {step === 2 && (
+        {((needsAccount && step === 3) || (!needsAccount && step === 2)) && (
           <StepCard title="Tech stack & hardware" subtitle="Help us understand your setup (all optional).">
             <Field label="Primary language / framework">
               <div className="flex flex-wrap gap-1.5">
@@ -388,7 +446,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         )}
 
         {/* Step 4: Preferences */}
-        {step === 3 && (
+        {((needsAccount && step === 4) || (!needsAccount && step === 3)) && (
           <StepCard title="Work style & preferences" subtitle="How you like to work.">
             <Field label="Core focus hours">
               <input className="input" value={s4.focus_hours} onChange={(e) => setS4({ ...s4, focus_hours: e.target.value })} placeholder="e.g. 09:00-12:00, 14:00-17:00" />
@@ -443,7 +501,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         )}
 
         {/* Step 5: NDA */}
-        {step === 4 && (
+        {((needsAccount && step === 5) || (!needsAccount && step === 4)) && (
           <StepCard title="NDA & IP Assignment" subtitle="Review and sign the internal agreement.">
             {s5.signed ? (
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center">
@@ -504,17 +562,19 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         </div>
         <button
           onClick={
-            step === 0 ? saveStep1 :
-            step === 1 ? saveStep2 :
-            step === 2 ? saveStep3 :
-            step === 3 ? saveStep4 :
+            (needsAccount && step === 0) ? saveStep0 :
+            (needsAccount && step === 1) || (!needsAccount && step === 0) ? saveStep1 :
+            (needsAccount && step === 2) || (!needsAccount && step === 1) ? saveStep2 :
+            (needsAccount && step === 3) || (!needsAccount && step === 2) ? saveStep3 :
+            (needsAccount && step === 4) || (!needsAccount && step === 3) ? saveStep4 :
             saveStep5
           }
           disabled={
             busy ||
-            (step === 0 && !s1.full_name.trim()) ||
-            (step === 1 && !departmentId) ||
-            (step === 4 && !s5.signed && (!s5.agreed || !s5.typed_name.trim()))
+            ((needsAccount && step === 0) && (!s0.full_name.trim() || !s0.email.trim() || s0.password.length < 8)) ||
+            ((needsAccount && step === 1 || (!needsAccount && step === 0)) && !s1.full_name.trim()) ||
+            ((needsAccount && step === 2 || (!needsAccount && step === 1)) && !departmentId) ||
+            (((needsAccount && step === 5) || (!needsAccount && step === 4)) && !s5.signed && (!s5.agreed || !s5.typed_name.trim()))
           }
           className="btn-primary disabled:opacity-50"
         >

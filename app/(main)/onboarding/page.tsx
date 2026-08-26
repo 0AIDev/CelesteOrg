@@ -6,7 +6,11 @@ export const metadata = { title: "Onboarding — Celeste HQ" };
 
 export default async function OnboardingPage() {
   const data = await getOnboardingData();
-  if (!data) redirect("/sign-in");
+
+  // If user is not logged in, pass null data so the client shows step 0 (account creation)
+  if (!data) {
+    return <OnboardingClient data={null} />;
+  }
 
   // Already completed? Go to dashboard.
   if (data.profile?.onboarding_completed) redirect("/dashboard");

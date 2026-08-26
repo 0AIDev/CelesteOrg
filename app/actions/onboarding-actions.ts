@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePermission } from "@/app/actions/permission-actions";
 import { createHash } from "crypto";
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionResult = { ok: true; userId?: string } | { ok: false; error: string };
 
 function userClient() {
   const cookieStore = cookies();
@@ -20,10 +20,62 @@ function userClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll() {},
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2]);
+          });
+        },
       },
     },
   );
+}
+
+// ── Step 0: Account Creation (email + password) ──────────────────────────────
+const step0Schema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  full_name: z.string().min(1, "Name is required").max(120),
+});
+
+export async function createAccount(
+  input: Record<string, unknown>,
+): Promise<ActionResult> {
+  try {
+    const parsed = step0Schema.parse(input);
+    const supabase = userClient();
+
+    // Check if email already exists
+    const { data: existing } = await supabase.auth.signInWithPassword({
+      email: parsed.email,
+      password: "__check_only__",
+    }).catch(() => ({ data: null }));
+
+    // Create the user
+    const { data, error } = await supabase.auth.signUp({
+      email: parsed.email,
+      password: parsed.password,
+      options: {
+        data: { full_name: parsed.full_name },
+      },
+    });
+
+    if (error) return { ok: false, error: error.message };
+    if (!data.user) return { ok: false, error: "Could not create account" };
+
+    // Create profile
+    const { error: profileErr } = await supabase.from("profiles").upsert({
+      id: data.user.id,
+      full_name: parsed.full_name,
+      email: parsed.email,
+      onboarding_completed: false,
+    }, { onConflict: "id" });
+    if (profileErr) return { ok: false, error: profileErr.message };
+
+    return { ok: true, userId: data.user.id };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not create account";
+    return { ok: false, error: msg };
+  }
 }
 
 // ── Step 1: Core Identity ───────────────────────────────────────────────────

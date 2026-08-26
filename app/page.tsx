@@ -4,5 +4,5 @@ import { redirect } from "next/navigation";
 // request) — no need to hit Supabase again here. This page is a pure,
 // dependency-free redirect so the root stays fast even on cold start.
 export default function Home() {
-  redirect("/dashboard");
+  redirect("/onboarding");
 }
