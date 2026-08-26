@@ -64,7 +64,7 @@ export function Sidebar({
         className={cn(
           "relative z-40 flex flex-col overflow-hidden border-r transition-[width,transform] duration-200 ease-in-out",
           "border-gray-200 bg-white/70 backdrop-blur-xl",
-          "dark:bg-[#1E1F20] dark:border-[rgba(255,255,255,0.08)]",
+          "dark:bg-[#1c1a1a] dark:border-[rgba(255,255,255,0.08)]",
           isMobile
             ? cn("fixed inset-y-0 left-0 w-[280px] max-w-[85vw]", open ? "translate-x-0" : "-translate-x-full")
             : cn("sticky top-0 h-screen shrink-0", open ? "w-[260px]" : "w-0"),
