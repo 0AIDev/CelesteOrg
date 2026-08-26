@@ -27,7 +27,7 @@ import {
   Notebook,
   Plugs,
 } from "@phosphor-icons/react";
-import { mainNav, shortcuts, bottomNav, type NavItem } from "@/components/nav/config";
+import { categories, topNav, defaultPinned, bottomNav, allNavItems, type NavItem } from "@/components/nav/config";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { cn } from "@/lib/utils";
 import { getSearchIndex, type SearchIndex } from "@/app/actions/search-actions";
@@ -175,9 +175,8 @@ export function CommandMenu({
     },
   ];
 
-  // Dedupe by href (Approvals appears in both mainNav and shortcuts) — cmdk
-  // uses the item value as key, so duplicates would collapse into one row.
-  const navItems = [...mainNav, ...shortcuts, ...bottomNav]
+  // Dedupe by href — cmdk uses the item value as key, so duplicates would collapse.
+  const navItems = [...topNav, ...allNavItems, ...defaultPinned, ...bottomNav]
     .filter((n): n is NavItem & { href: string } => !!n.href)
     .filter((n, i, arr) => arr.findIndex((x) => x.href === n.href) === i);
 

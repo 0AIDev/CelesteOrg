@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { X, Folder, FolderDashed } from "@phosphor-icons/react";
-import { mainNav, shortcuts, bottomNav } from "@/components/nav/config";
+import { useEffect, useState, useCallback } from "react";
+import { X, Folder, FolderDashed, CaretDown } from "@phosphor-icons/react";
+import {
+  categories,
+  topNav,
+  defaultPinned,
+  bottomNav,
+  getPinnedItems,
+  togglePin,
+  type NavItem,
+} from "@/components/nav/config";
+import { RocketLaunch } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 // ─── Toggle icons ───────────────────────────────────────────────────
@@ -22,6 +31,19 @@ function SidebarCollapseIcon({ className }: { className?: string }) {
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect x="7" y="6.5" width="7" height="1.5" rx="0.75" transform="rotate(90 7 6.5)" fill="currentColor" />
       <rect x="3" y="4" width="14" height="12" rx="2.8" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+// ─── Pin icon (appears on hover) ────────────────────────────────────
+function PinIcon({ pinned, className }: { pinned: boolean; className?: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={className}>
+      {pinned ? (
+        <path d="M8.5 1.5L12.5 5.5L9 9L10 13L7 10L4 13L5 9L1.5 5.5L5.5 1.5L8.5 1.5Z" fill="currentColor" />
+      ) : (
+        <path d="M8.5 1.5L12.5 5.5L9 9L10 13L7 10L4 13L5 9L1.5 5.5L5.5 1.5L8.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      )}
     </svg>
   );
 }
@@ -44,8 +66,6 @@ export function Sidebar({
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
-  // Track the viewport: on desktop the sidebar is an in-flow column that
-  // collapses its width; on mobile it slides over the content with an overlay.
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
     const update = () => setIsMobile(mq.matches);
@@ -64,7 +84,6 @@ export function Sidebar({
             : cn("sticky top-0 h-screen shrink-0", open ? "w-[260px]" : "w-0"),
         )}
       >
-        {/* Keep content at a constant width while the column collapses */}
         <div className="flex h-full w-[260px] flex-col">
           <SidebarInner
             onClose={onClose}
@@ -75,18 +94,14 @@ export function Sidebar({
           />
         </div>
       </aside>
-      {/* Mobile-only overlay (never mounted on desktop, so it can't eat clicks) */}
       {isMobile && open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm" onClick={onClose} />
       )}
     </>
   );
 }
 
-// ─── Brand — text only, minimal ─────────────────────────────────────
+// ─── Brand ──────────────────────────────────────────────────────────
 function Brand() {
   return (
     <div className="flex items-center px-4 pt-4 pb-3">
@@ -95,42 +110,126 @@ function Brand() {
   );
 }
 
-// ─── Nav item — icon inline, no container box ───────────────────────
+// ─── Nav item with pin-on-hover ─────────────────────────────────────
 function NavItem({
-  label,
-  href,
-  icon: Icon,
+  item,
   active,
   onClick,
-  badge,
+  isPinned,
+  onTogglePin,
+  showPin = false,
 }: {
-  label: string;
-  href?: string;
-  icon: typeof import("@phosphor-icons/react").House;
+  item: NavItem;
   active?: boolean;
   onClick?: () => void;
-  badge?: string;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
+  showPin?: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
+
   const content = (
-    <div className={cn(
-      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
-      active
-        ? "bg-gray-200/60 text-gray-950"
-        : "text-gray-500 hover:bg-gray-100/70 hover:text-gray-950",
-    )}>
-      <Icon size={18} weight={active ? "fill" : "regular"} className={cn(
-        "shrink-0 transition-colors",
-        active ? "text-gray-950" : "text-gray-400",
-      )} />
-      <span className="truncate">{label}</span>
-      {badge && <span className="ml-auto text-[11px] text-gray-400">{badge}</span>}
+    <div
+      className={cn(
+        "group/nav flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+        active
+          ? "bg-gray-200/60 text-gray-950"
+          : "text-gray-500 hover:bg-gray-100/70 hover:text-gray-950",
+      )}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <item.icon size={18} weight={active ? "fill" : "regular"} className={cn("shrink-0 transition-colors", active ? "text-gray-950" : "text-gray-400")} />
+      <span className="truncate grow">{item.label}</span>
+      {item.badge && <span className="text-[11px] text-gray-400">{item.badge}</span>}
+      {/* Pin button — appears on hover */}
+      {showPin && hovered && onTogglePin && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          className={cn(
+            "shrink-0 rounded p-0.5 transition-colors",
+            isPinned ? "text-gray-900" : "text-gray-300 hover:text-gray-600",
+          )}
+          title={isPinned ? "Unpin" : "Pin to sidebar"}
+        >
+          <PinIcon pinned={!!isPinned} />
+        </button>
+      )}
     </div>
   );
 
-  if (href) {
-    return <Link href={href} onClick={onClick} className="block w-full">{content}</Link>;
+  if (item.href) {
+    return (
+      <Link href={item.href} onClick={onClick} className="block w-full">
+        {content}
+      </Link>
+    );
   }
-  return <button onClick={onClick} className="w-full text-left">{content}</button>;
+  return (
+    <button onClick={onClick} className="w-full text-left">
+      {content}
+    </button>
+  );
+}
+
+// ─── Collapsible category ───────────────────────────────────────────
+function CategorySection({
+  label,
+  items,
+  pathname,
+  navClick,
+  pinnedItems,
+  onTogglePin,
+}: {
+  label: string;
+  items: NavItem[];
+  pathname: string;
+  navClick: () => void;
+  pinnedItems: string[];
+  onTogglePin: (label: string) => void;
+}) {
+  // Auto-expand if any child is active
+  const hasActive = items.some((i) => i.href && pathname.startsWith(i.href));
+  const [expanded, setExpanded] = useState(hasActive);
+
+  // Re-expand when navigated to a child
+  useEffect(() => {
+    if (hasActive) setExpanded(true);
+  }, [hasActive]);
+
+  return (
+    <div className="mb-1">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="flex w-full items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-gray-400 transition-colors hover:text-gray-600"
+      >
+        <CaretDown
+          size={12}
+          className={cn("shrink-0 transition-transform duration-150", !expanded && "-rotate-90")}
+        />
+        <span className="truncate">{label}</span>
+      </button>
+      {expanded && (
+        <div className="space-y-0.5">
+          {items.map((item) => (
+            <NavItem
+              key={item.href ?? item.label}
+              item={item}
+              active={!!item.href && pathname.startsWith(item.href)}
+              onClick={navClick}
+              isPinned={pinnedItems.includes(item.label)}
+              onTogglePin={() => onTogglePin(item.label)}
+              showPin
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Inner ──────────────────────────────────────────────────────────
@@ -148,20 +247,38 @@ function SidebarInner({
   dashboards?: { slug: string; title: string; isOwn?: boolean }[];
 }) {
   const pathname = usePathname();
-  // The invite card always comes back: dismissing only hides it for the
-  // current session (no localStorage), so it can never disappear forever.
   const [inviteDismissed, setInviteDismissed] = useState(false);
+  const [pinnedItems, setPinnedItems] = useState<string[]>([]);
+
+  // Load pinned items from localStorage on mount
+  useEffect(() => {
+    setPinnedItems(getPinnedItems());
+  }, []);
+
+  const handleTogglePin = useCallback((label: string) => {
+    const next = togglePin(label);
+    setPinnedItems(next);
+  }, []);
 
   function dismissInvite() {
     setInviteDismissed(true);
   }
 
-  // Closing the sidebar after a nav click is only desired on mobile (where
-  // the sidebar is an overlay). On desktop it stays open — like ElevenLabs.
   function navClick() {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) return;
     onClose();
   }
+
+  // Resolve pinned NavItems from allNavItems
+  const allItems = [
+    ...topNav,
+    ...categories.flatMap((c) => c.items),
+    ...defaultPinned,
+    ...bottomNav,
+  ];
+  const pinnedNavItems = pinnedItems
+    .map((label) => allItems.find((i) => i.label === label))
+    .filter(Boolean) as NavItem[];
 
   return (
     <>
@@ -175,54 +292,84 @@ function SidebarInner({
 
       {/* Scrollable nav */}
       <nav className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
-        {/* Main nav */}
-        <div className="space-y-0.5">
-          {mainNav.map((item) => (
+        {/* Top-level: Home */}
+        <div className="mb-2 space-y-0.5">
+          {topNav.map((item) => (
             <NavItem
-              key={item.href}
-              label={item.label}
-              href={item.href}
-              icon={item.icon}
+              key={item.href ?? item.label}
+              item={item}
               active={!!item.href && pathname.startsWith(item.href)}
               onClick={navClick}
-              badge={item.badge}
+              isPinned={pinnedItems.includes(item.label)}
+              onTogglePin={() => handleTogglePin(item.label)}
+              showPin
             />
           ))}
         </div>
 
-        {/* Pinned */}
-        <div className="mt-4">
-          <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Pinned</p>
-          <div className="space-y-0.5">
-            {shortcuts
-              .filter((item) => !(isOnboarded && item.href === "/onboarding"))
-              .map((item) =>
-              item.action === "standup" ? (
-                <NavItem
-                  key={item.label}
-                  label={item.label}
-                  icon={item.icon}
-                  active={false}
-                  onClick={() => {
-                    navClick();
-                    onOpenStandup?.();
-                  }}
-                />
-              ) : (
-                <NavItem
-                  key={item.href}
-                  label={item.label}
-                  href={item.href}
-                  icon={item.icon}
-                  active={!!item.href && pathname.startsWith(item.href)}
-                  onClick={navClick}
-                />
-              ),
-            )}
-          </div>
-        </div>
+        {/* Categorized nav */}
+        {categories.map((cat) => (
+          <CategorySection
+            key={cat.label}
+            label={cat.label}
+            items={cat.items}
+            pathname={pathname}
+            navClick={navClick}
+            pinnedItems={pinnedItems}
+            onTogglePin={handleTogglePin}
+          />
+        ))}
 
-        {/* Role dashboards — one per role in the org chart, above Settings */}
+        {/* Pinned section */}
+        {pinnedNavItems.length > 0 && (
+          <div className="mt-3">
+            <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Pinned</p>
+            <div className="space-y-0.5">
+              {pinnedNavItems.map((item) =>
+                item.action === "standup" ? (
+                  <NavItem
+                    key={item.label}
+                    item={item}
+                    active={false}
+                    onClick={() => {
+                      navClick();
+                      onOpenStandup?.();
+                    }}
+                    isPinned
+                    onTogglePin={() => handleTogglePin(item.label)}
+                    showPin
+                  />
+                ) : (
+                  <NavItem
+                    key={item.href ?? item.label}
+                    item={item}
+                    active={!!item.href && pathname.startsWith(item.href)}
+                    onClick={navClick}
+                    isPinned
+                    onTogglePin={() => handleTogglePin(item.label)}
+                    showPin
+                  />
+                ),
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Onboarding (hidden if completed) */}
+        {!isOnboarded && (
+          <div className="mt-3">
+            <NavItem
+              item={{ label: "Onboarding", href: "/onboarding", icon: RocketLaunch }}
+              active={pathname.startsWith("/onboarding")}
+              onClick={navClick}
+              isPinned={pinnedItems.includes("Onboarding")}
+              onTogglePin={() => handleTogglePin("Onboarding")}
+              showPin
+            />
+          </div>
+        )}
+
+        {/* Role dashboards */}
         {dashboards && dashboards.length > 0 && (
           <div className="mt-4">
             <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Dashboards</p>
@@ -230,9 +377,11 @@ function SidebarInner({
               {dashboards.map((d) => (
                 <NavItem
                   key={d.slug}
-                  label={`${d.title} Dashboard`}
-                  href={`/dashboards/${d.slug}`}
-                  icon={d.isOwn ? Folder : FolderDashed}
+                  item={{
+                    label: `${d.title} Dashboard`,
+                    href: `/dashboards/${d.slug}`,
+                    icon: d.isOwn ? Folder : FolderDashed,
+                  }}
                   active={pathname.startsWith(`/dashboards/${d.slug}`)}
                   onClick={navClick}
                 />
@@ -278,11 +427,12 @@ function SidebarInner({
           {bottomNav.map((item) => (
             <NavItem
               key={item.label}
-              label={item.label}
-              href={item.href}
-              icon={item.icon}
+              item={item}
               active={!!item.href && pathname.startsWith(item.href)}
               onClick={navClick}
+              isPinned={pinnedItems.includes(item.label)}
+              onTogglePin={() => handleTogglePin(item.label)}
+              showPin
             />
           ))}
         </div>
