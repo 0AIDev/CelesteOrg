@@ -7,8 +7,9 @@ import {
   X,
   Trash,
   PaperPlaneTilt,
-  At,
   List,
+  ChatsCircle,
+  Circle,
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -18,23 +19,41 @@ import {
   getMessages,
   sendMessage,
   deleteMessage,
+  getDmConversations,
+  getDmMessages,
+  sendDm,
+  deleteDm,
   type Channel,
   type ChatMessage,
+  type DmConversation,
+  type DirectMessage,
 } from "@/app/actions/chat-actions";
 import { useSession } from "@/components/layout/LayoutProvider";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { cn } from "@/lib/utils";
 
-export function InternalChatHub() {
+type ViewMode = "channels" | "dms";
+
+export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string }) {
   const { user } = useSession();
+  const [viewMode, setViewMode] = useState<ViewMode>("channels");
+
+  // Channel state
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
   const [showNewChannel, setShowNewChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
+
+  // DM state
+  const [dmConversations, setDmConversations] = useState<DmConversation[]>([]);
+  const [activeDmPeer, setActiveDmPeer] = useState<DmConversation | null>(null);
+  const [dmMessages, setDmMessages] = useState<DirectMessage[]>([]);
+
+  // Shared
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,11 +62,16 @@ export function InternalChatHub() {
   useEffect(() => {
     getChannels().then((ch) => {
       setChannels(ch);
-      if (ch.length > 0 && !activeChannel) {
+      if (ch.length > 0 && !activeChannel && viewMode === "channels") {
         setActiveChannel(ch[0]);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load DM conversations
+  useEffect(() => {
+    getDmConversations().then(setDmConversations);
   }, []);
 
   // Load messages when channel changes
@@ -56,14 +80,49 @@ export function InternalChatHub() {
     getMessages(activeChannel.id).then(setMessages);
   }, [activeChannel]);
 
+  // Load DM messages when peer changes
+  useEffect(() => {
+    if (!activeDmPeer) return;
+    getDmMessages(activeDmPeer.peer_id).then(setDmMessages);
+  }, [activeDmPeer]);
+
+  // Handle initial DM peer from org chart
+  useEffect(() => {
+    if (!initialDmPeerId || !user) return;
+    setViewMode("dms");
+    // Check if conversation already exists
+    const existing = dmConversations.find((c) => c.peer_id === initialDmPeerId);
+    if (existing) {
+      setActiveDmPeer(existing);
+    } else {
+      // Fetch peer info and create a placeholder conversation
+      import("@/app/actions/chat-actions").then(({ getProfileById }) => {
+        getProfileById(initialDmPeerId).then((peer) => {
+          if (peer) {
+            const conv: DmConversation = {
+              peer_id: peer.id,
+              peer_name: peer.full_name,
+              peer_avatar: peer.avatar_url,
+              last_message: "",
+              last_at: new Date().toISOString(),
+              unread: 0,
+            };
+            setActiveDmPeer(conv);
+            setDmConversations((prev) => [conv, ...prev]);
+          }
+        });
+      });
+    }
+  }, [initialDmPeerId, user, dmConversations]);
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, dmMessages]);
 
-  // Realtime subscription
+  // Realtime subscription for channels
   useEffect(() => {
-    if (!activeChannel) return;
+    if (!activeChannel || viewMode !== "channels") return;
     const sb = createClient();
 
     const channel = sb.channel(`chat-${activeChannel.id}`);
@@ -78,7 +137,6 @@ export function InternalChatHub() {
         },
         (payload) => {
           const newMsg = payload.new as ChatMessage;
-          // Fetch sender info
           sb.from("profiles")
             .select("full_name, avatar_url")
             .eq("id", newMsg.sender_id)
@@ -113,16 +171,51 @@ export function InternalChatHub() {
     return () => {
       channel.unsubscribe();
     };
-  }, [activeChannel]);
+  }, [activeChannel, viewMode]);
 
-  const handleSend = useCallback(async () => {
+  // Realtime subscription for DMs
+  useEffect(() => {
+    if (!activeDmPeer || viewMode !== "dms" || !user) return;
+    const sb = createClient();
+
+    const channel = sb.channel(`dm-${user.id}-${activeDmPeer.peer_id}`);
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `sender_id=eq.${activeDmPeer.peer_id}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as DirectMessage;
+          if (newMsg.receiver_id !== user.id) return;
+          setDmMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, {
+              ...newMsg,
+              sender_name: activeDmPeer.peer_name,
+              sender_avatar: activeDmPeer.peer_avatar,
+            }];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeDmPeer, viewMode, user]);
+
+  // Send channel message
+  const handleSendChannel = useCallback(async () => {
     if (!activeChannel || !input.trim() || sending) return;
     setSending(true);
     const res = await sendMessage(activeChannel.id, input.trim());
     setInput("");
     setSending(false);
     if (res.ok && res.message) {
-      // Optimistic: message will also arrive via realtime, but add immediately
       setMessages((prev) => {
         if (prev.some((m) => m.id === res.message!.id)) return prev;
         return [...prev, res.message!];
@@ -130,6 +223,37 @@ export function InternalChatHub() {
     }
     inputRef.current?.focus();
   }, [activeChannel, input, sending]);
+
+  // Send DM
+  const handleSendDm = useCallback(async () => {
+    if (!activeDmPeer || !input.trim() || sending) return;
+    setSending(true);
+    const res = await sendDm(activeDmPeer.peer_id, input.trim());
+    setInput("");
+    setSending(false);
+    if (res.ok && res.message) {
+      setDmMessages((prev) => {
+        if (prev.some((m) => m.id === res.message!.id)) return prev;
+        return [...prev, res.message!];
+      });
+      // Update conversation list
+      setDmConversations((prev) => {
+        const idx = prev.findIndex((c) => c.peer_id === activeDmPeer.peer_id);
+        const updated = {
+          ...activeDmPeer,
+          last_message: res.message!.content,
+          last_at: res.message!.created_at,
+        };
+        if (idx >= 0) {
+          return [updated, ...prev.filter((c) => c.peer_id !== activeDmPeer.peer_id)];
+        }
+        return [updated, ...prev];
+      });
+    }
+    inputRef.current?.focus();
+  }, [activeDmPeer, input, sending]);
+
+  const handleSend = viewMode === "channels" ? handleSendChannel : handleSendDm;
 
   async function handleCreateChannel() {
     if (!newChannelName.trim()) return;
@@ -161,9 +285,25 @@ export function InternalChatHub() {
     }
   }
 
+  async function handleDeleteDm(msgId: string) {
+    const res = await deleteDm(msgId);
+    if (res.ok) {
+      setDmMessages((prev) => prev.filter((m) => m.id !== msgId));
+    }
+  }
+
+  const currentMessages = viewMode === "channels" ? messages : dmMessages;
+  const currentName = viewMode === "channels"
+    ? activeChannel?.name ?? ""
+    : activeDmPeer?.peer_name ?? "";
+  const currentDescription = viewMode === "channels"
+    ? activeChannel?.description ?? null
+    : null;
+  const hasActive = viewMode === "channels" ? !!activeChannel : !!activeDmPeer;
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* Channel sidebar */}
+      {/* Sidebar */}
       <div
         className={cn(
           "flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white",
@@ -171,82 +311,168 @@ export function InternalChatHub() {
           !mobileSidebar && "max-md:hidden",
         )}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Channels</h2>
+        {/* Mode tabs */}
+        <div className="flex border-b border-gray-100">
           <button
-            onClick={() => setShowNewChannel(true)}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            onClick={() => setViewMode("channels")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors",
+              viewMode === "channels"
+                ? "text-gray-900 border-b-2 border-gray-900"
+                : "text-gray-400 hover:text-gray-600",
+            )}
           >
-            <Plus className="h-4 w-4" />
+            <Hash className="h-3.5 w-3.5" />
+            Channels
+          </button>
+          <button
+            onClick={() => setViewMode("dms")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors",
+              viewMode === "dms"
+                ? "text-gray-900 border-b-2 border-gray-900"
+                : "text-gray-400 hover:text-gray-600",
+            )}
+          >
+            <ChatsCircle className="h-3.5 w-3.5" />
+            Direct
           </button>
         </div>
 
-        {/* New channel form */}
-        {showNewChannel && (
-          <div className="border-b border-gray-100 px-3 py-2.5">
-            <input
-              autoFocus
-              value={newChannelName}
-              onChange={(e) => setNewChannelName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
-              placeholder="channel-name"
-              className="mb-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px] outline-none focus:border-gray-300"
-            />
-            <input
-              value={newChannelDesc}
-              onChange={(e) => setNewChannelDesc(e.target.value)}
-              placeholder="Description (optional)"
-              className="mb-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px] outline-none focus:border-gray-300"
-            />
-            <div className="flex gap-1.5">
+        {/* Channels view */}
+        {viewMode === "channels" && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">Channels</h2>
               <button
-                onClick={handleCreateChannel}
-                className="rounded-lg bg-gray-900 px-2.5 py-1 text-[12px] font-medium text-white hover:bg-gray-700"
+                onClick={() => setShowNewChannel(true)}
+                className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               >
-                Create
-              </button>
-              <button
-                onClick={() => setShowNewChannel(false)}
-                className="px-2.5 py-1 text-[12px] text-gray-400 hover:text-gray-700"
-              >
-                Cancel
+                <Plus className="h-4 w-4" />
               </button>
             </div>
-          </div>
+
+            {showNewChannel && (
+              <div className="border-b border-gray-100 px-3 py-2.5">
+                <input
+                  autoFocus
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
+                  placeholder="channel-name"
+                  className="mb-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px] outline-none focus:border-gray-300"
+                />
+                <input
+                  value={newChannelDesc}
+                  onChange={(e) => setNewChannelDesc(e.target.value)}
+                  placeholder="Description (optional)"
+                  className="mb-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px] outline-none focus:border-gray-300"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={handleCreateChannel}
+                    className="rounded-lg bg-gray-900 px-2.5 py-1 text-[12px] font-medium text-white hover:bg-gray-700"
+                  >
+                    Create
+                  </button>
+                  <button
+                    onClick={() => setShowNewChannel(false)}
+                    className="px-2.5 py-1 text-[12px] text-gray-400 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-1.5 no-scrollbar">
+              {channels.map((ch) => (
+                <div
+                  key={ch.id}
+                  className={cn(
+                    "group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors",
+                    activeChannel?.id === ch.id
+                      ? "bg-gray-100 font-medium text-gray-900"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                  )}
+                  onClick={() => {
+                    setActiveChannel(ch);
+                    setMobileSidebar(false);
+                  }}
+                >
+                  <Hash className="h-3.5 w-3.5 shrink-0" />
+                  <span className="flex-1 truncate">{ch.name}</span>
+                  {ch.created_by === user?.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChannel(ch);
+                      }}
+                      className="hidden rounded p-0.5 text-gray-300 hover:text-red-500 group-hover:block"
+                    >
+                      <Trash className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
-        {/* Channel list */}
-        <div className="flex-1 overflow-y-auto p-1.5">
-          {channels.map((ch) => (
-            <div
-              key={ch.id}
-              className={cn(
-                "group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors",
-                activeChannel?.id === ch.id
-                  ? "bg-gray-100 font-medium text-gray-900"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
-              )}
-              onClick={() => {
-                setActiveChannel(ch);
-                setMobileSidebar(false);
-              }}
-            >
-              <Hash className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1 truncate">{ch.name}</span>
-              {ch.created_by === user?.id && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteChannel(ch);
-                  }}
-                  className="hidden rounded p-0.5 text-gray-300 hover:text-red-500 group-hover:block"
-                >
-                  <Trash className="h-3 w-3" />
-                </button>
+        {/* DMs view */}
+        {viewMode === "dms" && (
+          <>
+            <div className="px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">Direct Messages</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-1.5 no-scrollbar">
+              {dmConversations.length === 0 ? (
+                <div className="px-3 py-6 text-center">
+                  <ChatsCircle className="mx-auto h-6 w-6 text-gray-300" />
+                  <p className="mt-2 text-[12px] text-gray-400">
+                    No conversations yet. Click a teammate&apos;s profile in the Org Chart to start messaging.
+                  </p>
+                </div>
+              ) : (
+                dmConversations.map((conv) => (
+                  <div
+                    key={conv.peer_id}
+                    className={cn(
+                      "group flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
+                      activeDmPeer?.peer_id === conv.peer_id
+                        ? "bg-gray-100 font-medium text-gray-900"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                    )}
+                    onClick={() => {
+                      setActiveDmPeer(conv);
+                      setMobileSidebar(false);
+                    }}
+                  >
+                    <SquircleAvatar
+                      name={conv.peer_name}
+                      src={conv.peer_avatar}
+                      size="xs"
+                      className="h-7 w-7 text-[10px]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{conv.peer_name}</p>
+                      {conv.last_message && (
+                        <p className="truncate text-[11px] text-gray-400">
+                          {conv.last_message}
+                        </p>
+                      )}
+                    </div>
+                    {conv.unread > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-bold text-white">
+                        {conv.unread}
+                      </span>
+                    )}
+                  </div>
+                ))
               )}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Mobile overlay */}
@@ -259,7 +485,7 @@ export function InternalChatHub() {
 
       {/* Main chat area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Channel header */}
+        {/* Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2.5">
           <button
             onClick={() => setMobileSidebar(true)}
@@ -267,17 +493,22 @@ export function InternalChatHub() {
           >
             <List className="h-5 w-5" />
           </button>
-          {activeChannel && (
+          {hasActive && (
             <>
-              <Hash className="h-4 w-4 text-gray-400" />
+              {viewMode === "channels" ? (
+                <Hash className="h-4 w-4 text-gray-400" />
+              ) : (
+                <SquircleAvatar
+                  name={activeDmPeer?.peer_name}
+                  src={activeDmPeer?.peer_avatar}
+                  size="xs"
+                  className="h-6 w-6 text-[10px]"
+                />
+              )}
               <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  {activeChannel.name}
-                </p>
-                {activeChannel.description && (
-                  <p className="text-[11px] text-gray-400">
-                    {activeChannel.description}
-                  </p>
+                <p className="text-sm font-semibold text-gray-900">{currentName}</p>
+                {currentDescription && (
+                  <p className="text-[11px] text-gray-400">{currentDescription}</p>
                 )}
               </div>
             </>
@@ -285,28 +516,40 @@ export function InternalChatHub() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {!activeChannel ? (
+        <div className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
+          {!hasActive ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-gray-400">
-                Select a channel to start chatting
+                {viewMode === "channels"
+                  ? "Select a channel to start chatting"
+                  : "Select a conversation or message someone from the Org Chart"}
               </p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : currentMessages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2">
-              <Hash className="h-8 w-8 text-gray-200" />
+              {viewMode === "channels" ? (
+                <Hash className="h-8 w-8 text-gray-200" />
+              ) : (
+                <ChatsCircle className="h-8 w-8 text-gray-200" />
+              )}
               <p className="text-sm text-gray-400">
-                No messages yet. Start the conversation!
+                {viewMode === "channels"
+                  ? "No messages yet. Start the conversation!"
+                  : `Say hello to ${currentName}!`}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((msg) => (
+              {currentMessages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
                   msg={msg}
                   isOwn={msg.sender_id === user?.id}
-                  onDelete={() => handleDeleteMsg(msg.id)}
+                  onDelete={() =>
+                    viewMode === "channels"
+                      ? handleDeleteMsg(msg.id)
+                      : handleDeleteDm(msg.id)
+                  }
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -315,7 +558,7 @@ export function InternalChatHub() {
         </div>
 
         {/* Input */}
-        {activeChannel && (
+        {hasActive && (
           <div className="border-t border-gray-100 px-4 py-3">
             <div className="flex items-center gap-2">
               <input
@@ -323,7 +566,11 @@ export function InternalChatHub() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                placeholder={`Message #${activeChannel.name} — type @celeste for AI`}
+                placeholder={
+                  viewMode === "channels"
+                    ? `Message #${currentName} — type @celeste for AI`
+                    : `Message ${currentName}...`
+                }
                 className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
                 disabled={sending}
               />
@@ -347,14 +594,14 @@ function MessageBubble({
   isOwn,
   onDelete,
 }: {
-  msg: ChatMessage;
+  msg: ChatMessage | DirectMessage;
   isOwn: boolean;
   onDelete: () => void;
 }) {
-  const isAI = msg.content.startsWith("🤖 **Celeste AI**");
+  const isAI = "content" in msg && msg.content.startsWith("🤖 **Celeste AI**");
 
   return (
-    <div className={cn("group flex gap-3", isOwn && !isAI && "flex-row-reverse")}>
+    <div className={cn("group flex gap-3", isOwn && !isOwn && "flex-row-reverse")}>
       <SquircleAvatar
         name={msg.sender_name ?? "?"}
         src={isAI ? null : msg.sender_avatar}
@@ -371,9 +618,6 @@ function MessageBubble({
               minute: "2-digit",
             })}
           </span>
-          {msg.edited_at && (
-            <span className="text-[10px] text-gray-300">(edited)</span>
-          )}
         </div>
         <div
           className={cn(

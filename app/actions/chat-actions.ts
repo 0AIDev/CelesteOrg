@@ -215,3 +215,191 @@ export async function deleteMessage(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ─── Direct Messages ─────────────────────────────────────────────────────────
+
+export type DmConversation = {
+  peer_id: string;
+  peer_name: string;
+  peer_avatar: string | null;
+  last_message: string;
+  last_at: string;
+  unread: number;
+};
+
+export type DirectMessage = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+  sender_name?: string;
+  sender_avatar?: string | null;
+};
+
+/** Get all DM conversations for the current user (last message + unread count per peer). */
+export async function getDmConversations(): Promise<DmConversation[]> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return [];
+
+  // Fetch all messages involving the current user
+  const { data, error } = await sb
+    .from("direct_messages")
+    .select("sender_id, receiver_id, content, created_at, read")
+    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  // Group by conversation partner
+  const convMap = new Map<
+    string,
+    { last_message: string; last_at: string; unread: number }
+  >();
+
+  for (const msg of data) {
+    const peerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+    if (!convMap.has(peerId)) {
+      convMap.set(peerId, {
+        last_message: msg.content,
+        last_at: msg.created_at,
+        unread: 0,
+      });
+    }
+    const conv = convMap.get(peerId)!;
+    // Count unread messages sent TO the current user
+    if (msg.receiver_id === user.id && !msg.read) {
+      conv.unread++;
+    }
+  }
+
+  // Fetch profile info for all peers
+  const peerIds = Array.from(convMap.keys());
+  if (peerIds.length === 0) return [];
+
+  const { data: profiles } = await sb
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .in("id", peerIds);
+
+  const profileMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
+
+  return Array.from(convMap.entries()).map(([peerId, conv]) => {
+    const p = profileMap.get(peerId);
+    return {
+      peer_id: peerId,
+      peer_name: p?.full_name ?? "Unknown",
+      peer_avatar: p?.avatar_url ?? null,
+      ...conv,
+    };
+  }).sort((a, b) => new Date(b.last_at).getTime() - new Date(a.last_at).getTime());
+}
+
+/** Get messages in a DM conversation between current user and a peer. */
+export async function getDmMessages(
+  peerId: string,
+  limit = 100,
+): Promise<DirectMessage[]> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await sb
+    .from("direct_messages")
+    .select("*, sender:profiles!sender_id(full_name, avatar_url)")
+    .or(
+      `and(sender_id.eq.${user.id},receiver_id.eq.${peerId}),and(sender_id.eq.${peerId},receiver_id.eq.${user.id})`,
+    )
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  // Mark messages from peer as read
+  await sb
+    .from("direct_messages")
+    .update({ read: true })
+    .eq("sender_id", peerId)
+    .eq("receiver_id", user.id)
+    .eq("read", false);
+
+  return data.map((m: Record<string, unknown>) => ({
+    id: m.id as string,
+    sender_id: m.sender_id as string,
+    receiver_id: m.receiver_id as string,
+    content: m.content as string,
+    read: m.read as boolean,
+    created_at: m.created_at as string,
+    sender_name: (m.sender as Record<string, unknown>)?.full_name as string ?? "Unknown",
+    sender_avatar: (m.sender as Record<string, unknown>)?.avatar_url as string ?? null,
+  })) as DirectMessage[];
+}
+
+/** Send a direct message to a peer. */
+export async function sendDm(
+  peerId: string,
+  content: string,
+): Promise<{ ok: boolean; message?: DirectMessage; error?: string }> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not authenticated" };
+  if (peerId === user.id) return { ok: false, error: "Cannot message yourself" };
+
+  const { data, error } = await sb
+    .from("direct_messages")
+    .insert({
+      sender_id: user.id,
+      receiver_id: peerId,
+      content,
+    })
+    .select("*, sender:profiles!sender_id(full_name, avatar_url)")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+
+  const m = data as Record<string, unknown>;
+  return {
+    ok: true,
+    message: {
+      id: m.id as string,
+      sender_id: m.sender_id as string,
+      receiver_id: m.receiver_id as string,
+      content: m.content as string,
+      read: m.read as boolean,
+      created_at: m.created_at as string,
+      sender_name: (m.sender as Record<string, unknown>)?.full_name as string ?? "You",
+      sender_avatar: (m.sender as Record<string, unknown>)?.avatar_url as string ?? null,
+    } as DirectMessage,
+  };
+}
+
+/** Delete a direct message (only sender can delete). */
+export async function deleteDm(
+  messageId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = await createClient();
+  const { error } = await sb.from("direct_messages").delete().eq("id", messageId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Get a profile by ID (for opening a DM from org chart). */
+export async function getProfileById(
+  profileId: string,
+): Promise<{ id: string; full_name: string; avatar_url: string | null } | null> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .eq("id", profileId)
+    .single();
+  return data ?? null;
+}

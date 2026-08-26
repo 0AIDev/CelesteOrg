@@ -11,7 +11,9 @@ import {
   Spinner,
   CaretDown,
   CaretUp,
+  PaperPlaneTilt,
 } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
@@ -403,6 +405,7 @@ function ProfilePanel({
   const [savingNote, setSavingNote] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(true);
   const canSeeNotes = !!currentUserId;
+  const router = useRouter();
 
   async function onSummarize() {
     setSummarizing(true);
@@ -456,12 +459,20 @@ function ProfilePanel({
           </div>
         </div>
 
-        {/* Summarize with AI — same icon as Ask Celeste, white with border */}
-        <button
-          onClick={onSummarize}
-          disabled={summarizing}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-800 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-        >
+        {/* Action buttons */}
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={() => router.push(`/chat?peer=${person.id}`)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            <PaperPlaneTilt className="h-4 w-4" />
+            Message
+          </button>
+          <button
+            onClick={onSummarize}
+            disabled={summarizing}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-800 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+          >
           {summarizing ? (
             <Spinner className="h-4 w-4 animate-spin" />
           ) : (
@@ -487,7 +498,8 @@ function ProfilePanel({
             </svg>
           )}
           Summarize with AI
-        </button>
+          </button>
+        </div>
         {summary && (
           <p className="mt-3 text-[13px] leading-relaxed text-gray-600">
             {summary}

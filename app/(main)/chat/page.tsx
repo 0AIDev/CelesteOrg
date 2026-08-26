@@ -1,10 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { InternalChatHub } from "@/components/chat/InternalChatHub";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams?: { peer?: string };
+}) {
   const profile = await getProfile().catch(() => null);
 
   if (!profile) {
@@ -15,5 +18,5 @@ export default async function ChatPage() {
     );
   }
 
-  return <InternalChatHub />;
+  return <InternalChatHub initialDmPeerId={searchParams?.peer} />;
 }
