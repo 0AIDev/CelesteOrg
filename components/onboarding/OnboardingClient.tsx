@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { Logo } from "@/components/ui/Logo";
 
 import {
   createAccount,
@@ -254,6 +255,10 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {theme === "dark" ? "Light" : "Dark"}
       </button>
       <div className="w-full max-w-3xl px-6" style={{ opacity: transitioning ? 0 : 1, transition: "opacity 150ms" }}>
+        {/* Logo */}
+        <div className="mb-6 flex justify-center">
+          <Logo className="h-8 w-auto" />
+        </div>
 
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">

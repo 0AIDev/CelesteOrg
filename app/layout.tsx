@@ -47,9 +47,14 @@ export default function RootLayout({
         />
         {/* PWA icons for iOS Safari */}
         <link rel="apple-touch-icon" href="/icon-192.svg" />
+        {/* Dynamic favicon - light mode */}
+        <link rel="icon" type="image/svg+xml" href="/Vector (2).svg" media="(prefers-color-scheme: light)" />
+        {/* Dynamic favicon - dark mode */}
+        <link rel="icon" type="image/svg+xml" href="/Vector (3).svg" media="(prefers-color-scheme: dark)" />
         {/* Prevent browser address bar color flash */}
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#111217" />
+        <meta name="theme-color" content="#111217" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
       </head>
       <body className="font-sans antialiased">
         {children}

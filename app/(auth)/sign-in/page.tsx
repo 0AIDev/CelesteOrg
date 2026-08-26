@@ -4,8 +4,10 @@ import { Suspense, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Spinner, Eye, EyeSlash } from "@phosphor-icons/react";
+import { Spinner, Eye, EyeSlash, Moon, Sun } from "@phosphor-icons/react";
 import { loginAction, type AuthActionState } from "@/app/actions/auth-actions";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { Logo } from "@/components/ui/Logo";
 
 const initialState: AuthActionState | null = null;
 
@@ -27,13 +29,27 @@ function SignInForm() {
   const [ssoNote, setSsoNote] = useState<string | null>(null);
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute right-5 top-5 flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.06)]"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === "dark" ? "Light" : "Dark"}
+      </button>
       <div className="w-full max-w-[360px]">
-        <h1 className="text-center text-[24px] font-bold tracking-tight text-gray-900">
+        {/* Logo */}
+        <div className="mb-8 flex justify-center">
+          <Logo className="h-10 w-auto" />
+        </div>
+        <h1 className="text-center text-[24px] font-bold tracking-tight text-gray-900 dark:text-white">
           Sign in
         </h1>
-        <p className="mt-1.5 text-center text-[13px] text-gray-500">
+        <p className="mt-1.5 text-center text-[13px] text-gray-500 dark:text-gray-400">
           Welcome back to Celeste
         </p>
 
@@ -45,7 +61,7 @@ function SignInForm() {
               "SSO is not configured for this workspace yet. Sign in with email and password for now.",
             )
           }
-          className="mt-8 flex h-10 w-full items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50"
+          className="mt-8 flex h-10 w-full items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-transparent dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.04)]"
         >
           Sign in with SSO
         </button>
@@ -58,16 +74,16 @@ function SignInForm() {
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-3">
-          <div className="h-px flex-1 bg-gray-200" />
+          <div className="h-px flex-1 bg-gray-200 dark:bg-[rgba(255,255,255,0.08)]" />
           <span className="text-xs text-gray-400">or</span>
-          <div className="h-px flex-1 bg-gray-200" />
+          <div className="h-px flex-1 bg-gray-200 dark:bg-[rgba(255,255,255,0.08)]" />
         </div>
 
         <form action={formAction}>
           <input type="hidden" name="next" value={next} />
 
           {/* Email */}
-          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">
+          <label className="mb-1.5 block text-[13px] font-medium text-gray-700 dark:text-gray-300">
             Email
           </label>
           <input
@@ -87,7 +103,7 @@ function SignInForm() {
 
           {/* Password + forgot link */}
           <div className="relative mt-4">
-            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700 dark:text-gray-300">
               Password
             </label>
             <Link
@@ -149,7 +165,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
     <button
       type="submit"
       disabled={inactive}
-      className="mt-6 flex h-10 w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-gray-900"
+      className="mt-6 flex h-10 w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-gray-900 dark:bg-white dark:text-black dark:hover:bg-gray-200 disabled:dark:hover:bg-white"
     >
       {pending ? (
         <Spinner className="h-4 w-4 animate-spin" />
