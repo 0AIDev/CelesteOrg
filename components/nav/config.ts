@@ -20,6 +20,7 @@ import {
   Warning,
   ChatCircleText,
   PushPin,
+  Code,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -71,6 +72,7 @@ export const categories: NavCategory[] = [
     items: [
       { label: "GitHub", href: "/github", icon: GithubLogo },
       { label: "Prompt Vault", href: "/prompt-vault", icon: Lightning },
+      { label: "Skills Creator", href: "/skills-creator", icon: Code },
       { label: "Recordings", href: "/recordings", icon: VideoCamera },
     ],
   },
