@@ -69,9 +69,19 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load DM conversations
+  // Load DM conversations (deduplicated by peer_id)
   useEffect(() => {
-    getDmConversations().then(setDmConversations);
+    getDmConversations().then((convs) => {
+      // Deduplicate by peer_id, keeping the one with the latest message
+      const seen = new Map<string, DmConversation>();
+      for (const c of convs) {
+        const existing = seen.get(c.peer_id);
+        if (!existing || new Date(c.last_at) > new Date(existing.last_at)) {
+          seen.set(c.peer_id, c);
+        }
+      }
+      setDmConversations(Array.from(seen.values()));
+    });
   }, []);
 
   // Load messages when channel changes
@@ -95,25 +105,35 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     if (existing) {
       setActiveDmPeer(existing);
     } else {
-      // Fetch peer info and create a placeholder conversation
+      // Fetch peer info and create a placeholder conversation (only if not already added)
       import("@/app/actions/chat-actions").then(({ getProfileById }) => {
         getProfileById(initialDmPeerId).then((peer) => {
           if (peer) {
-            const conv: DmConversation = {
-              peer_id: peer.id,
-              peer_name: peer.full_name,
-              peer_avatar: peer.avatar_url,
-              last_message: "",
-              last_at: new Date().toISOString(),
-              unread: 0,
-            };
-            setActiveDmPeer(conv);
-            setDmConversations((prev) => [conv, ...prev]);
+            // Double-check no duplicate exists before adding
+            setDmConversations((prev) => {
+              if (prev.some((c) => c.peer_id === peer.id)) {
+                // Already exists, just set it as active
+                const existingConv = prev.find((c) => c.peer_id === peer.id);
+                if (existingConv) setActiveDmPeer(existingConv);
+                return prev;
+              }
+              const conv: DmConversation = {
+                peer_id: peer.id,
+                peer_name: peer.full_name,
+                peer_avatar: peer.avatar_url,
+                last_message: "",
+                last_at: new Date().toISOString(),
+                unread: 0,
+              };
+              setActiveDmPeer(conv);
+              return [conv, ...prev];
+            });
           }
         });
       });
     }
-  }, [initialDmPeerId, user, dmConversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDmPeerId, user]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {

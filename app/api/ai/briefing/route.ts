@@ -244,14 +244,27 @@ function cleanBriefing(raw: string): string {
 
   let text = raw;
 
-  // Strip thinking blocks (<think>...</think> or similar)
+  // Strip thinking blocks
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
   text = text.replace(/<thinking[\s\S]*?<\/thinking>/gi, "");
 
-  // Strip lines that look like thinking/analysis
-  text = text.replace(/^\s*(?:Here'?s a thinking process|Let me|I need to|First,|Analysis:|Step \d|\d+\.\s*(?:Analyze|Deconstruct|Review|Check)).*$/gim, "");
+  // Remove everything BEFORE the actual greeting (thinking preamble)
+  // Look for the first greeting pattern and keep from there
+  const greetingMatch = text.match(/(Good\s+(?:morning|afternoon|evening)[\s\S]*$)/i);
+  if (greetingMatch) {
+    text = greetingMatch[1];
+  }
 
-  // Remove markdown asterisks (but not HTML strong tags)
+  // Strip numbered analysis lines ("1. Analyze User Input:", "2. Draft Construction:", etc.)
+  text = text.replace(/^\s*\d+\.\s+(?:Analyze|Draft|Deconstruct|Review|Check|Step|Priority|Here|Output|Format|Data|Constraints|Structure|Length|Tone|Start|Role|Focus|Work|Note|Summary|Action|Context|Method|Result|Conclusion|Recommendation).*$/gim, "");
+
+  // Strip bullet points that look like analysis
+  text = text.replace(/^\s*[-•]\s+(?:Role:|Focus:|Length:|Tone:|Start:|Structure:|Data|Constraints:|Output|Format:|Concise:|Priority|NO\s).*$/gim, "");
+
+  // Strip any remaining numbered items that look like analysis
+  text = text.replace(/^\s*\d+\..*$/gm, "");
+
+  // Remove markdown asterisks
   text = text.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
   text = text.replace(/\*([^*]+?)\*/g, "$1");
 
@@ -286,12 +299,16 @@ async function generateBriefing(
     `Start with a brief greeting appropriate for the time of day.`,
     `Highlight the most important items requiring attention, organized by priority.`,
     `Use the workspace data provided to give specific, concrete information.`,
-    `Do NOT include any thinking, reasoning, or analysis.`,
+    `CRITICAL: Do NOT include ANY of the following:`,
+    `- No thinking, reasoning, analysis, or step-by-step breakdown`,
+    `- No numbered lists like "1. Analyze" or "2. Draft"`,
+    `- No bullet points with metadata like "Role:", "Focus:", "Constraints:"`,
+    `- No preamble or introduction like "Here is" or "Let me"`,
     `Do NOT use markdown like asterisks, hashes, or code blocks.`,
-    `Do NOT use double asterisks for bold. Instead use HTML <strong> tags.`,
-    `Output ONLY the final briefing text. No preamble, no thinking.`,
-    `Format: plain text with <strong> for bold and <br> for line breaks.`,
-    `Be concise — this should be readable in 30 seconds.`,
+    `Use HTML <strong> tags for bold text on key items.`,
+    `Output ONLY the final greeting and briefing. Start with "Good morning/afternoon/evening".`,
+    `Format as 3-5 short paragraphs separated by <br> tags.`,
+    `Be concise — readable in 30 seconds.`,
   ].join(" ");
 
   try {
