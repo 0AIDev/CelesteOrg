@@ -621,14 +621,14 @@ function MessageBubble({
   const isAI = "content" in msg && msg.content.startsWith("🤖 **Celeste AI**");
 
   return (
-    <div className={cn("group flex gap-3", isOwn && !isOwn && "flex-row-reverse")}>
+    <div className={cn("group flex gap-3", isOwn && "flex-row-reverse")}>
       <SquircleAvatar
         name={msg.sender_name ?? "?"}
         src={isAI ? null : msg.sender_avatar}
         size="sm"
       />
-      <div className={cn("max-w-[70%]", isOwn && !isAI && "text-right")}>
-        <div className="mb-0.5 flex items-center gap-2">
+      <div className={cn("max-w-[70%]", isOwn && "text-right")}>
+        <div className={cn("mb-0.5 flex items-center gap-2", isOwn && "justify-end")}>
           <span className="text-[12px] font-medium text-gray-700">
             {isAI ? "Celeste AI" : msg.sender_name}
           </span>
@@ -646,7 +646,7 @@ function MessageBubble({
               ? "border border-gray-100 bg-gray-50 text-gray-800"
               : isOwn
                 ? "rounded-br-md bg-gray-900 text-white"
-                : "rounded-bl-md border border-gray-100 bg-gray-50 text-gray-800",
+                : "rounded-bl-md border border-gray-100 bg-white text-gray-800 shadow-sm",
           )}
         >
           {msg.content}
