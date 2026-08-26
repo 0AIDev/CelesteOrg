@@ -21,6 +21,7 @@ const STEPS_WITH_ACCOUNT = [
   { id: "identity", label: "Profile" },
   { id: "role", label: "Role" },
   { id: "team", label: "Team" },
+  { id: "goals", label: "Goals" },
   { id: "culture", label: "Culture" },
   { id: "tools", label: "Tools" },
   { id: "tech", label: "Tech" },
@@ -33,6 +34,7 @@ const STEPS_WITHOUT_ACCOUNT = [
   { id: "identity", label: "Profile" },
   { id: "role", label: "Role" },
   { id: "team", label: "Team" },
+  { id: "goals", label: "Goals" },
   { id: "culture", label: "Culture" },
   { id: "tools", label: "Tools" },
   { id: "tech", label: "Tech" },
@@ -78,9 +80,11 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
     full_name: (data?.profile?.full_name as string) ?? "",
     location: (data?.profile?.location as string) ?? "",
     bio: (data?.profile?.bio as string) ?? "",
+    phone: "",
   });
   const [departmentId, setDepartmentId] = useState((data?.profile?.department_id as string) ?? "");
   const [roleTitle, setRoleTitle] = useState((data?.profile?.role_title as string) ?? "");
+  const [reportsTo, setReportsTo] = useState("");
   const [s3, setS3] = useState({
     primary_language: (data?.techSpecs?.primary_language as string) ?? "",
     frameworks: (data?.techSpecs?.frameworks as string[]) ?? [],
@@ -93,7 +97,16 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   });
   const [s5, setS5] = useState({ typed_name: "", agreed: false, signed: data?.hasSignedNDA ?? false });
 
-  // Tool access preferences
+  // Team goals
+  const [goals, setGoals] = useState({
+    first_week: "",
+    first_30_days: "",
+    first_90_days: "",
+    key_people_to_meet: "",
+    projects_of_interest: "",
+  });
+
+  // Tool access
   const [toolsAccess, setToolsAccess] = useState<string[]>([]);
 
   const goNext = useCallback(() => {
@@ -113,10 +126,6 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
       setErr("");
     }, 150);
   }, []);
-
-  const skipStep = useCallback(() => {
-    goNext();
-  }, [goNext]);
 
   // ── Save handlers ─────────────────────────────────────────────────────
   async function saveAccount() {
@@ -139,27 +148,11 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
   async function saveRole() {
     setBusy(true); setErr("");
-    // Save department if selected
     if (departmentId) {
       const res = await saveOnboardingStep2({ department_id: departmentId });
       if (!res.ok) { setBusy(false); setErr(res.error); return; }
     }
     setBusy(false);
-    goNext();
-  }
-
-  async function saveTeam() {
-    // Team step is informational, just proceed
-    goNext();
-  }
-
-  async function saveCulture() {
-    // Culture step is informational, just proceed
-    goNext();
-  }
-
-  async function saveTools() {
-    // Tools step saves preferences
     goNext();
   }
 
@@ -206,15 +199,15 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   const isAccountStep = (id: string) => needsAccount && step === idx(id);
   const isNormalStep = (id: string) => step === idx(id);
 
-  // ── Step action mappings ──────────────────────────────────────────────
   const stepActions: Record<string, () => void> = {
     welcome: goNext,
     account: saveAccount,
     identity: saveProfile,
     role: saveRole,
-    team: saveTeam,
-    culture: saveCulture,
-    tools: saveTools,
+    team: goNext,
+    goals: goNext,
+    culture: goNext,
+    tools: goNext,
     tech: saveTech,
     preferences: savePreferences,
     nda: saveNDA,
@@ -236,67 +229,68 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 
   const isLast = step === STEP_META.length - 1;
 
-  // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-white">
       <div className="stack w-full max-w-lg px-6" style={{ opacity: transitioning ? 0 : 1, transition: "opacity 150ms" }}>
 
         {/* Header */}
-        <div className="py-5 w-full">
-          <h5 className="text-left text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
+        <div className="py-5 w-full text-center">
+          <h5 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
             {isAccountStep("welcome") && "Welcome to Celeste"}
             {isAccountStep("account") && "Create your account"}
             {isNormalStep("welcome") && "Welcome to Celeste"}
             {isNormalStep("identity") && "Tell us about yourself"}
             {isNormalStep("role") && "What's your role?"}
-            {isNormalStep("team") && "Your team awaits"}
+            {isNormalStep("team") && "Your team"}
+            {isNormalStep("goals") && "Your goals"}
             {isNormalStep("culture") && "How we work"}
             {isNormalStep("tools") && "Tools & access"}
             {isNormalStep("tech") && "Your tech stack"}
             {isNormalStep("preferences") && "Work style"}
             {isNormalStep("nda") && "One last thing"}
           </h5>
+          <p className="mt-2 text-sm text-gray-500">
+            {isAccountStep("welcome") && "Set up your workspace in a few steps."}
+            {isAccountStep("account") && "Choose your email and password."}
+            {isNormalStep("welcome") && "Let's get you set up with the team."}
+            {isNormalStep("identity") && "This appears on your profile and org chart."}
+            {isNormalStep("role") && "Select your department and position."}
+            {isNormalStep("team") && "Know who you'll work with."}
+            {isNormalStep("goals") && "Set expectations for your first 90 days."}
+            {isNormalStep("culture") && "Understand how the team operates."}
+            {isNormalStep("tools") && "Choose the tools you use daily."}
+            {isNormalStep("tech") && "Help us personalize your experience."}
+            {isNormalStep("preferences") && "When and how you like to work."}
+            {isNormalStep("nda") && "Review and sign the agreement."}
+          </p>
         </div>
 
         {/* Step Content */}
         <div className="flex min-h-[320px] flex-col">
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Welcome                                                  */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Welcome ═══════════ */}
           {(isAccountStep("welcome") || isNormalStep("welcome")) && (
-            <div className="space-y-6">
-              <InfoBlock
-                title="What is Celeste HQ?"
-                items={[
-                  "Your internal company workspace — everything in one place.",
-                  "Org chart, calendar, documents, approvals, chat, and AI assistance.",
-                  "Built for fast-moving teams who want to stay aligned without the noise.",
-                ]}
-              />
-              <InfoBlock
-                title="What you'll set up"
-                items={[
-                  "Your profile and role in the organization",
-                  "Access to the tools you'll use daily",
-                  "Your tech stack and preferences",
-                  "Company agreements and policies",
-                ]}
-              />
-              <InfoBlock
-                title="Need help?"
-                items={[
-                  "Use ⌘K (Ctrl+K) anywhere to search anything",
-                  "Click 'Ask Celeste' (bottom-right) for AI assistance",
-                  "Your manager and team are here to help — don't hesitate to ask",
-                ]}
-              />
+            <div className="space-y-4">
+              <InfoBlock title="What is Celeste HQ?" items={[
+                "Your internal company workspace — everything in one place.",
+                "Org chart, calendar, documents, approvals, chat, and AI.",
+                "Built for fast-moving teams who want to stay aligned.",
+              ]} />
+              <InfoBlock title="What you'll set up" items={[
+                "Your profile and role in the organization",
+                "Access to the tools you'll use daily",
+                "Your tech stack and work preferences",
+                "Company agreements and policies",
+              ]} />
+              <InfoBlock title="Need help?" items={[
+                "Use ⌘K (Ctrl+K) anywhere to search anything",
+                "Click 'Ask Celeste' (bottom-right) for AI assistance",
+                "Your manager and team are here to help",
+              ]} />
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Account Creation                                         */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Account ═══════════ */}
           {isAccountStep("account") && (
             <form className="stack items-start justify-start gap-5 w-full" onSubmit={(e) => { e.preventDefault(); saveAccount(); }}>
               <Field label="Full name" required>
@@ -307,192 +301,145 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
               </Field>
               <Field label="Password" required>
                 <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder="At least 8 characters" />
-                <p className="mt-1 text-[11px] text-gray-400">Use 8+ characters with a mix of letters, numbers, and symbols.</p>
               </Field>
             </form>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Profile                                                  */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Profile ═══════════ */}
           {isNormalStep("identity") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="This info appears on your profile"
-                items={["Visible to all team members in the Org Chart", "Used by Celeste AI to personalize your experience"]}
-              />
+            <div className="space-y-4">
               <Field label="Full name" required>
                 <input className="input" value={s1.full_name} onChange={(e) => setS1({ ...s1, full_name: e.target.value })} placeholder="First and last name" autoFocus />
               </Field>
-              <Field label="Location">
-                <input className="input" value={s1.location} onChange={(e) => setS1({ ...s1, location: e.target.value })} placeholder="City, Country" />
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Location">
+                  <input className="input" value={s1.location} onChange={(e) => setS1({ ...s1, location: e.target.value })} placeholder="City, Country" />
+                </Field>
+                <Field label="Phone">
+                  <input className="input" type="tel" value={s1.phone} onChange={(e) => setS1({ ...s1, phone: e.target.value })} placeholder="+39 ..." />
+                </Field>
+              </div>
               <Field label="Short bio">
-                <input className="input" value={s1.bio} onChange={(e) => setS1({ ...s1, bio: e.target.value })} placeholder="What do you do? What are you excited about?" />
+                <textarea className="input resize-none" rows={2} value={s1.bio} onChange={(e) => setS1({ ...s1, bio: e.target.value })} placeholder="What do you do? What are you excited about?" />
               </Field>
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Role & Department                                        */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Role ═══════════ */}
           {isNormalStep("role") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="Your role determines what you can access"
-                items={[
-                  "Each department has its own tools and dashboards",
-                  "Your manager will assign your specific position",
-                  "You can update this later in Settings",
-                ]}
-              />
-              <Field label="Choose your department">
+            <div className="space-y-4">
+              <Field label="Department">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(data?.departments ?? []).map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setDepartmentId(d.id)}
-                      className={`flex h-16 items-center justify-center rounded-2xl border px-3 text-[13px] font-medium transition-all ${
-                        departmentId === d.id
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-900"
-                      }`}
-                    >
+                    <button key={d.id} type="button" onClick={() => setDepartmentId(d.id)}
+                      className={`flex h-14 items-center justify-center rounded-xl border px-3 text-[13px] font-medium transition-all ${departmentId === d.id ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 bg-white text-gray-700 hover:border-gray-900"}`}>
                       {d.name}
                     </button>
                   ))}
                 </div>
               </Field>
-              <Field label="Your role title">
+              <Field label="Role title">
                 <input className="input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Software Engineer, Product Designer" />
-                <p className="mt-1 text-[11px] text-gray-400">Your manager can update this. This is just for your profile.</p>
+              </Field>
+              <Field label="Reports to (manager)">
+                <input className="input" value={reportsTo} onChange={(e) => setReportsTo(e.target.value)} placeholder="Manager's name" />
+                <p className="mt-1 text-[11px] text-gray-400">Your manager can be updated later in Settings.</p>
               </Field>
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Team Structure                                           */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Team ═══════════ */}
           {isNormalStep("team") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="How the team is structured"
-                items={[
-                  "Every person has a role in the Org Chart — you'll see who reports to whom",
-                  "Your direct manager is assigned by the CEO or your department head",
-                  "You can message anyone directly from their profile in the Org Chart",
-                ]}
-              />
-              <InfoBlock
-                title="Channels you'll join"
-                items={[
-                  "#general — Company-wide announcements",
-                  "#engineering — Technical discussions",
-                  "#random — Non-work conversations",
-                  "Your department channel — Team-specific discussions",
-                ]}
-              />
-              <InfoBlock
-                title="Your first week"
-                items={[
-                  "Introduce yourself in #general",
-                  "Schedule 1:1s with your manager and key teammates",
-                  "Review the Org Chart to understand the team structure",
-                  "Set up your profile so others can find you",
-                ]}
-              />
+            <div className="space-y-4">
+              <InfoBlock title="How the team is structured" items={[
+                "Every person has a role in the Org Chart — see who reports to whom",
+                "Your direct manager is assigned by the CEO or department head",
+                "Message anyone directly from their profile in the Org Chart",
+              ]} />
+              <InfoBlock title="Channels you'll join" items={[
+                "#general — Company-wide announcements",
+                "#engineering — Technical discussions",
+                "#random — Non-work conversations",
+                "Your department channel — Team-specific",
+              ]} />
+              <InfoBlock title="Your first week" items={[
+                "Introduce yourself in #general",
+                "Schedule 1:1s with your manager and key teammates",
+                "Review the Org Chart to understand the structure",
+                "Set up your profile so others can find you",
+              ]} />
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Company Culture                                          */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Goals ═══════════ */}
+          {isNormalStep("goals") && (
+            <div className="space-y-4">
+              <Field label="What do you want to achieve in your first week?">
+                <textarea className="input resize-none" rows={2} value={goals.first_week} onChange={(e) => setGoals({ ...goals, first_week: e.target.value })} placeholder="e.g. Set up dev environment, meet the team, understand the codebase" />
+              </Field>
+              <Field label="Goals for the first 30 days">
+                <textarea className="input resize-none" rows={2} value={goals.first_30_days} onChange={(e) => setGoals({ ...goals, first_30_days: e.target.value })} placeholder="e.g. Ship first feature, understand architecture, build relationships" />
+              </Field>
+              <Field label="Goals for the first 90 days">
+                <textarea className="input resize-none" rows={2} value={goals.first_90_days} onChange={(e) => setGoals({ ...goals, first_90_days: e.target.value })} placeholder="e.g. Own a feature end-to-end, mentor new hires, improve processes" />
+              </Field>
+              <Field label="Key people to meet">
+                <input className="input" value={goals.key_people_to_meet} onChange={(e) => setGoals({ ...goals, key_people_to_meet: e.target.value })} placeholder="e.g. CTO, Head of Design, Lead Engineer" />
+              </Field>
+              <Field label="Projects of interest">
+                <input className="input" value={goals.projects_of_interest} onChange={(e) => setGoals({ ...goals, projects_of_interest: e.target.value })} placeholder="e.g. AI assistant, mobile app, infrastructure" />
+              </Field>
+            </div>
+          )}
+
+          {/* ═══════════ Culture ═══════════ */}
           {isNormalStep("culture") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="Our values"
-                items={[
-                  "Ship fast, iterate faster — done is better than perfect",
-                  "Default to transparency — share context, not conclusions",
-                  "Own your work — take initiative, be accountable",
-                  "Question everything — the best ideas come from challenging assumptions",
-                ]}
-              />
-              <InfoBlock
-                title="How we communicate"
-                items={[
-                  "Async-first: write it down before scheduling a meeting",
-                  "Direct feedback: be honest, be kind, be specific",
-                  "No status meetings — use daily standups and EOD reports instead",
-                  "Calendar is sacred: respect focus hours and meeting-free zones",
-                ]}
-              />
-              <InfoBlock
-                title="Decision making"
-                items={[
-                  "DACI framework: Driver, Approver, Contributors, Informed",
-                  "Anyone can propose a change — use the Ideas feature",
-                  "Leadership reviews and approves major decisions",
-                  "Disagree and commit — once decided, move forward together",
-                ]}
-              />
+            <div className="space-y-4">
+              <InfoBlock title="Our values" items={[
+                "Ship fast, iterate faster — done is better than perfect",
+                "Default to transparency — share context, not conclusions",
+                "Own your work — take initiative, be accountable",
+                "Question everything — challenge assumptions",
+              ]} />
+              <InfoBlock title="How we communicate" items={[
+                "Async-first: write it down before scheduling a meeting",
+                "Direct feedback: honest, kind, specific",
+                "No status meetings — use daily standups and EOD reports",
+                "Calendar is sacred: respect focus hours",
+              ]} />
+              <InfoBlock title="Decision making" items={[
+                "DACI framework: Driver, Approver, Contributors, Informed",
+                "Anyone can propose a change — use the Ideas feature",
+                "Disagree and commit — once decided, move forward",
+              ]} />
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Tools & Access                                           */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Tools ═══════════ */}
           {isNormalStep("tools") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="Tools you'll have access to"
-                items={[
-                  "GitHub — Code repositories, pull requests, and CI/CD",
-                  "Supabase — Database, auth, and storage",
-                  "Vercel — Deployments and hosting",
-                  "Slack / Discord — Team communication",
-                  "Linear / Jira — Task tracking (if applicable)",
-                ]}
-              />
+            <div className="space-y-4">
+              <InfoBlock title="Tools you'll have access to" items={[
+                "GitHub — Code, PRs, and CI/CD",
+                "Supabase — Database, auth, storage",
+                "Vercel — Deployments and hosting",
+                "Slack / Discord — Communication",
+              ]} />
               <Field label="Which tools do you use daily?">
                 <div className="flex flex-wrap gap-1.5">
                   {["GitHub", "VS Code", "Figma", "Linear", "Notion", "Slack", "Discord", "Vercel", "Supabase", "Docker"].map((tool) => (
-                    <button
-                      key={tool}
-                      type="button"
-                      onClick={() => toggleTool(tool)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                        toolsAccess.includes(tool)
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-900"
-                      }`}
-                    >
+                    <button key={tool} type="button" onClick={() => toggleTool(tool)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${toolsAccess.includes(tool) ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 bg-white text-gray-700 hover:border-gray-900"}`}>
                       {tool}
                     </button>
                   ))}
                 </div>
               </Field>
-              <InfoBlock
-                title="Access requests"
-                items={[
-                  "Your manager grants access to repositories and services",
-                  "Request access through the Developers page in Settings",
-                  "All access is reviewed quarterly for security",
-                ]}
-              />
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Tech Stack                                               */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Tech ═══════════ */}
           {isNormalStep("tech") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="Help us understand your setup"
-                items={["Used to personalize AI suggestions and code recommendations", "Optional — skip if you prefer"]}
-              />
+            <div className="space-y-4">
               <Field label="Primary language">
                 <div className="flex flex-wrap gap-1.5">
                   {LANGUAGES.map((l) => (
@@ -526,15 +473,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: Work Preferences                                         */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ Preferences ═══════════ */}
           {isNormalStep("preferences") && (
-            <div className="space-y-5">
-              <InfoBlock
-                title="How you like to work"
-                items={["Your focus hours are shown to teammates so they know when not to disturb you", "Communication preference helps us route notifications the right way"]}
-              />
+            <div className="space-y-4">
               <Field label="Core focus hours">
                 <input className="input" value={s4.focus_hours} onChange={(e) => setS4({ ...s4, focus_hours: e.target.value })} placeholder="e.g. 09:00-12:00, 14:00-17:00" />
                 <p className="mt-1 text-[11px] text-gray-400">When are you most productive? Teammates will see this.</p>
@@ -552,7 +493,7 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
               <div className="flex items-center justify-between w-full rounded-xl border border-gray-200 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Notifications</p>
-                  <p className="text-xs text-gray-500">Approvals, mentions, task updates, and calendar reminders.</p>
+                  <p className="text-xs text-gray-500">Approvals, mentions, task updates, calendar reminders.</p>
                 </div>
                 <button type="button" onClick={() => setS4({ ...s4, notifications_enabled: !s4.notifications_enabled })}
                   className={`relative h-6 w-11 rounded-full transition-colors ${s4.notifications_enabled ? "bg-gray-900" : "bg-gray-200"}`}>
@@ -562,11 +503,9 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* STEP: NDA & Agreement                                          */}
-          {/* ════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════ NDA ═══════════ */}
           {isNormalStep("nda") && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {s5.signed ? (
                 <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center">
                   <Check className="mx-auto h-10 w-10 text-gray-900" />
@@ -575,21 +514,13 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
                 </div>
               ) : (
                 <>
-                  <InfoBlock
-                    title="Before you start"
-                    items={[
-                      "This is a standard confidentiality and IP assignment agreement",
-                      "Required for all team members with access to proprietary information",
-                      "Your signature is legally binding and stored immutably",
-                    ]}
-                  />
                   <div className="max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 p-4 text-[12px] leading-relaxed text-gray-500">
                     <p className="mb-2 text-[13px] font-semibold text-gray-900">CONFIDENTIALITY & IP ASSIGNMENT</p>
-                    <p className="mb-1"><strong>1. Confidentiality.</strong> You agree to hold all proprietary information in strict confidence.</p>
-                    <p className="mb-1"><strong>2. Intellectual Property.</strong> All inventions, code, designs, and creative works are property of the Company.</p>
-                    <p className="mb-1"><strong>3. Return of Materials.</strong> Upon termination, return all Company materials and data.</p>
-                    <p className="mb-1"><strong>4. Duration.</strong> This agreement survives termination for 3 years.</p>
-                    <p><strong>5. Governing Law.</strong> This agreement is governed by the laws of Italy.</p>
+                    <p className="mb-1"><strong>1. Confidentiality.</strong> Hold all proprietary information in strict confidence.</p>
+                    <p className="mb-1"><strong>2. Intellectual Property.</strong> All inventions, code, and creative works are property of the Company.</p>
+                    <p className="mb-1"><strong>3. Return of Materials.</strong> Upon termination, return all Company materials.</p>
+                    <p className="mb-1"><strong>4. Duration.</strong> Survives termination for 3 years.</p>
+                    <p><strong>5. Governing Law.</strong> Laws of Italy.</p>
                   </div>
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" checked={s5.agreed} onChange={(e) => setS5({ ...s5, agreed: e.target.checked })} className="mt-0.5 h-4 w-4 rounded border-gray-300" />
@@ -608,45 +539,33 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
         {err && <p className="mt-3 text-center text-xs text-red-600">{err}</p>}
 
         {/* Navigation */}
-        <div className="hstack gap-2 items-center py-6">
-          {step > 0 && (
-            <button type="button" onClick={goPrev}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-              Back
-            </button>
-          )}
-          {/* Skip for non-required steps */}
-          {!["account", "identity", "nda"].includes(STEP_META[step]?.id) && (
-            <button type="button" onClick={skipStep}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors">
-              Skip
-            </button>
-          )}
-          <div className="flex-1" />
+        <div className="flex items-center justify-between py-6">
+          <div className="flex items-center gap-2">
+            {step > 0 && (
+              <button type="button" onClick={goPrev}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                Back
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={getNextAction()}
             disabled={isNextDisabled()}
             className="inline-flex items-center justify-center rounded-[10px] bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {busy ? (
-              <Spinner className="h-4 w-4 animate-spin" />
-            ) : isLast ? (
-              s5.signed ? "Continue to dashboard" : "Sign & finish"
-            ) : (
-              "Next"
-            )}
+            {busy ? <Spinner className="h-4 w-4 animate-spin" /> : isLast ? (s5.signed ? "Continue to dashboard" : "Sign & finish") : "Next"}
           </button>
         </div>
       </div>
 
       {/* Step dots */}
-      <div className="fixed bottom-8 left-auto right-auto h-4 flex flex-row items-center justify-center w-fit">
-        <div className="hstack justify-center items-center">
+      <div className="fixed bottom-8 left-0 right-0 flex justify-center">
+        <div className="flex items-center gap-1">
           {STEP_META.map((s, i) => (
             <button key={s.id} type="button" aria-label={`Step ${s.label}`}
               onClick={() => { if (i <= step) { setTransitioning(true); setTimeout(() => { setStep(i); setTransitioning(false); }, 150); } }}
-              disabled={i > step} className="group py-1 px-1">
+              disabled={i > step} className="py-1 px-1">
               <div className={`h-[6px] rounded-full bg-gray-900 transition-all duration-200 ${i === step ? "w-5 opacity-100" : "w-[6px] opacity-30"}`} />
             </button>
           ))}
@@ -659,8 +578,8 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
 // ── Sub-components ────────────────────────────────────────────────────────
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="w-full stack justify-center items-stretch">
-      <label className="mb-1">
+    <div className="w-full">
+      <label className="mb-1.5 block">
         <p className="text-sm font-medium text-gray-900">
           {label} {required && <span className="text-gray-400 font-normal">(required)</span>}
         </p>
