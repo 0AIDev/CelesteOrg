@@ -74,8 +74,10 @@ export default async function ProtectedLayout({
       const roleName = shortRoleTitle(r.title);
       const profileName = profileNameMap.get(r.profile_id) ?? "";
       const firstName = profileName.split(" ")[0] || "";
-      // Use "Name Dashboard" for teammates, "Role Dashboard" for named roles
-      const title = roleName === r.title && firstName
+      // Generic roles like "Teammate" → use "Name Dashboard"
+      // Named roles like "CEO" → use "CEO Dashboard"
+      const isGenericRole = ["teammate", "member", "user"].includes(r.title.toLowerCase());
+      const title = isGenericRole && firstName
         ? `${firstName} Dashboard`
         : `${roleName} Dashboard`;
       return {
