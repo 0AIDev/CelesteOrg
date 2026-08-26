@@ -311,6 +311,44 @@ export async function completeOnboarding(): Promise<ActionResult> {
     }).eq("id", user.id);
     if (error) return { ok: false, error: error.message };
 
+    // Ensure the user has a role in the org chart. The first user gets the
+    // root CEO role (reports_to = null, level = 1). Subsequent users get a
+    // teammate role under the existing root.
+    const admin = createAdminClient();
+    const { data: existingRole } = await admin
+      .from("roles")
+      .select("id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+
+    if (!existingRole) {
+      // Check if a root role (CEO) already exists.
+      const { data: rootRole } = await admin
+        .from("roles")
+        .select("id")
+        .is("reports_to", null)
+        .order("created_at")
+        .limit(1)
+        .maybeSingle();
+
+      const isRoot = !rootRole;
+      await admin.from("roles").insert({
+        profile_id: user.id,
+        title: isRoot ? "Chief Executive Officer" : "Teammate",
+        department_id: null,
+        reports_to: rootRole?.id ?? null,
+        level: isRoot ? 1 : 5,
+      });
+
+      // The first user also becomes the founder (bootstrap).
+      if (isRoot) {
+        await admin
+          .from("profiles")
+          .update({ is_founder: true })
+          .eq("id", user.id);
+      }
+    }
+
     revalidatePath("/onboarding");
     revalidatePath("/dashboard");
     return { ok: true };
