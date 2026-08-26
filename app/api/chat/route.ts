@@ -1,6 +1,5 @@
 import { groq } from "@ai-sdk/groq";
-import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import { streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -25,13 +24,12 @@ Be helpful, concise, and professional. When asked about workspace data, provide 
 Always respond in English. Be direct and efficient.`;
 
 export async function POST(req: Request) {
-  const { messages, system, tools } = await req.json();
+  const { messages, system } = await req.json();
 
   const result = streamText({
     model: groq("llama-3.3-70b-versatile"),
     system: system ?? systemPrompt,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages,
   });
 
   return result.toUIMessageStreamResponse();

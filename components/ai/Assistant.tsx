@@ -62,15 +62,23 @@ export function Assistant() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        // Parse SSE format
+        const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split("\n");
         for (const line of lines) {
+          // UIMessageStream format: "0:\"text\"" for text deltas
           if (line.startsWith("0:")) {
-            // Text delta
-            const text = line.slice(2);
-            fullText += text;
-            setStreamingText(fullText);
+            try {
+              const parsed = JSON.parse(line.slice(2));
+              if (typeof parsed === "string") {
+                fullText += parsed;
+                setStreamingText(fullText);
+              }
+            } catch {
+              // Fallback: treat as raw text
+              const raw = line.slice(2);
+              fullText += raw;
+              setStreamingText(fullText);
+            }
           }
         }
       }
