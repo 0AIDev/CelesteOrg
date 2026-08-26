@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type NotificationType = "approval" | "idea" | "invite" | "report" | "system";
+type NotificationType = "approval" | "idea" | "invite" | "report" | "system" | "dm";
 
 // Server-side notification writer (admin client — users can't insert).
 // Non-fatal by design: a failed notification must never break the action

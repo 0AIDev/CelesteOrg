@@ -23,6 +23,7 @@ type NotifItem = {
   title: string;
   body: string | null;
   type: string;
+  target_id: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -92,7 +93,7 @@ export function Header({
       .subscribe();
 
     sb.from("notifications")
-      .select("id, title, body, type, created_at, read_at")
+      .select("id, title, body, type, target_id, created_at, read_at")
       .eq("recipient_id", userId)
       .order("created_at", { ascending: false })
       .limit(12)
@@ -104,6 +105,16 @@ export function Header({
       channel.unsubscribe();
     };
   }, [userId]);
+
+  async function markRead(id: string) {
+    const sb = createClient();
+    const now = new Date().toISOString();
+    await sb
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("id", id);
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read_at: now } : n));
+  }
 
   async function markAllRead() {
     const sb = createClient();
@@ -206,13 +217,23 @@ export function Header({
                   </p>
                 )}
                 {notifications.map((n) => (
-                  <div
+                  <button
                     key={n.id}
-                    className={`flex gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 ${n.read_at ? "opacity-60" : ""}`}
+                    onClick={() => {
+                      markRead(n.id);
+                      if (n.type === "dm" && n.target_id) {
+                        router.push(`/chat?peer=${n.target_id}`);
+                      }
+                    }}
+                    className={`flex w-full gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 ${n.read_at ? "opacity-60" : ""}`}
                   >
-                    <span
-                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read_at ? "bg-gray-300" : "bg-gray-900"}`}
-                    />
+                    {n.type === "dm" ? (
+                      <ChatCircleText className="mt-1 h-4 w-4 shrink-0 text-gray-500" />
+                    ) : (
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read_at ? "bg-gray-300" : "bg-gray-900"}`}
+                      />
+                    )}
                     <div className="min-w-0">
                       <p className="text-[13px] font-medium leading-snug text-gray-800 dark:text-gray-200">
                         {n.title}
@@ -222,7 +243,7 @@ export function Header({
                       )}
                       <p className="mt-0.5 text-[11px] text-gray-400">{relativeTime(n.created_at)}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </Popover.Content>

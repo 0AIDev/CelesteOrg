@@ -353,6 +353,14 @@ export async function sendDm(
   if (!user) return { ok: false, error: "Not authenticated" };
   if (peerId === user.id) return { ok: false, error: "Cannot message yourself" };
 
+  // Get sender name for notification
+  const { data: senderProfile } = await sb
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const senderName = senderProfile?.full_name ?? "Someone";
+
   const { data, error } = await sb
     .from("direct_messages")
     .insert({
@@ -364,6 +372,11 @@ export async function sendDm(
     .single();
 
   if (error) return { ok: false, error: error.message };
+
+  // Send notification to recipient
+  const { notify } = await import("@/lib/notify");
+  const preview = content.length > 80 ? content.slice(0, 80) + "..." : content;
+  await notify(peerId, "dm", `New message from ${senderName}`, preview, data.id);
 
   const m = data as Record<string, unknown>;
   return {

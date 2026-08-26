@@ -9,7 +9,7 @@ create table if not exists public.notifications (
   id           uuid primary key default gen_random_uuid(),
   recipient_id uuid not null references public.profiles(id) on delete cascade,
   type         text not null default 'system'
-               check (type in ('approval','idea','invite','report','system')),
+               check (type in ('approval','idea','invite','report','system','dm')),
   title        text not null,
   body         text,
   target_id    uuid,
