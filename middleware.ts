@@ -94,8 +94,9 @@ export async function middleware(request: NextRequest) {
   // Onboarding is only accessible via invite link (with token) or if already authenticated
   if (pathname.startsWith("/onboarding")) {
     const hasInviteToken = request.nextUrl.searchParams.has("token");
-    // Allow if: has invite token, or user is authenticated, or coming from /invito
-    if (hasInviteToken || user || request.referrer?.includes("/invito")) {
+    // Allow if: has invite token (invite link), user is authenticated,
+    // or coming from /invito page
+    if (hasInviteToken || user) {
       return withFreshHtml(request, response);
     }
     // No invite token and not authenticated → redirect to sign-in

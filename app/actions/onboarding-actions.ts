@@ -361,32 +361,37 @@ export async function completeOnboarding(): Promise<ActionResult> {
 
 // ── Get onboarding status (for the wizard to hydrate) ───────────────────────
 export async function getOnboardingData() {
-  const supabase = userClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  try {
+    const supabase = userClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
 
-  const admin = createAdminClient();
-  const [{ data: profile }, { data: techSpecs }, { data: prefs }, { data: ndaSig }] =
-    await Promise.all([
-      admin.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-      admin.from("user_tech_specs").select("*").eq("user_id", user.id).maybeSingle(),
-      admin.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
-      admin.from("document_signatures").select("id, signed_at").eq("signer_id", user.id).maybeSingle(),
-    ]);
+    const admin = createAdminClient();
+    const [{ data: profile }, { data: techSpecs }, { data: prefs }, { data: ndaSig }] =
+      await Promise.all([
+        admin.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        admin.from("user_tech_specs").select("*").eq("user_id", user.id).maybeSingle(),
+        admin.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
+        admin.from("document_signatures").select("id, signed_at").eq("signer_id", user.id).maybeSingle(),
+      ]);
 
-  const { data: departments } = await admin
-    .from("departments")
-    .select("id, name, slug")
-    .order("name");
+    const { data: departments } = await admin
+      .from("departments")
+      .select("id, name, slug")
+      .order("name");
 
-  return {
-    profile,
-    techSpecs,
-    preferences: prefs,
-    hasSignedNDA: Boolean(ndaSig),
-    departments: departments ?? [],
-    user: { id: user.id, email: user.email ?? "" },
-  };
+    return {
+      profile,
+      techSpecs,
+      preferences: prefs,
+      hasSignedNDA: Boolean(ndaSig),
+      departments: departments ?? [],
+      user: { id: user.id, email: user.email ?? "" },
+    };
+  } catch (e) {
+    console.error("getOnboardingData error:", e);
+    return null;
+  }
 }
