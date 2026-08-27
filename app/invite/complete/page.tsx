@@ -3,6 +3,8 @@ import { getUser } from "@/lib/auth";
 import { acceptInvite } from "@/app/actions/invite-actions";
 
 export const metadata = { title: "Join Celeste" };
+// Calls acceptInvite (several Supabase queries) — raise the timeout for cold starts.
+export const maxDuration = 60;
 
 export default async function InviteCompletePage({
   searchParams,

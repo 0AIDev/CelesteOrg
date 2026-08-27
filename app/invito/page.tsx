@@ -5,6 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
 export const metadata = { title: "Join Celeste HQ" };
+// This page does server-side Supabase lookups + acceptInvite; raise the
+// serverless timeout so cold starts can't 504.
+export const maxDuration = 60;
 
 export default async function InvitePage({
   searchParams,
