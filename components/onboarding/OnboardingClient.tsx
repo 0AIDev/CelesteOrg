@@ -73,7 +73,7 @@ type OnboardingData = {
   user: { id: string; email: string };
 } | null;
 
-export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; inviteToken?: string | null }) {
+export function OnboardingClient({ data, inviteToken, inviteEmail }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const needsAccount = !data;
@@ -92,8 +92,8 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
   const [err, setErr] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
-  // Form state
-  const [s0, setS0] = useState({ email: "", password: "", full_name: "" });
+  // Form state — pre-fill email from invite if available
+  const [s0, setS0] = useState({ email: inviteEmail ?? "", password: "", confirmPassword: "", full_name: "" });
   const [s1, setS1] = useState({
     full_name: (data?.profile?.full_name as string) ?? "",
     location: (data?.profile?.location as string) ?? "",
@@ -140,6 +140,7 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
   // ── Save handlers ─────────────────────────────────────────────────────
   async function saveAccount() {
     if (!s0.email.trim() || !s0.password || !s0.full_name.trim()) return;
+    if (s0.password !== s0.confirmPassword) { setErr("Passwords don't match"); return; }
     setBusy(true); setErr("");
     const res = await createAccount({ email: s0.email, password: s0.password, full_name: s0.full_name });
     setBusy(false);
@@ -225,7 +226,7 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
     const id = STEP_META[step]?.id;
     if (busy) return true;
     // Account step (last) — all fields required
-    if (id === "account" && needsAccount) return !s0.full_name.trim() || !s0.email.trim() || s0.password.length < 8;
+    if (id === "account" && needsAccount) return !s0.full_name.trim() || !s0.email.trim() || s0.password.length < 8 || s0.password !== s0.confirmPassword;
     // Profile step — name required
     if (id === "identity") return !s1.full_name.trim();
     // Role step — department required
@@ -269,7 +270,7 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
         <div className="py-4 pb-3 sm:pb-5 w-full">
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
             {isAccountStep("welcome") && (s0.full_name ? `${s0.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
-            {isAccountStep("account") && "Create your account"}
+            {isAccountStep("account") && "Set your password"}
             {isNormalStep("welcome") && (s1.full_name ? `${s1.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}
             {isNormalStep("role") && "What's your role?"}
@@ -318,11 +319,24 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
               <Field label="Full name" required>
                 <input className="input" value={s0.full_name} onChange={(e) => setS0({ ...s0, full_name: e.target.value })} placeholder="First and last name" autoFocus />
               </Field>
-              <Field label="Work email" required>
-                <input className="input" type="email" value={s0.email} onChange={(e) => setS0({ ...s0, email: e.target.value })} placeholder="you@company.com" />
+              <Field label="Email" required>
+                <input
+                  className="input bg-gray-50 cursor-not-allowed dark:bg-[rgba(255,255,255,0.03)]"
+                  type="email"
+                  value={s0.email}
+                  readOnly
+                  tabIndex={-1}
+                />
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">This is the email you were invited with.</p>
               </Field>
               <Field label="Password" required>
-                <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder="At least 8 characters" />
+                <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder="At least 8 characters" autoFocus />
+              </Field>
+              <Field label="Confirm password" required>
+                <input className="input" type="password" value={s0.confirmPassword} onChange={(e) => setS0({ ...s0, confirmPassword: e.target.value })} placeholder="Repeat your password" />
+                {s0.confirmPassword && s0.password !== s0.confirmPassword && (
+                  <p className="mt-1 text-[11px] text-red-500">Passwords don't match</p>
+                )}
               </Field>
             </form>
           )}
@@ -559,7 +573,7 @@ export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; 
           </div>
           <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
             className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed dark:border-[rgba(255,255,255,0.1)] dark:bg-white dark:text-black dark:hover:bg-gray-200">
-            {busy ? "Saving…" : isAccountLast ? "Create account" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
+            {busy ? "Saving…" : isAccountLast ? "Create account & sign in" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
           </button>
         </div>
       </div>
