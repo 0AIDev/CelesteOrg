@@ -21,6 +21,7 @@ import {
   ChatCircleText,
   PushPin,
   Code,
+  ChartLineUp,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -30,6 +31,7 @@ export type NavItem = {
   icon: Icon;
   badge?: string;
   action?: "standup";
+  adminOnly?: boolean;
 };
 
 export type NavCategory = {
@@ -40,6 +42,7 @@ export type NavCategory = {
 // ─── Top-level navigation (always visible, no menu) ─────────────────
 export const topNav: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: House },
+  { label: "CEO Dashboard", href: "/dashboards", icon: ChartLineUp, adminOnly: true },
   { label: "Org Chart", href: "/org-chart", icon: TreeStructure },
   { label: "Teams", href: "/teams", icon: UsersThree },
   { label: "Chat", href: "/chat", icon: ChatCircleText },

@@ -42,12 +42,14 @@ export function Sidebar({
   onOpenInvite,
   onOpenStandup,
   isOnboarded,
+  canManage,
 }: {
   open: boolean;
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
+  canManage?: boolean;
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -77,6 +79,7 @@ export function Sidebar({
             onOpenInvite={onOpenInvite}
             onOpenStandup={onOpenStandup}
             isOnboarded={isOnboarded}
+            canManage={canManage}
           />
         </div>
       </aside>
@@ -223,11 +226,13 @@ function SidebarInner({
   onOpenInvite,
   onOpenStandup,
   isOnboarded,
+  canManage,
 }: {
   onClose: () => void;
   onOpenInvite?: () => void;
   onOpenStandup?: () => void;
   isOnboarded?: boolean;
+  canManage?: boolean;
 }) {
   const pathname = usePathname();
   const [inviteDismissed, setInviteDismissed] = useState(false);
@@ -251,10 +256,17 @@ function SidebarInner({
     onClose();
   }
 
+  // Filter items based on role
+  const visibleTopNav = canManage ? topNav : topNav.filter((i) => !i.adminOnly);
+  const visibleCategories = categories.map((cat) => ({
+    ...cat,
+    items: canManage ? cat.items : cat.items.filter((i) => !i.adminOnly),
+  }));
+
   // Resolve pinned NavItems
   const allItems = [
-    ...topNav,
-    ...categories.flatMap((c) => c.items),
+    ...visibleTopNav,
+    ...visibleCategories.flatMap((c) => c.items),
     ...defaultPinned,
     ...bottomNav,
   ];
@@ -311,7 +323,7 @@ function SidebarInner({
 
         {/* Top-level items (excluding pinned to avoid duplicates) */}
         <div className="mb-3 space-y-0.5">
-          {topNav
+          {visibleTopNav
             .filter((item) => !pinnedItems.includes(item.label))
             .map((item) => (
               <NavItem
@@ -327,7 +339,7 @@ function SidebarInner({
         </div>
 
         {/* Collapsible categories (excluding pinned items) */}
-        {categories.map((cat) => (
+        {visibleCategories.map((cat) => (
           <CategorySection
             key={cat.label}
             label={cat.label}
@@ -389,7 +401,9 @@ function SidebarInner({
 
         {/* Bottom nav */}
         <div className="space-y-0.5">
-          {bottomNav.map((item) => (
+          {bottomNav
+            .filter((item) => item.label !== "Developers" || canManage)
+            .map((item) => (
             <NavItem
               key={item.label}
               item={item}

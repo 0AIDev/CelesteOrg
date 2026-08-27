@@ -80,6 +80,7 @@ export function LayoutProvider({
             onOpenInvite={canManage ? () => setInviteOpen(true) : undefined}
             onOpenStandup={() => setStandupOpen(true)}
             isOnboarded={isOnboarded}
+            canManage={canManage}
           />
         )}
 
