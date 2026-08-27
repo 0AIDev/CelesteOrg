@@ -1,60 +1,42 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { OrgNode } from "@/lib/types";
+import type { ComponentProps } from "react";
+import type { OrgChartClient } from "./OrgChartClient";
 
-const OrgChartClient = dynamic(() => import("./OrgChartClient").then(m => ({ default: m.OrgChartClient })), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[calc(100vh-12rem)] w-full items-center justify-center">
-      <p className="text-sm text-gray-400">Loading org chart…</p>
-    </div>
-  ),
-});
+// @xyflow/react is ~300 kB and SSR-incompatible (references window).
+// Load it client-only so it never blocks server render or other pages.
+const OrgChartClientLazy = dynamic(
+  () => import("./OrgChartClient").then((m) => m.OrgChartClient),
+  {
+    ssr: false,
+    loading: () => <OrgChartSkeleton />,
+  },
+);
 
-type Dept = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  color: string | null;
-  headcount: number;
-};
+type OrgChartProps = ComponentProps<typeof OrgChartClient>;
 
-export function OrgChartLazy({
-  trees,
-  departments,
-  equity,
-  currentUserId,
-  myNotes,
-  initialMemberId,
-}: {
-  trees: OrgNode[];
-  departments: Dept[];
-  equity: {
-    byUser: Record<
-      string,
-      {
-        total_shares: number;
-        vested_shares: number;
-        unvested_shares: number;
-        vesting_start: string;
-        cliff_months: number;
-      }
-    >;
-  };
-  currentUserId?: string | null;
-  myNotes?: Record<string, string>;
-  initialMemberId?: string | null;
-}) {
+export default function OrgChartLazy(props: OrgChartProps) {
+  return <OrgChartClientLazy {...props} />;
+}
+
+function OrgChartSkeleton() {
   return (
-    <OrgChartClient
-      trees={trees}
-      departments={departments}
-      equity={equity}
-      currentUserId={currentUserId}
-      myNotes={myNotes}
-      initialMemberId={initialMemberId}
-    />
+    <div className="mx-auto max-w-[1440px] px-6 py-5">
+      <div className="mb-6 h-7 w-32 animate-pulse rounded-lg bg-gray-100" />
+      <div className="flex flex-col items-center gap-6">
+        <div className="h-24 w-52 animate-pulse rounded-xl bg-gray-100" />
+        <div className="flex gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-20 w-44 animate-pulse rounded-xl bg-gray-100" />
+          ))}
+        </div>
+        <div className="flex gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-16 w-36 animate-pulse rounded-xl bg-gray-100" />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
