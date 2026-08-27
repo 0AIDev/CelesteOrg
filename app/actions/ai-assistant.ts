@@ -110,6 +110,58 @@ const TOOLS = [
       parameters: { type: "object" as const, properties: {} },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_chat_messages",
+      description: "Get recent messages from a chat channel",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          channel_name: { type: "string", description: "Channel name (e.g. 'general', 'engineering')" },
+        },
+        required: ["channel_name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_dm_messages",
+      description: "Get recent direct messages with a specific person",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          peer_name: { type: "string", description: "Name of the person" },
+        },
+        required: ["peer_name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_notifications",
+      description: "Get recent notifications for the current user",
+      parameters: { type: "object" as const, properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_ideas",
+      description: "Get ideas from the idea vault",
+      parameters: { type: "object" as const, properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_issues",
+      description: "Get tracked issues and their status",
+      parameters: { type: "object" as const, properties: {} },
+    },
+  },
 ];
 
 // ── Tool executors ────────────────────────────────────────────────────────
@@ -248,6 +300,87 @@ async function executeTool(
       return `Cap table (${data.length} grants):\n${holders}\n\nTotal: ${totalShares} shares, ${totalVested} vested.`;
     }
 
+    case "get_chat_messages": {
+      const channelName = (args.channel_name as string) || "general";
+      const { data: ch } = await admin.from("channels").select("id").ilike("name", channelName).maybeSingle();
+      if (!ch) return `Channel #${channelName} not found.`;
+      const { data: msgs } = await admin
+        .from("chat_messages")
+        .select("content, created_at, sender:profiles!sender_id(full_name)")
+        .eq("channel_id", ch.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!msgs?.length) return `No messages in #${channelName}.`;
+      return msgs.reverse().map((m: Record<string, unknown>) => {
+        const s = m.sender as { full_name: string | null } | null;
+        const t = new Date(m.created_at as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        return `[${t}] ${s?.full_name ?? "?"}: ${m.content}`;
+      }).join("\n");
+    }
+
+    case "get_dm_messages": {
+      const peerName = (args.peer_name as string) || "";
+      const { data: peers } = await admin.from("profiles").select("id, full_name").ilike("full_name", "%" + peerName + "%").limit(5);
+      if (!peers?.length) return "No person matching '" + peerName + "' found.";
+      const peer = peers[0];
+      const orFilter = "and(sender_id.eq." + userId + ",receiver_id.eq." + peer.id + "),and(sender_id.eq." + peer.id + ",receiver_id.eq." + userId + ")";
+      const { data: msgs } = await admin
+        .from("direct_messages")
+        .select("content, created_at, sender:profiles!sender_id(full_name)")
+        .or(orFilter)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!msgs?.length) return "No DMs with " + (peer.full_name ?? "unknown") + ".";
+      const peerDisplayName = peer.full_name ?? "unknown";
+      const lines = msgs.reverse().map((m: Record<string, unknown>) => {
+        const s = m.sender as { full_name: string | null } | null;
+        const t = new Date(m.created_at as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        return "[" + t + "] " + (s?.full_name ?? "?") + ": " + m.content;
+      }).join("\n");
+      return "Messages with " + peerDisplayName + ":\n" + lines;
+    }
+
+    case "get_notifications": {
+      const { data: notifs } = await admin
+        .from("notifications")
+        .select("title, body, type, created_at, read_at")
+        .eq("recipient_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (!notifs?.length) return "No notifications.";
+      return notifs.map((n: Record<string, unknown>) => {
+        const t = new Date(n.created_at as string).toLocaleString();
+        const read = n.read_at ? "(read)" : "(unread)";
+        return `- ${n.title}${n.body ? `: ${n.body}` : ""} ${read} [${t}]`;
+      }).join("\n");
+    }
+
+    case "get_ideas": {
+      const { data: ideas } = await admin
+        .from("ideas")
+        .select("title, category, priority, status, author:profiles!ideas_author_id_fkey(full_name)")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (!ideas?.length) return "No ideas in the vault yet.";
+      return ideas.map((i: Record<string, unknown>) => {
+        const a = i.author as { full_name: string | null } | null;
+        return `- ${i.title} [${i.status}, ${i.priority ?? "medium"}]${i.category ? ` (${i.category})` : ""} — ${a?.full_name ?? "?"}`;
+      }).join("\n");
+    }
+
+    case "get_issues": {
+      const { data: issues } = await admin
+        .from("issues")
+        .select("title, priority, status, assignee:profiles!issues_assignee_id_fkey(full_name)")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (!issues?.length) return "No issues tracked.";
+      return issues.map((i: Record<string, unknown>) => {
+        const a = i.assignee as { full_name: string | null } | null;
+        return `- ${i.title} [${i.status}, ${i.priority ?? "medium"}]${a ? ` → ${a.full_name}` : ""}`;
+      }).join("\n");
+    }
+
     default:
       return `Unknown tool: ${name}`;
   }
@@ -263,7 +396,7 @@ export async function askAi(question: string): Promise<Answer> {
   const admin = createAdminClient();
   const today = new Date();
 
-  const [events, approvals, docs, members] = await Promise.all([
+  const [events, approvals, docs, members, recentDms, notifications, ideas, issues] = await Promise.all([
     admin
       .from("calendar_events")
       .select("title, type, start_time, user:profiles!calendar_events_user_id_fkey(full_name)")
@@ -292,6 +425,36 @@ export async function askAi(question: string): Promise<Answer> {
       .order("full_name")
       .limit(30)
       .then((r) => r.data ?? []),
+    // Recent DMs involving the current user
+    admin
+      .from("direct_messages")
+      .select("content, created_at, sender:profiles!sender_id(full_name), receiver:profiles!direct_messages_receiver_id_fkey(full_name)")
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then((r) => r.data ?? []),
+    // Recent notifications
+    admin
+      .from("notifications")
+      .select("title, body, type, read_at")
+      .eq("recipient_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then((r) => r.data ?? []),
+    // Ideas
+    admin
+      .from("ideas")
+      .select("title, category, priority, status")
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then((r) => r.data ?? []),
+    // Issues
+    admin
+      .from("issues")
+      .select("title, priority, status")
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then((r) => r.data ?? []),
   ]);
 
   const context = [
@@ -309,6 +472,15 @@ export async function askAi(question: string): Promise<Answer> {
       return `- ${d.title} (${d.category ?? "General"}, ${o?.full_name ?? "?"})`;
     }).join("\n") || "- none"}`,
     `Team:\n${members.map((m: Record<string, unknown>) => `- ${m.full_name}${m.role_title ? ` (${m.role_title})` : ""}${m.is_founder ? " [founder]" : ""}`).join("\n")}`,
+    `Recent direct messages:\n${recentDms.map((m: Record<string, unknown>) => {
+      const s = m.sender as { full_name: string | null } | null;
+      const r = m.receiver as { full_name: string | null } | null;
+      const direction = (m as Record<string, unknown>).sender_id === userId ? `to ${r?.full_name ?? "?"}` : `from ${s?.full_name ?? "?"}`;
+      return `- ${direction}: ${(m.content as string)?.slice(0, 120)}`;
+    }).join("\n") || "- none"}`,
+    `Notifications:\n${notifications.map((n: Record<string, unknown>) => `- ${n.title}${n.body ? `: ${n.body}` : ""}${n.read_at ? " (read)" : " (unread)"}`).join("\n") || "- none"}`,
+    `Ideas:\n${ideas.map((i: Record<string, unknown>) => `- ${i.title} [${i.status}, ${i.priority ?? "medium"}]${i.category ? ` (${i.category})` : ""}`).join("\n") || "- none"}`,
+    `Issues:\n${issues.map((i: Record<string, unknown>) => `- ${i.title} [${i.status}, ${i.priority ?? "medium"}]`).join("\n") || "- none"}`,
   ].join("\n\n");
 
   // Load all AI credentials from DB (provider, api_key, model config)
@@ -355,12 +527,14 @@ export async function askAi(question: string): Promise<Answer> {
             {
               role: "system",
               content: [
-                "You are Celeste, the AI assistant for an internal company HQ.",
-                "You can ANSWER questions about the workspace using the context provided.",
-                "You can also EXECUTE actions by calling tools when the user asks you to do something.",
-                "Available actions: create calendar events, submit ideas, invite teammates, approve requests.",
-                "Always be concise. Use the user's language. Max 4 sentences for answers.",
+                "You are Celeste, the AI assistant for Celeste HQ. You have FULL ACCESS to all workspace data:",
+                "calendar, approvals, documents, team members, chat messages, DMs, notifications, ideas, issues, equity.",
+                "You can ANSWER any question about the workspace using the context and tools provided.",
+                "You can EXECUTE actions by calling tools when the user asks you to do something.",
+                "Available actions: create calendar events, submit ideas, invite teammates, approve requests, read chat/DMs.",
+                "Always be concise and direct. Use the user's language. Max 4 sentences for answers.",
                 "When you execute an action, confirm what you did briefly.",
+                "If asked about messages, conversations, or what someone said, use the get_chat_messages or get_dm_messages tools.",
               ].join(" "),
             },
             { role: "user", content: `Workspace context:\n${context}\n\nUser: ${q}` },
@@ -477,6 +651,18 @@ function deterministicAnswer(q: string, context: string): string {
   if (/(who|team|member|person|people|founder|role)/.test(t)) {
     const teamLines = lines(team);
     return teamLines.length ? `Team (${teamLines.length}+ people):\n${teamLines.join("\n")}` : "Can't read the team right now.";
+  }
+  if (/(message|chat|dm|direct|last message|said|wrote)/.test(t)) {
+    return "I can read chat messages! Use the chat tab or ask me about specific channels like #general or conversations with teammates.";
+  }
+  if (/(notification|alert|unread)/.test(t)) {
+    return "Check your notifications in the header bell icon, or ask me: 'What are my unread notifications?'";
+  }
+  if (/(idea|suggestion|vault)/.test(t)) {
+    return "Ask me 'What ideas are in the vault?' or 'List all ideas' and I'll fetch them for you.";
+  }
+  if (/(issue|bug|problem|track)/.test(t)) {
+    return "Ask me 'What issues are open?' or 'List all issues' and I'll show you the current status.";
   }
   if (/(create|schedule|add|new).*(event|meeting|calendar)/.test(t)) {
     return "I can create events! Try: \"Create a meeting tomorrow at 10am called Team Sync\"\nI'll process natural language commands using Groq AI.";
