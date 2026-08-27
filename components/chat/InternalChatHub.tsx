@@ -6,12 +6,13 @@ import {
   Plus,
   X,
   Trash,
-  PaperPlaneTilt,
   ArrowUp,
   List,
   ChatsCircle,
-  Circle,
   Users,
+  Smiley,
+  PushPin,
+  ArrowBendDoubleUpLeft,
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -38,8 +39,14 @@ import {
 import { useSession } from "@/components/layout/LayoutProvider";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { cn } from "@/lib/utils";
+import {
+  requestNotificationPermission,
+  sendBrowserNotification,
+} from "@/lib/push-notifications";
 
 type ViewMode = "channels" | "dms";
+
+const EMOJI_REACTIONS = ["👍", "❤️", "😂", "🎉", "🔥", "👀"];
 
 export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string }) {
   const { user } = useSession();
@@ -64,15 +71,30 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 
   // Shared
   const [input, setInput] = useState("");
-  const [bold, setBold] = useState(false);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<DirectMessage | null>(null);
   const [dmSearch, setDmSearch] = useState("");
   const [showPinned, setShowPinned] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
+  const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (ta) {
+      ta.style.height = "auto";
+      ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+    }
+  }, [input]);
 
   // Load channels
   useEffect(() => {
@@ -88,7 +110,6 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   // Load DM conversations (deduplicated by peer_id)
   useEffect(() => {
     getDmConversations().then((convs) => {
-      // Deduplicate by peer_id, keeping the one with the latest message
       const seen = new Map<string, DmConversation>();
       for (const c of convs) {
         const existing = seen.get(c.peer_id);
@@ -104,7 +125,6 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   useEffect(() => {
     if (!activeChannel) return;
     getMessages(activeChannel.id).then(setMessages);
-    // Load channel members and permissions
     getChannelMembers(activeChannel.id).then(setChannelMembers);
     canManageChannel(activeChannel.id).then(setCanManage);
   }, [activeChannel]);
@@ -119,19 +139,15 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   useEffect(() => {
     if (!initialDmPeerId || !user) return;
     setViewMode("dms");
-    // Check if conversation already exists
     const existing = dmConversations.find((c) => c.peer_id === initialDmPeerId);
     if (existing) {
       setActiveDmPeer(existing);
     } else {
-      // Fetch peer info and create a placeholder conversation (only if not already added)
       import("@/app/actions/chat-actions").then(({ getProfileById }) => {
         getProfileById(initialDmPeerId).then((peer) => {
           if (peer) {
-            // Double-check no duplicate exists before adding
             setDmConversations((prev) => {
               if (prev.some((c) => c.peer_id === peer.id)) {
-                // Already exists, just set it as active
                 const existingConv = prev.find((c) => c.peer_id === peer.id);
                 if (existingConv) setActiveDmPeer(existingConv);
                 return prev;
@@ -176,7 +192,6 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         },
         (payload) => {
           const newMsg = payload.new as ChatMessage;
-          // Deduplicate: skip if already in state (optimistic add)
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             sb.from("profiles")
@@ -220,7 +235,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     };
   }, [activeChannel, viewMode]);
 
-  // Realtime subscription for DMs
+  // Realtime subscription for DMs + browser push notifications
   useEffect(() => {
     if (!activeDmPeer || viewMode !== "dms" || !user) return;
     const sb = createClient();
@@ -246,6 +261,11 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
               sender_avatar: activeDmPeer.peer_avatar,
             }];
           });
+          // Browser push notification
+          sendBrowserNotification(
+            activeDmPeer.peer_name,
+            newMsg.content.length > 100 ? newMsg.content.slice(0, 100) + "..." : newMsg.content,
+          );
         },
       )
       .subscribe();
@@ -255,7 +275,58 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     };
   }, [activeDmPeer, viewMode, user]);
 
-  // Send channel message
+  // Global DM listener for notifications when NOT in the DM view
+  useEffect(() => {
+    if (!user) return;
+    const sb = createClient();
+
+    const channel = sb.channel(`dm-notify-${user.id}`);
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newMsg = payload.new as DirectMessage;
+          // Don't notify for messages we're currently viewing
+          if (viewMode === "dms" && activeDmPeer?.peer_id === newMsg.sender_id) return;
+
+          // Fetch sender name
+          const { data: sender } = await sb
+            .from("profiles")
+            .select("full_name")
+            .eq("id", newMsg.sender_id)
+            .single();
+
+          const senderName = sender?.full_name ?? "Someone";
+          sendBrowserNotification(
+            senderName,
+            newMsg.content.length > 100 ? newMsg.content.slice(0, 100) + "..." : newMsg.content,
+          );
+
+          // Update unread count in conversation list
+          setDmConversations((prev) =>
+            prev.map((c) =>
+              c.peer_id === newMsg.sender_id
+                ? { ...c, unread: c.unread + 1, last_message: newMsg.content, last_at: newMsg.created_at }
+                : c,
+            ),
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user, viewMode, activeDmPeer]);
+
+  // ── Send handlers ──────────────────────────────────────────────────────
+
   const handleSendChannel = useCallback(async () => {
     if (!activeChannel || !input.trim() || sending) return;
     setSending(true);
@@ -269,15 +340,13 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         return [...prev, res.message!];
       });
     }
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   }, [activeChannel, input, sending]);
 
-  // Send DM
   const handleSendDm = useCallback(async () => {
     if (!activeDmPeer || !input.trim() || sending) return;
     setSending(true);
-    const messageContent = replyTo ? input.trim() : input.trim();
-    const res = await sendDm(activeDmPeer.peer_id, messageContent);
+    const res = await sendDm(activeDmPeer.peer_id, input.trim());
     setInput("");
     setReplyTo(null);
     setSending(false);
@@ -286,7 +355,6 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         if (prev.some((m) => m.id === res.message!.id)) return prev;
         return [...prev, res.message!];
       });
-      // Update conversation list
       setDmConversations((prev) => {
         const idx = prev.findIndex((c) => c.peer_id === activeDmPeer.peer_id);
         const updated = {
@@ -300,10 +368,34 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         return [updated, ...prev];
       });
     }
-    inputRef.current?.focus();
-  }, [activeDmPeer, input, replyTo, sending]);
+    textareaRef.current?.focus();
+  }, [activeDmPeer, input, sending]);
 
   const handleSend = viewMode === "channels" ? handleSendChannel : handleSendDm;
+
+  // Handle keydown: Enter = send, Shift+Enter = newline
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+    // Ctrl+B for bold
+    if (e.key === "b" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const ta = e.currentTarget;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const selected = input.substring(start, end);
+      const newVal = input.substring(0, start) + `**${selected}**` + input.substring(end);
+      setInput(newVal);
+      setTimeout(() => {
+        ta.selectionStart = start + 2;
+        ta.selectionEnd = end + 2;
+      }, 0);
+    }
+  }
+
+  // ── Channel CRUD ───────────────────────────────────────────────────────
 
   async function handleCreateChannel() {
     if (!newChannelName.trim()) return;
@@ -347,35 +439,44 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 
   async function handleDeleteMsg(msgId: string) {
     const res = await deleteMessage(msgId);
-    if (res.ok) {
-      setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    }
+    if (res.ok) setMessages((prev) => prev.filter((m) => m.id !== msgId));
   }
 
   async function handleDeleteDm(msgId: string) {
     const res = await deleteDm(msgId);
-    if (res.ok) {
-      setDmMessages((prev) => prev.filter((m) => m.id !== msgId));
-    }
+    if (res.ok) setDmMessages((prev) => prev.filter((m) => m.id !== msgId));
   }
+
+  function toggleReaction(msgId: string, emoji: string) {
+    setReactions((prev) => {
+      const current = prev[msgId] ?? [];
+      const has = current.includes(emoji);
+      return { ...prev, [msgId]: has ? current.filter((e) => e !== emoji) : [...current, emoji] };
+    });
+    setEmojiPickerMsgId(null);
+  }
+
+  // ── Derived state ──────────────────────────────────────────────────────
 
   const filteredDmConversations = useMemo(() => {
     const needle = dmSearch.trim().toLowerCase();
-    return needle ? dmConversations.filter((conversation) => conversation.peer_name.toLowerCase().includes(needle)) : dmConversations;
+    return needle
+      ? dmConversations.filter((c) => c.peer_name.toLowerCase().includes(needle))
+      : dmConversations;
   }, [dmConversations, dmSearch]);
-  const displayedDmMessages = showPinned ? dmMessages.filter((message) => pinnedIds.includes(message.id)) : dmMessages;
+
+  const displayedDmMessages = showPinned
+    ? dmMessages.filter((m) => pinnedIds.includes(m.id))
+    : dmMessages;
+
   const currentMessages = viewMode === "channels" ? messages : displayedDmMessages;
-  const currentName = viewMode === "channels"
-    ? activeChannel?.name ?? ""
-    : activeDmPeer?.peer_name ?? "";
-  const currentDescription = viewMode === "channels"
-    ? activeChannel?.description ?? null
-    : null;
+  const currentName = viewMode === "channels" ? activeChannel?.name ?? "" : activeDmPeer?.peer_name ?? "";
+  const currentDescription = viewMode === "channels" ? activeChannel?.description ?? null : null;
   const hasActive = viewMode === "channels" ? !!activeChannel : !!activeDmPeer;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* Sidebar */}
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div
         className={cn(
           "flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white",
@@ -467,19 +568,13 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                       ? "bg-gray-100 font-medium text-gray-900"
                       : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
                   )}
-                  onClick={() => {
-                    setActiveChannel(ch);
-                    setMobileSidebar(false);
-                  }}
+                  onClick={() => { setActiveChannel(ch); setMobileSidebar(false); }}
                 >
                   <Hash className="h-3.5 w-3.5 shrink-0" />
                   <span className="flex-1 truncate">{ch.name}</span>
                   {ch.created_by === user?.id && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteChannel(ch);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteChannel(ch); }}
                       className="hidden rounded p-0.5 text-gray-300 hover:text-red-500 group-hover:block"
                     >
                       <Trash className="h-3 w-3" />
@@ -495,8 +590,22 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         {viewMode === "dms" && (
           <>
             <div className="space-y-2 px-3 py-3">
-              <div className="flex items-center justify-between px-1"><h2 className="text-sm font-semibold text-gray-900">Direct Messages</h2><button type="button" onClick={() => setShowPinned((value) => !value)} className={cn("text-[11px]", showPinned ? "font-medium text-gray-900" : "text-gray-400 hover:text-gray-700")}>Pinned</button></div>
-              <input value={dmSearch} onChange={(event) => setDmSearch(event.target.value)} placeholder="Search people" className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-300" />
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-semibold text-gray-900">Direct Messages</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowPinned((v) => !v)}
+                  className={cn("text-[11px]", showPinned ? "font-medium text-gray-900" : "text-gray-400 hover:text-gray-700")}
+                >
+                  Pinned
+                </button>
+              </div>
+              <input
+                value={dmSearch}
+                onChange={(e) => setDmSearch(e.target.value)}
+                placeholder="Search people"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-300"
+              />
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 no-scrollbar">
               {filteredDmConversations.length === 0 ? (
@@ -517,27 +626,36 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
                     )}
                     onClick={() => {
-                      setActiveDmPeer(conv);
+                      setActiveDmPeer({ ...conv, unread: 0 });
                       setMobileSidebar(false);
+                      // Mark as read
+                      setDmConversations((prev) =>
+                        prev.map((c) => c.peer_id === conv.peer_id ? { ...c, unread: 0 } : c),
+                      );
                     }}
                   >
-                    <SquircleAvatar
-                      name={conv.peer_name}
-                      src={conv.peer_avatar}
-                      size="xs"
-                      className="h-7 w-7 text-[10px]"
-                    />
+                    <div className="relative">
+                      <SquircleAvatar
+                        name={conv.peer_name}
+                        src={conv.peer_avatar}
+                        size="xs"
+                        className="h-7 w-7 text-[10px]"
+                      />
+                      {conv.unread > 0 && (
+                        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gray-900 ring-2 ring-white" />
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{conv.peer_name}</p>
+                      <p className={cn("truncate", conv.unread > 0 && "font-semibold")}>{conv.peer_name}</p>
                       {conv.last_message && (
-                        <p className="truncate text-[11px] text-gray-400">
+                        <p className={cn("truncate text-[11px]", conv.unread > 0 ? "text-gray-600" : "text-gray-400")}>
                           {conv.last_message}
                         </p>
                       )}
                     </div>
                     {conv.unread > 0 && (
                       <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-bold text-white">
-                        {conv.unread}
+                        {conv.unread > 9 ? "9+" : conv.unread}
                       </span>
                     )}
                   </div>
@@ -550,13 +668,10 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 
       {/* Mobile overlay */}
       {mobileSidebar && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20 md:hidden"
-          onClick={() => setMobileSidebar(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/20 md:hidden" onClick={() => setMobileSidebar(false)} />
       )}
 
-      {/* Main chat area */}
+      {/* ── Main chat area ──────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2.5">
@@ -664,53 +779,77 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {currentMessages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  msg={msg}
-                  isOwn={msg.sender_id === user?.id}
-                  isPinned={pinnedIds.includes(msg.id)}
-                  onPin={viewMode === "dms" ? () => setPinnedIds((current) => current.includes(msg.id) ? current.filter((id) => id !== msg.id) : [...current, msg.id]) : undefined}
-                  onReply={viewMode === "dms" ? () => setReplyTo(msg as DirectMessage) : undefined}
-                  onDelete={() =>
-                    viewMode === "channels"
-                      ? handleDeleteMsg(msg.id)
-                      : handleDeleteDm(msg.id)
-                  }
-                />
-              ))}
+            <div className="space-y-1">
+              {currentMessages.map((msg, i) => {
+                const prevMsg = i > 0 ? currentMessages[i - 1] : null;
+                const isGrouped = prevMsg && prevMsg.sender_id === msg.sender_id &&
+                  new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() < 300000;
+                return (
+                  <MessageBubble
+                    key={msg.id}
+                    msg={msg}
+                    isOwn={msg.sender_id === user?.id}
+                    isGrouped={!!isGrouped}
+                    isPinned={pinnedIds.includes(msg.id)}
+                    reactions={reactions[msg.id] ?? []}
+                    onReact={(emoji) => toggleReaction(msg.id, emoji)}
+                    onPin={viewMode === "dms" ? () => setPinnedIds((c) => c.includes(msg.id) ? c.filter((id) => id !== msg.id) : [...c, msg.id]) : undefined}
+                    onReply={viewMode === "dms" ? () => setReplyTo(msg as DirectMessage) : undefined}
+                    onDelete={() => viewMode === "channels" ? handleDeleteMsg(msg.id) : handleDeleteDm(msg.id)}
+                    showEmojiPicker={emojiPickerMsgId === msg.id}
+                    onToggleEmoji={() => setEmojiPickerMsgId(emojiPickerMsgId === msg.id ? null : msg.id)}
+                  />
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
-        {/* Input */}
+        {/* ── Input area ───────────────────────────────────────── */}
         {hasActive && (
           <div className="border-t border-gray-100 px-4 py-3">
-            {viewMode === "dms" && replyTo && <div className="mb-2 flex items-center justify-between rounded-lg bg-gray-100 px-3 py-1.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-300"><span className="truncate">Replying to: {replyTo.content}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="h-3.5 w-3.5" /></button></div>}
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 transition-colors focus-within:border-gray-300 focus-within:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus-within:bg-gray-800">
-              <input
-                ref={inputRef}
+            {/* Reply bar */}
+            {viewMode === "dms" && replyTo && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-[11px] text-gray-600">
+                <ArrowBendDoubleUpLeft className="h-3 w-3 shrink-0" />
+                <span className="flex-1 truncate">
+                  Replying to <strong>{replyTo.sender_name}</strong>: {replyTo.content}
+                </span>
+                <button type="button" onClick={() => setReplyTo(null)} className="shrink-0 text-gray-400 hover:text-gray-600">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Composer */}
+            <div className="flex items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 transition-colors focus-within:border-gray-300 focus-within:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus-within:bg-gray-800">
+              <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "b" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setBold((value) => !value); return; } if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setInput((value) => `${value}\n`); return; } if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                onKeyDown={handleKeyDown}
+                rows={1}
                 placeholder={
                   viewMode === "channels"
                     ? `Message #${currentName} — type @celeste for AI`
                     : `Message ${currentName}...`
                 }
-                className={cn("flex-1 bg-transparent px-2 py-1.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100", bold && "font-bold")}
+                className="max-h-[120px] min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
                 disabled={sending}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || sending}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-30 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-all hover:bg-gray-700 disabled:opacity-30 active:scale-90 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
               >
                 <ArrowUp className="h-4 w-4" weight="bold" />
               </button>
             </div>
+
+            <p className="mt-1.5 text-center text-[10px] text-gray-300">
+              Press <kbd className="rounded border border-gray-200 bg-gray-50 px-1 py-0.5 text-[9px]">Enter</kbd> to send, <kbd className="rounded border border-gray-200 bg-gray-50 px-1 py-0.5 text-[9px]">Shift+Enter</kbd> for new line
+            </p>
           </div>
         )}
       </div>
@@ -718,67 +857,143 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   );
 }
 
+// ── Message Bubble ─────────────────────────────────────────────────────────
+
 function MessageBubble({
   msg,
   isOwn,
+  isGrouped,
   isPinned,
+  reactions,
+  onReact,
   onPin,
   onReply,
   onDelete,
+  showEmojiPicker,
+  onToggleEmoji,
 }: {
   msg: ChatMessage | DirectMessage;
   isOwn: boolean;
+  isGrouped: boolean;
   isPinned: boolean;
+  reactions: string[];
+  onReact: (emoji: string) => void;
   onPin?: () => void;
   onReply?: () => void;
   onDelete: () => void;
+  showEmojiPicker: boolean;
+  onToggleEmoji: () => void;
 }) {
   const isAI = "content" in msg && msg.content.startsWith("🤖 **Celeste AI**");
+  const time = new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className={cn("group flex gap-3", isOwn && "flex-row-reverse")}>
-      <SquircleAvatar
-        name={msg.sender_name ?? "?"}
-        src={isAI ? null : msg.sender_avatar}
-        size="sm"
-      />
-      <div className={cn("max-w-[70%]", isOwn && "text-right")}>
-        <div className={cn("mb-0.5 flex items-center gap-2", isOwn && "justify-end")}>
-          <span className="text-[12px] font-medium text-gray-700">
-            {isAI ? "Celeste AI" : msg.sender_name}
-          </span>
-          <span className="text-[10px] text-gray-300">
-            {new Date(msg.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
+    <div className={cn("group relative flex gap-2.5 px-1", isOwn && "flex-row-reverse", isGrouped && "mt-0.5")}>
+      {/* Avatar (hidden when grouped) */}
+      <div className="w-8 shrink-0">
+        {!isGrouped && (
+          <SquircleAvatar
+            name={msg.sender_name ?? "?"}
+            src={isAI ? null : msg.sender_avatar}
+            size="sm"
+          />
+        )}
+      </div>
+
+      <div className={cn("max-w-[75%] min-w-0", isOwn && "text-right")}>
+        {/* Name + time (hidden when grouped) */}
+        {!isGrouped && (
+          <div className={cn("mb-1 flex items-center gap-2", isOwn && "justify-end")}>
+            <span className="text-[12px] font-semibold text-gray-800">
+              {isAI ? "Celeste AI" : msg.sender_name}
+            </span>
+            <span className="text-[10px] text-gray-400">{time}</span>
+            {isPinned && <PushPin className="h-3 w-3 text-amber-500" />}
+          </div>
+        )}
+
+        {/* Message content */}
         <div
           className={cn(
-            "whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
+            "whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed",
             isAI
               ? "border border-gray-100 bg-gray-50 text-gray-800"
               : isOwn
-                ? "rounded-br-md bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
-                : "rounded-bl-md bg-transparent text-gray-700 dark:text-gray-300",
+                ? "rounded-br-md bg-gray-900 text-white dark:bg-gray-700"
+                : "rounded-bl-md bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
           )}
         >
           {msg.content}
         </div>
-        {!isAI && onPin && <button type="button" onClick={onPin} className="mr-2 mt-1 text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">{isPinned ? "Unpin" : "Pin"}</button>}
-        {!isAI && !isOwn && onReply && (
-          <button type="button" onClick={onReply} className="mt-1 text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-            Reply
-          </button>
+
+        {/* Reactions */}
+        {reactions.length > 0 && (
+          <div className={cn("mt-1 flex flex-wrap gap-1", isOwn && "justify-end")}>
+            {reactions.map((emoji, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[11px]"
+              >
+                {emoji}
+              </span>
+            ))}
+          </div>
         )}
-        {isOwn && (
+
+        {/* Action buttons (on hover) */}
+        <div className={cn("mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100", isOwn && "justify-end")}>
           <button
-            onClick={onDelete}
-            className="mt-1 text-[11px] text-gray-300 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+            type="button"
+            onClick={onToggleEmoji}
+            className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Add reaction"
           >
-            Delete
+            <Smiley className="h-3.5 w-3.5" />
           </button>
+          {onReply && (
+            <button
+              type="button"
+              onClick={onReply}
+              className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title="Reply"
+            >
+              <ArrowBendDoubleUpLeft className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onPin && (
+            <button
+              type="button"
+              onClick={onPin}
+              className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title={isPinned ? "Unpin" : "Pin"}
+            >
+              <PushPin className={cn("h-3.5 w-3.5", isPinned && "text-amber-500")} />
+            </button>
+          )}
+          {isOwn && (
+            <button
+              onClick={onDelete}
+              className="rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-red-400"
+              title="Delete"
+            >
+              <Trash className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Emoji picker */}
+        {showEmojiPicker && (
+          <div className={cn("absolute z-10 mt-1 flex gap-1 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg", isOwn ? "right-0" : "left-0")}>
+            {EMOJI_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => onReact(emoji)}
+                className="rounded-lg p-1.5 text-base transition-colors hover:bg-gray-100"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>
