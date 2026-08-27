@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -157,6 +157,8 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
     bio: (data?.profile?.bio as string) ?? "",
     phone: "",
   });
+  const [avatarPreview, setAvatarPreview] = useState<string | null>((data?.profile?.avatar_url as string) ?? null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [departmentId, setDepartmentId] = useState((data?.profile?.department_id as string) ?? inviteDetails?.department_id ?? "");
   const [roleTitle, setRoleTitle] = useState((data?.profile?.role_title as string) ?? inviteDetails?.role_title ?? "");
   const [s3, setS3] = useState({
@@ -203,7 +205,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
     setBusy(true); setErr("");
 
     // 1) Create the account (now the user is authenticated)
-    const res = await createAccount({ email: s0.email, password: s0.password, full_name: s0.full_name });
+    const res = await createAccount({ email: s0.email, password: s0.password, full_name: s0.full_name, avatar_data_url: avatarPreview });
     if (!res.ok) { setBusy(false); setErr(res.error); return; }
 
     // 2) Persist everything collected during the wizard
@@ -398,7 +400,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {isAccountStep("account") && (
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveAccount(); }}>
               <Field label="Full name" required>
-                <input className="input" value={s0.full_name} onChange={(e) => setS0({ ...s0, full_name: e.target.value })} placeholder="First and last name" autoFocus />
+                <input className="input" value={s0.full_name} onChange={(e) => { setS0({ ...s0, full_name: e.target.value }); setS1((prev) => ({ ...prev, full_name: e.target.value })); }} placeholder="First and last name" autoFocus />
               </Field>
               <Field label="Email" required>
                 <input
@@ -425,6 +427,16 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Profile ═══════════ */}
           {isNormalStep("identity") && (
             <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <button type="button" onClick={() => avatarInputRef.current?.click()} className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-400 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.12)] dark:bg-[#161616] dark:hover:border-white">
+                  {avatarPreview ? <img src={avatarPreview} alt="Profile preview" className="h-full w-full object-cover" /> : <span>Photo</span>}
+                </button>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Profile photo</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Choose a photo for your profile.</p>
+                  <input ref={avatarInputRef} type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { setErr("Choose an image smaller than 2 MB"); return; } const reader = new FileReader(); reader.onload = () => setAvatarPreview(String(reader.result)); reader.readAsDataURL(file); }} />
+                </div>
+              </div>
               <Field label="Full name" required>
                 <input className="input" value={s1.full_name} onChange={(e) => setS1({ ...s1, full_name: e.target.value })} placeholder="First and last name" autoFocus />
               </Field>

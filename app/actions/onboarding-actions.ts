@@ -35,6 +35,7 @@ const step0Schema = z.object({
   email: z.string().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   full_name: z.string().min(1, "Name is required").max(120),
+  avatar_data_url: z.string().max(3_000_000).nullable().optional(),
 });
 
 export async function createAccount(
@@ -67,6 +68,7 @@ export async function createAccount(
       id: data.user.id,
       full_name: parsed.full_name,
       email: parsed.email,
+      avatar_url: parsed.avatar_data_url?.startsWith("data:image/") ? parsed.avatar_data_url : null,
       onboarding_completed: false,
     }, { onConflict: "id" });
     if (profileErr) return { ok: false, error: profileErr.message };
