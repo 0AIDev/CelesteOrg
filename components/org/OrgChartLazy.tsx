@@ -1,23 +1,62 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ComponentProps } from "react";
-import type { OrgChartClient } from "./OrgChartClient";
 
 // @xyflow/react is ~300 kB and SSR-incompatible (references window).
 // Load it client-only so it never blocks server render or other pages.
-const OrgChartClientLazy = dynamic(
-  () => import("./OrgChartClient").then((m) => m.OrgChartClient),
+const OrgChartClient = dynamic(
+  () => import("./OrgChartClient").then((m) => ({ default: m.OrgChartClient })),
   {
     ssr: false,
     loading: () => <OrgChartSkeleton />,
   },
 );
 
-type OrgChartProps = ComponentProps<typeof OrgChartClient>;
+type Dept = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  color: string | null;
+  headcount: number;
+};
 
-export default function OrgChartLazy(props: OrgChartProps) {
-  return <OrgChartClientLazy {...props} />;
+type EquityByUser = Record<
+  string,
+  {
+    total_shares: number;
+    vested_shares: number;
+    unvested_shares: number;
+    vesting_start: string;
+    cliff_months: number;
+  }
+>;
+
+export default function OrgChartLazy({
+  trees,
+  departments,
+  equity,
+  currentUserId,
+  myNotes,
+  initialMemberId,
+}: {
+  trees: import("@/lib/types").OrgNode[];
+  departments: Dept[];
+  equity: { byUser: EquityByUser };
+  currentUserId?: string | null;
+  myNotes?: Record<string, string>;
+  initialMemberId?: string | null;
+}) {
+  return (
+    <OrgChartClient
+      trees={trees}
+      departments={departments}
+      equity={equity}
+      currentUserId={currentUserId}
+      myNotes={myNotes}
+      initialMemberId={initialMemberId}
+    />
+  );
 }
 
 function OrgChartSkeleton() {
