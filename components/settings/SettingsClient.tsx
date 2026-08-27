@@ -18,6 +18,8 @@ import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { Input } from "./Input";
 import { updateProfile, changePassword, uploadAvatar } from "@/app/actions/settings-actions";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { LanguageSelector } from "@/lib/i18n/LanguageSelector";
 
 
 type Profile = {
@@ -97,6 +99,7 @@ function ProfileTab({
   setCompanyText: (s: string) => void;
   onSaved: () => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(profile?.full_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
@@ -158,6 +161,15 @@ function ProfileTab({
 
   return (
     <div className="space-y-5">
+      {/* Language selector */}
+      <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-5 py-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900">{t("common.language")}</p>
+          <p className="text-xs text-gray-400">Choose your preferred language.</p>
+        </div>
+        <LanguageSelector />
+      </div>
+
       <div className="flex items-center gap-4">
         <FileUpload
           accept="image/*"
@@ -199,21 +211,21 @@ function ProfileTab({
 
       <div className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Full name</label>
+          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">{t("settings.fullName")}</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Location</label>
+          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">{t("settings.location")}</label>
           <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Remote · Europe" />
         </div>
         <div>
           <label className="mb-1.5 block text-[13px] font-medium text-gray-700">
-            Previous companies <span className="font-normal text-gray-400">(comma-separated)</span>
+            {t("settings.companyHistory")} <span className="font-normal text-gray-400">({t("common.optional")})</span>
           </label>
           <Input value={companyText} onChange={(e) => setCompanyText(e.target.value)} placeholder="Acme, Globex" />
         </div>
         <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Bio</label>
+          <label className="mb-1.5 block text-[13px] font-medium text-gray-700">{t("settings.bio")}</label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
@@ -227,11 +239,11 @@ function ProfileTab({
       {err && <p className="text-xs text-gray-600">{err}</p>}
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={saving || !name} className="btn-primary disabled:opacity-50">
-          {saving ? <Spinner className="h-4 w-4 animate-spin" /> : "Save changes"}
+          {saving ? <Spinner className="h-4 w-4 animate-spin" /> : t("settings.saveChanges")}
         </button>
         {done && (
           <span className="flex items-center gap-1 text-sm text-gray-900">
-            <Check className="h-4 w-4" /> Saved
+            <Check className="h-4 w-4" /> {t("settings.saved")}
           </span>
         )}
       </div>

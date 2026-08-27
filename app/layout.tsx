@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -82,7 +83,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased bg-white dark:bg-[#0F0F0F]">
         <ThemeProvider>
+        <LanguageProvider>
         {children}
+        </LanguageProvider>
         </ThemeProvider>
         {/* Register service worker for PWA */}
         <Script id="sw-register" strategy="afterInteractive">

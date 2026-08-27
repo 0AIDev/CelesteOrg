@@ -20,6 +20,8 @@ import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { cn, relativeTime } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { LanguageSelector } from "@/lib/i18n/LanguageSelector";
 
 type NotifItem = {
   id: string;
@@ -54,6 +56,7 @@ export function Header({
 }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
 
   // Resolve the current user's id once (StrictMode-safe: guarded by `mounted`,
@@ -167,7 +170,7 @@ export function Header({
       >
         <span className="flex min-w-0 items-center gap-1.5">
           <MagnifyingGlass className="h-[18px] w-[18px] shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-          <span className="truncate text-[13px] font-normal text-gray-500">Search everything...</span>
+          <span className="truncate text-[13px] font-normal text-gray-500">{t("header.search")}</span>
         </span>
         <span className="flex shrink-0 gap-1">
           <kbd className="flex h-[18px] w-fit items-center rounded-md border border-gray-200 bg-gray-50 px-1 text-[11px] font-medium text-gray-500">⌘</kbd>
@@ -176,7 +179,8 @@ export function Header({
       </button>
 
       {/* Right actions */}
-      <div className="ml-auto flex items-center gap-1 md:ml-0">
+      <div className="ml-auto flex items-center gap-1.5 md:ml-0">
+        <LanguageSelector compact />
 
         {/* Notifications */}
         <Popover.Root>
@@ -198,10 +202,10 @@ export function Header({
             >
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                 <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  Notifications
+                  {t("header.notifications")}
                   {unread > 0 && (
                     <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
-                      {unread} new
+                      {unread} {t("header.new")}
                     </span>
                   )}
                 </span>
@@ -210,14 +214,14 @@ export function Header({
                     onClick={markAllRead}
                     className="flex items-center gap-1 text-xs font-medium text-gray-900 hover:underline"
                   >
-                    <Check className="h-3 w-3" /> Mark all read
+                    <Check className="h-3 w-3" />                    {t("header.markAllRead")}
                   </button>
                 )}
               </div>
               <div className="max-h-80 overflow-y-auto p-1.5">
                 {notifications.length === 0 && (
                   <p className="px-3 py-6 text-center text-sm text-gray-400">
-                    Nothing here yet.
+                    {t("header.nothingHere")}
                   </p>
                 )}
                 {notifications.map((n) => (
@@ -289,13 +293,13 @@ export function Header({
               </div>
               <div className="my-1 h-px bg-gray-100" />
               <MenuItem icon={<UserCircle className="h-4 w-4" />} onClick={() => go("/settings")}>
-                Profile
+                {t("header.profile")}
               </MenuItem>
               <MenuItem icon={<GearSix className="h-4 w-4" />} onClick={() => go("/settings")}>
-                Settings
+                {t("header.settings")}
               </MenuItem>
               <MenuItem icon={<ChatCircleText className="h-4 w-4" />} onClick={() => onOpenFeedback?.()}>
-                Feedback
+                {t("header.feedback")}
               </MenuItem>
               <div className="my-1 h-px bg-gray-100" />
               <button
@@ -307,7 +311,7 @@ export function Header({
                 ) : (
                   <Moon className="h-4 w-4" />
                 )}
-                {theme === "dark" ? "Light mode" : "Dark mode"}
+                {theme === "dark" ? t("header.lightMode") : t("header.darkMode")}
               </button>
               <div className="my-1 h-px bg-gray-100" />
               <MenuItem
@@ -320,7 +324,7 @@ export function Header({
                   router.refresh();
                 }}
               >
-                Sign out
+                {t("header.signOut")}
               </MenuItem>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

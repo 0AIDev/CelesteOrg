@@ -15,6 +15,8 @@ import {
 } from "@/components/nav/config";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { navLabelToKey } from "@/lib/i18n/navTranslations";
 
 // ─── Toggle icons ───────────────────────────────────────────────────
 function SidebarExpandIcon({ className }: { className?: string }) {
@@ -96,6 +98,7 @@ function Brand() {
     <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
       <Logo className="h-6 w-auto" />
       <span className="text-[15px] font-semibold tracking-tight text-gray-950 dark:text-white">Celeste HQ</span>
+      {/* Language selector is in Header */}
     </div>
   );
 }
@@ -117,6 +120,7 @@ function NavItem({
   showPin?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const { t } = useLanguage();
 
   const content = (
     <div
@@ -130,7 +134,7 @@ function NavItem({
       onMouseLeave={() => setHovered(false)}
     >
       <item.icon size={18} weight={active ? "fill" : "regular"} className={cn("shrink-0 transition-colors", active ? "text-gray-950" : "text-gray-400")} />
-      <span className="truncate grow">{item.label}</span>
+      <span className="truncate grow">{t(navLabelToKey[item.label] ?? "sidebar.home")}</span>
       {item.badge && <span className="text-[11px] text-gray-400">{item.badge}</span>}
       {/* Pin button — appears on hover */}
       {showPin && hovered && onTogglePin && (
@@ -182,6 +186,7 @@ function CategorySection({
   pinnedItems: string[];
   onTogglePin: (label: string) => void;
 }) {
+  const { t } = useLanguage();
   const hasActive = items.some((i) => i.href && pathname.startsWith(i.href));
   const [expanded, setExpanded] = useState(hasActive);
 
@@ -199,7 +204,7 @@ function CategorySection({
           size={12}
           className={cn("shrink-0 transition-transform duration-150", !expanded && "-rotate-90")}
         />
-        <span className="truncate">{label}</span>
+        <span className="truncate">{t(navLabelToKey[label] ?? "sidebar.home")}</span>
       </button>
       {expanded && (
         <div className="space-y-0.5">
@@ -235,6 +240,7 @@ function SidebarInner({
   canManage?: boolean;
 }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [inviteDismissed, setInviteDismissed] = useState(false);
   const [pinnedItems, setPinnedItems] = useState<string[]>([]);
 
@@ -289,7 +295,7 @@ function SidebarInner({
         {/* Pinned section — always at the top */}
         {pinnedNavItems.length > 0 && (
           <div className="mb-3">
-            <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">Pinned</p>
+            <p className="mb-1 px-2.5 text-[12px] font-medium text-gray-400">{t("sidebar.pinned")}</p>
             <div className="space-y-0.5">
               {pinnedNavItems.map((item) =>
                 item.action === "standup" ? (
@@ -383,8 +389,8 @@ function SidebarInner({
                 </svg>
               </div>
               <div className="min-w-0 grow px-1">
-                <p className="text-[13px] font-medium text-gray-950 dark:text-gray-200">Grow your team</p>
-                <p className="mt-0.5 text-[11.5px] leading-snug text-gray-500 dark:text-gray-500">Invite colleagues to Celeste HQ and start collaborating.</p>
+                <p className="text-[13px] font-medium text-gray-950 dark:text-gray-200">{t("sidebar.growTeam")}</p>
+                <p className="mt-0.5 text-[11.5px] leading-snug text-gray-500 dark:text-gray-500">{t("sidebar.growTeamDesc")}</p>
               </div>
             </button>
             <button

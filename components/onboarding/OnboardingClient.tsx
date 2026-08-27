@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { Logo } from "@/components/ui/Logo";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { LanguageSelector } from "@/lib/i18n/LanguageSelector";
 
 import {
   createAccount,
@@ -135,6 +137,7 @@ export function OnboardingClient({
 function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null; inviteDetails?: InviteDetails | null }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const needsAccount = !data;
   const STEP_META = needsAccount ? STEPS_WITH_ACCOUNT : STEPS_WITHOUT_ACCOUNT;
 
@@ -337,14 +340,17 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-white dark:bg-[#0F0F0F]">
-      {/* Dark mode toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute right-5 top-5 flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.06)]"
-      >
-        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        {theme === "dark" ? "Light" : "Dark"}
-      </button>
+      {/* Dark mode toggle + Language selector */}
+      <div className="absolute right-5 top-5 flex items-center gap-2">
+        <LanguageSelector compact />
+        <button
+          onClick={toggleTheme}
+          className="flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:text-gray-300 dark:hover:bg-[rgba(255,255,255,0.06)]"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
+      </div>
       <div className="w-full max-w-3xl px-6" style={{ opacity: transitioning ? 0 : 1, transition: "opacity 150ms" }}>
         {/* Logo */}
         <div className="mb-6 flex justify-center">
@@ -354,18 +360,18 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
-            {isAccountStep("welcome") && (inviteDetails?.full_name ? `Welcome to Celeste HQ (${inviteDetails.full_name})` : "Welcome to Celeste HQ")}
-            {isAccountStep("account") && "Set your password"}
-            {!needsAccount && (s1.full_name ? `Welcome to Celeste HQ (${s1.full_name.split(" ")[0]})` : "Welcome to Celeste HQ")}
-            {isNormalStep("identity") && "Tell us about yourself"}
-            {isNormalStep("role") && (needsAccount && inviteDetails ? "Your role" : "What's your role?")}
-            {isNormalStep("team") && "Your team awaits"}
-            {isNormalStep("goals") && "Set your goals"}
-            {isNormalStep("culture") && "How we work"}
-            {isNormalStep("tools") && "Tools & access"}
-            {isNormalStep("tech") && "Your tech stack"}
-            {isNormalStep("preferences") && "Work style"}
-            {isNormalStep("nda") && "One last thing"}
+            {isAccountStep("welcome") && (inviteDetails?.full_name ? t("onboarding.welcomeWithName", { name: inviteDetails.full_name }) : t("onboarding.welcome"))}
+            {isAccountStep("account") && t("onboarding.setPassword")}
+            {!needsAccount && (s1.full_name ? t("onboarding.welcomeWithName", { name: s1.full_name.split(" ")[0] }) : t("onboarding.welcome"))}
+            {isNormalStep("identity") && t("onboarding.tellUs")}
+            {isNormalStep("role") && (needsAccount && inviteDetails ? t("onboarding.yourRole") : t("onboarding.whatsYourRole"))}
+            {isNormalStep("team") && t("onboarding.teamAwaits")}
+            {isNormalStep("goals") && t("onboarding.setGoals")}
+            {isNormalStep("culture") && t("onboarding.howWeWork")}
+            {isNormalStep("tools") && t("onboarding.toolsAccess")}
+            {isNormalStep("tech") && t("onboarding.yourTechStack")}
+            {isNormalStep("preferences") && t("onboarding.workStyle")}
+            {isNormalStep("nda") && t("onboarding.oneLastThing")}
           </h5>
         </div>
 
@@ -376,13 +382,13 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {(isAccountStep("welcome") || isNormalStep("welcome")) && (
             <div className="space-y-3">
               {[
-                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, title: "Org Chart", desc: "See the full team structure, who reports to whom, and message anyone directly." },
-                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, title: "Calendar", desc: "View and create events, schedule meetings, and see team availability." },
-                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, title: "Chat", desc: "Direct messages and channel-based team communication in real time." },
-                { icon: <Check weight="bold" className="h-4 w-4" />, title: "Approvals", desc: "Review and approve requests from the team — documents, expenses, and more." },
-                { icon: <House weight="bold" className="h-4 w-4" />, title: "Documents", desc: "Share, sign, and manage company documents in one place." },
-                { icon: <Sparkle weight="bold" className="h-4 w-4" />, title: "AI Assistant", desc: "Ask Celeste anything about the workspace — calendar, approvals, team, and more." },
-                { icon: <Command weight="bold" className="h-4 w-4" />, title: "Quick Actions", desc: "Press ⌘K anywhere to search, navigate, or run commands instantly." },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, title: t("sidebar.orgChart"), desc: t("onboarding.orgChartDesc") },
+                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, title: t("sidebar.calendar"), desc: t("onboarding.calendarDesc") },
+                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, title: t("sidebar.chat"), desc: t("onboarding.chatDesc") },
+                { icon: <Check weight="bold" className="h-4 w-4" />, title: t("sidebar.approvals"), desc: t("onboarding.approvalsDesc") },
+                { icon: <House weight="bold" className="h-4 w-4" />, title: t("sidebar.documents"), desc: t("onboarding.documentsDesc") },
+                { icon: <Sparkle weight="bold" className="h-4 w-4" />, title: t("header.feedback"), desc: t("onboarding.aiAssistantDesc") },
+                { icon: <Command weight="bold" className="h-4 w-4" />, title: t("dashboard.quickActions"), desc: t("onboarding.quickActionsDesc") },
               ].map((item, i) => (
                 <div
                   key={i}
@@ -401,10 +407,10 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Account ═══════════ */}
           {isAccountStep("account") && (
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveAccount(); }}>
-              <Field label="Full name" required>
-                <input className="input" value={s0.full_name} onChange={(e) => { setS0({ ...s0, full_name: e.target.value }); setS1((prev) => ({ ...prev, full_name: e.target.value })); }} placeholder="First and last name" autoFocus />
+              <Field label={t("onboarding.fullName")} required>
+                <input className="input" value={s0.full_name} onChange={(e) => { setS0({ ...s0, full_name: e.target.value }); setS1((prev) => ({ ...prev, full_name: e.target.value })); }} placeholder={t("onboarding.firstNameLastName")} autoFocus />
               </Field>
-              <Field label="Email" required>
+              <Field label={t("onboarding.email")} required>
                 <input
                   className="input bg-gray-50 cursor-not-allowed dark:bg-[rgba(255,255,255,0.03)]"
                   type="email"
@@ -412,15 +418,15 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                   readOnly
                   tabIndex={-1}
                 />
-                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">This is the email you were invited with.</p>
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("onboarding.emailInviteNote")}</p>
               </Field>
-              <Field label="Password" required>
-                <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder="At least 8 characters" autoFocus />
+              <Field label={t("onboarding.password")} required>
+                <input className="input" type="password" value={s0.password} onChange={(e) => setS0({ ...s0, password: e.target.value })} placeholder={t("onboarding.atLeast8Chars")} autoFocus />
               </Field>
-              <Field label="Confirm password" required>
-                <input className="input" type="password" value={s0.confirmPassword} onChange={(e) => setS0({ ...s0, confirmPassword: e.target.value })} placeholder="Repeat your password" />
+              <Field label={t("onboarding.confirmPassword")} required>
+                <input className="input" type="password" value={s0.confirmPassword} onChange={(e) => setS0({ ...s0, confirmPassword: e.target.value })} placeholder={t("onboarding.repeatPassword")} />
                 {s0.confirmPassword && s0.password !== s0.confirmPassword && (
-                  <p className="mt-1 text-[11px] text-red-500">Passwords don't match</p>
+                  <p className="mt-1 text-[11px] text-red-500">{t("onboarding.passwordsNoMatch")}</p>
                 )}
               </Field>
             </form>
@@ -434,24 +440,24 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                   {avatarPreview ? <img src={avatarPreview} alt="Profile preview" className="h-full w-full object-cover" /> : <span>Photo</span>}
                 </button>
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Profile photo</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Choose a photo for your profile.</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t("onboarding.profilePhoto")}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t("onboarding.choosePhoto")}</p>
                   <input ref={avatarInputRef} type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { setErr("Choose an image smaller than 2 MB"); return; } const reader = new FileReader(); reader.onload = () => setAvatarPreview(String(reader.result)); reader.readAsDataURL(file); }} />
                 </div>
               </div>
-              <Field label="Full name" required>
-                <input className="input" value={s1.full_name} onChange={(e) => setS1({ ...s1, full_name: e.target.value })} placeholder="First and last name" autoFocus />
+              <Field label={t("onboarding.fullName")} required>
+                <input className="input" value={s1.full_name} onChange={(e) => setS1({ ...s1, full_name: e.target.value })} placeholder={t("onboarding.firstNameLastName")} autoFocus />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Location">
-                  <input className="input" value={s1.location} onChange={(e) => setS1({ ...s1, location: e.target.value })} placeholder="City, Country" />
+                <Field label={t("onboarding.location")}>
+                  <input className="input" value={s1.location} onChange={(e) => setS1({ ...s1, location: e.target.value })} placeholder={t("onboarding.cityCountry")} />
                 </Field>
-                <Field label="Phone">
+                <Field label={t("onboarding.phone")}>
                   <input className="input" type="tel" value={s1.phone} onChange={(e) => setS1({ ...s1, phone: e.target.value })} placeholder="+39 ..." />
                 </Field>
               </div>
-              <Field label="Short bio">
-                <textarea className="input resize-none" rows={2} value={s1.bio} onChange={(e) => setS1({ ...s1, bio: e.target.value })} placeholder="What do you do?" />
+              <Field label={t("onboarding.shortBio")}>
+                <textarea className="input resize-none" rows={2} value={s1.bio} onChange={(e) => setS1({ ...s1, bio: e.target.value })} placeholder={t("onboarding.whatDoYouDo")} />
               </Field>
             </div>
           )}
@@ -464,13 +470,13 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                 // CEO at invite time, so just show them (nothing to pick).
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
-                    <p className="text-[12px] text-gray-400 dark:text-gray-500">Department</p>
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">{t("onboarding.department")}</p>
                     <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">
                       {inviteDetails.department_name ?? "Assigned by your invite"}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
-                    <p className="text-[12px] text-gray-400 dark:text-gray-500">Role</p>
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">{t("onboarding.role")}</p>
                     <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">
                       {inviteDetails.role_title ?? "Teammate"}
                     </p>
@@ -502,10 +508,10 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {isNormalStep("team") && (
             <div className="space-y-4">
               {[
-                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "Every person has a role in the Org Chart — see who reports to whom" },
-                { icon: <Check weight="bold" className="h-4 w-4" />, text: "Your direct manager is assigned by the CEO or department head" },
-                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, text: "Message anyone directly from their profile in the Org Chart" },
-                { icon: <House weight="bold" className="h-4 w-4" />, text: "Join #general, #engineering, and your department channel" },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: t("onboarding.team1") },
+                { icon: <Check weight="bold" className="h-4 w-4" />, text: t("onboarding.team2") },
+                { icon: <ChatsCircle weight="bold" className="h-4 w-4" />, text: t("onboarding.team3") },
+                { icon: <House weight="bold" className="h-4 w-4" />, text: t("onboarding.team4") },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]">
                   <span className="text-gray-400">{item.icon}</span>
@@ -518,21 +524,21 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Goals ═══════════ */}
           {isNormalStep("goals") && (
             <div className="space-y-4">
-              <Field label="Goals for the first week" required>
+              <Field label={t("onboarding.weekGoals")} required>
                 <textarea className="input resize-none" rows={2} value={goals.first_week} onChange={(e) => setGoals({ ...goals, first_week: e.target.value })} placeholder="e.g. Set up dev environment, meet the team" />
-                {!goals.first_week.trim() && <p className="mt-1.5 text-[11px] text-red-500">At least one goal is required</p>}
+                {!goals.first_week.trim() && <p className="mt-1.5 text-[11px] text-red-500">{t("onboarding.atLeastOneGoal")}</p>}
               </Field>
-              <Field label="Goals for the first 30 days">
+              <Field label={t("onboarding.thirtyDayGoals")}>
                 <textarea className="input resize-none" rows={2} value={goals.first_30_days} onChange={(e) => setGoals({ ...goals, first_30_days: e.target.value })} placeholder="e.g. Ship first feature, understand architecture" />
               </Field>
-              <Field label="Goals for the first 90 days">
+              <Field label={t("onboarding.ninetyDayGoals")}>
                 <textarea className="input resize-none" rows={2} value={goals.first_90_days} onChange={(e) => setGoals({ ...goals, first_90_days: e.target.value })} placeholder="e.g. Own a feature end-to-end, mentor new hires" />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Key people to meet">
+                <Field label={t("onboarding.keyPeople")}>
                   <input className="input" value={goals.key_people_to_meet} onChange={(e) => setGoals({ ...goals, key_people_to_meet: e.target.value })} placeholder="CTO, Head of Design..." />
                 </Field>
-                <Field label="Projects of interest">
+                <Field label={t("onboarding.projectsInterest")}>
                   <input className="input" value={goals.projects_of_interest} onChange={(e) => setGoals({ ...goals, projects_of_interest: e.target.value })} placeholder="AI, mobile, infra..." />
                 </Field>
               </div>
@@ -543,11 +549,11 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {isNormalStep("culture") && (
             <div className="space-y-4">
               {[
-                { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: "Ship fast, iterate faster — done is better than perfect" },
-                { icon: <House weight="bold" className="h-4 w-4" />, text: "Default to transparency — share context, not conclusions" },
-                { icon: <Check weight="bold" className="h-4 w-4" />, text: "Own your work — take initiative, be accountable" },
-                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, text: "Async-first: write it down before scheduling a meeting" },
-                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: "DACI framework: Driver, Approver, Contributors, Informed" },
+                { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: t("onboarding.culture1") },
+                { icon: <House weight="bold" className="h-4 w-4" />, text: t("onboarding.culture2") },
+                { icon: <Check weight="bold" className="h-4 w-4" />, text: t("onboarding.culture3") },
+                { icon: <CalendarBlank weight="bold" className="h-4 w-4" />, text: t("onboarding.culture4") },
+                { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: t("onboarding.culture5") },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]">
                   <span className="text-gray-400">{item.icon}</span>
@@ -560,7 +566,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Tools ═══════════ */}
           {isNormalStep("tools") && (
             <div className="space-y-4">
-              <Field label="Which tools do you use daily?" required>
+              <Field label={t("onboarding.toolsAccess")} required>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {toolList.map((tool) => (
                     <button key={tool.name} type="button" onClick={() => toggleTool(tool.name)}
@@ -570,7 +576,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                     </button>
                   ))}
                 </div>
-                {toolsAccess.length === 0 && <p className="mt-1.5 text-[11px] text-red-500">Select at least one tool to continue</p>}
+                {toolsAccess.length === 0 && <p className="mt-1.5 text-[11px] text-red-500">{t("onboarding.selectAtLeastOneTool")}</p>}
               </Field>
             </div>
           )}
@@ -578,7 +584,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Tech ═══════════ */}
           {isNormalStep("tech") && (
             <div className="space-y-4">
-              <Field label="Primary language">
+              <Field label={t("onboarding.primaryLanguage")}>
                 <div className="flex flex-wrap gap-2">
                   {LANGUAGES.map((l) => (
                     <button key={l} type="button" onClick={() => setS3({ ...s3, primary_language: s3.primary_language === l ? "" : l })}
@@ -588,7 +594,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                   ))}
                 </div>
               </Field>
-              <Field label="Frameworks & tools">
+              <Field label={t("onboarding.frameworksTools")}>
                 <div className="flex flex-wrap gap-2">
                   {FRAMEWORKS.map((f) => (
                     <button key={f} type="button" onClick={() => toggleFramework(f)}
@@ -598,7 +604,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                   ))}
                 </div>
               </Field>
-              <Field label="Preferred AI model">
+              <Field label={t("onboarding.preferredAiModel")}>
                 <div className="flex flex-wrap gap-2">
                   {MODELS.map((m) => (
                     <button key={m} type="button" onClick={() => setS3({ ...s3, local_model: s3.local_model === m ? "" : m })}
@@ -614,10 +620,10 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           {/* ═══════════ Preferences ═══════════ */}
           {isNormalStep("preferences") && (
             <div className="space-y-4">
-              <Field label="Core focus hours">
+              <Field label={t("onboarding.coreFocusHours")}>
                 <input className="input" value={s4.focus_hours} onChange={(e) => setS4({ ...s4, focus_hours: e.target.value })} placeholder="e.g. 09:00-12:00, 14:00-17:00" />
               </Field>
-              <Field label="Preferred communication">
+              <Field label={t("onboarding.preferredComm")}>
                 <div className="flex flex-wrap gap-2">
                   {["Slack", "Discord", "Email", "Teams", "In-app"].map((ch) => (
                     <button key={ch} type="button" onClick={() => setS4({ ...s4, communication_channel: ch })}
@@ -629,8 +635,8 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
               </Field>
               <div className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Notifications</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Approvals, mentions, task updates.</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t("onboarding.notificationsToggle")}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t("onboarding.notifDesc")}</p>
                 </div>
                 <button type="button" onClick={() => setS4({ ...s4, notifications_enabled: !s4.notifications_enabled })}
                   className={`relative h-6 w-11 rounded-full transition-colors ${s4.notifications_enabled ? "bg-gray-900" : "bg-gray-200"}`}>
@@ -646,8 +652,8 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
               {s5.signed ? (
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center">
                   <Check className="mx-auto h-10 w-10 text-gray-900" />
-                  <p className="mt-3 text-sm font-semibold text-gray-900">Already signed</p>
-                  <p className="mt-1 text-xs text-gray-500">Click Continue to finish.</p>
+                  <p className="mt-3 text-sm font-semibold text-gray-900">{t("onboarding.alreadySigned")}</p>
+                  <p className="mt-1 text-xs text-gray-500">{t("onboarding.clickContinue")}</p>
                 </div>
               ) : (
                 <>
@@ -660,9 +666,9 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
                   </div>
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" checked={s5.agreed} onChange={(e) => setS5({ ...s5, agreed: e.target.checked })} className="mt-0.5 h-4 w-4 rounded border-gray-300" />
-                    <span className="text-[13px] text-gray-600">I have read and agree to the agreement.</span>
+                    <span className="text-[13px] text-gray-600">{t("onboarding.agreeToAgreement")}</span>
                   </label>
-                  <Field label="Type your full legal name">
+                  <Field label={t("onboarding.typeLegalName")}>
                     <input className="input" value={s5.typed_name} onChange={(e) => setS5({ ...s5, typed_name: e.target.value })} placeholder="Your full legal name" disabled={!s5.agreed} />
                   </Field>
                 </>
@@ -680,13 +686,13 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
             {step > 0 && (
               <button type="button" onClick={goPrev}
                 className="text-[13px] font-medium text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                Back
+                {t("onboarding.back")}
               </button>
             )}
           </div>
           <button type="button" onClick={getNextAction()} disabled={isNextDisabled()}
             className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-[13px] font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed dark:border-[rgba(255,255,255,0.1)] dark:bg-white dark:text-black dark:hover:bg-gray-200">
-            {busy ? "Saving…" : isAccountLast ? "Create account & sign in" : isLast ? (s5.signed ? "Continue" : "Sign & finish") : "Next"}
+            {busy ? t("onboarding.saving") : isAccountLast ? t("onboarding.createAccount") : isLast ? (s5.signed ? t("onboarding.continue") : t("onboarding.signFinish")) : t("onboarding.next")}
           </button>
         </div>
       </div>
