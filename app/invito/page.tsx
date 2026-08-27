@@ -63,17 +63,44 @@ export default async function InvitePage({
     );
   }
 
-  if (invite.status !== "pending") {
+  if (invite.status === "revoked") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F]">
-        <div className="text-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-6 flex justify-center">
+            <img src="/Vector (2).svg" alt="Celeste" className="h-12 w-auto dark:hidden" />
+            <img src="/Vector (3).svg" alt="Celeste" className="h-12 w-auto hidden dark:block" />
+          </div>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Invite Revoked</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            This invite has been revoked by the workspace admin and is no longer valid.
+          </p>
+          <Link
+            href="/sign-in"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (invite.status === "accepted") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0F0F0F] px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-6 flex justify-center">
+            <img src="/Vector (2).svg" alt="Celeste" className="h-12 w-auto dark:hidden" />
+            <img src="/Vector (3).svg" alt="Celeste" className="h-12 w-auto hidden dark:block" />
+          </div>
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Invite Already Used</h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             This invite has already been accepted. Please sign in with your account.
           </p>
           <Link
             href="/sign-in"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
           >
             Sign In
           </Link>
