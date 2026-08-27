@@ -89,6 +89,7 @@ export function OnboardingClient({
   const [data, setData] = useState<OnboardingData>(serverData);
   const [inviteEmail, setInviteEmail] = useState<string | null>(serverEmail ?? null);
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
+  const [inviteName, setInviteName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +103,7 @@ export function OnboardingClient({
         if (invite) {
           setInviteDetails(invite);
           if (invite.email) setInviteEmail(invite.email);
+          if (invite.full_name) setInviteName(invite.full_name);
         }
         if (d) setData(d);
       } catch {
@@ -117,7 +119,7 @@ export function OnboardingClient({
   // arrives) so form state re-initializes with the freshly fetched values.
   const wizardKey = data
     ? `auth-${data.user.id}`
-    : `guest-${inviteEmail ?? inviteDetails?.department_id ?? "no-data"}`;
+    : `guest-${inviteEmail ?? inviteName ?? inviteDetails?.department_id ?? "no-data"}`;
 
   return (
     <OnboardingWizard
@@ -150,7 +152,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
   const [transitioning, setTransitioning] = useState(false);
 
   // Form state — pre-fill email from invite if available
-  const [s0, setS0] = useState({ email: inviteEmail ?? "", password: "", confirmPassword: "", full_name: "" });
+  const [s0, setS0] = useState({ email: inviteEmail ?? "", password: "", confirmPassword: "", full_name: inviteDetails?.full_name ?? "" });
   const [s1, setS1] = useState({
     full_name: (data?.profile?.full_name as string) ?? "",
     location: (data?.profile?.location as string) ?? "",
@@ -352,9 +354,9 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
-            {isAccountStep("welcome") && (s0.full_name ? `${s0.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
+            {isAccountStep("welcome") && "Welcome to Celeste HQ"}
             {isAccountStep("account") && "Set your password"}
-            {isNormalStep("welcome") && (s1.full_name ? `${s1.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
+            {isNormalStep("welcome") && (s1.full_name ? `Welcome to Celeste HQ (${s1.full_name.split(" ")[0]})` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}
             {isNormalStep("role") && (needsAccount && inviteDetails ? "Your role" : "What's your role?")}
             {isNormalStep("team") && "Your team awaits"}

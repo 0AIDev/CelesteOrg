@@ -85,6 +85,7 @@ export async function bootstrapFounderStatus(): Promise<{
 export type InviteRow = {
   id: string;
   email: string;
+  full_name: string | null;
   role_title: string | null;
   status: "pending" | "accepted" | "revoked";
   created_at: string;
@@ -102,7 +103,7 @@ export async function getInvites(): Promise<
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("invites")
-      .select("id, email, role_title, status, created_at, department:departments(name)")
+      .select("id, email, full_name, role_title, status, created_at, department:departments(name)")
       .order("created_at", { ascending: false });
     if (error) return { ok: false, error: error.message };
     return {
@@ -110,6 +111,7 @@ export async function getInvites(): Promise<
       invites: (data ?? []).map((i) => ({
         id: i.id,
         email: i.email,
+        full_name: i.full_name,
         role_title: i.role_title,
         status: i.status,
         created_at: i.created_at,
@@ -214,6 +216,7 @@ async function isFounderOrAdmin(): Promise<boolean> {
 
 const inviteSchema = z.object({
   email: z.string().email("Enter a valid email"),
+  fullName: z.string().min(1, "Name is required").max(120),
   departmentId: z.string().uuid().optional(),
   roleTitle: z.string().min(1, "Position is required").max(120),
 });
@@ -249,7 +252,7 @@ export async function inviteTeammate(
     let token: string | undefined;
     const { data: existing } = await admin
       .from("invites")
-      .select("id, status, token")
+      .select("id, status, token, full_name")
       .eq("email", email)
       .maybeSingle();
     if (existing) {
@@ -260,6 +263,7 @@ export async function inviteTeammate(
         .from("invites")
         .update({
           status: "pending",
+          full_name: parsed.fullName,
           role_title: parsed.roleTitle,
           department_id: parsed.departmentId,
           invited_by: inviterId,
@@ -276,6 +280,7 @@ export async function inviteTeammate(
         .from("invites")
         .insert({
           email,
+          full_name: parsed.fullName,
           department_id: parsed.departmentId,
           role_title: parsed.roleTitle,
           invited_by: inviterId,
@@ -405,6 +410,7 @@ export async function acceptInvite(
 
 export type InviteDetails = {
   email: string | null;
+  full_name?: string | null;
   department_id: string | null;
   department_name: string | null;
   role_title: string | null;
@@ -418,12 +424,13 @@ export async function getInviteDetails(token: string): Promise<InviteDetails | n
     const admin = createAdminClient();
     const { data } = await admin
       .from("invites")
-      .select("email, department_id, role_title, departments(name)")
+      .select("email, full_name, department_id, role_title, departments(name)")
       .eq("token", token)
       .maybeSingle();
     if (!data) return null;
     return {
       email: data.email ?? null,
+      full_name: data.full_name ?? null,
       department_id: data.department_id ?? null,
       role_title: data.role_title ?? null,
       department_name:

@@ -16,6 +16,7 @@ export function InviteModal({
 }) {
   const [departments, setDepartments] = useState<Dept[]>([]);
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [roleTitle, setRoleTitle] = useState("");
   const [sending, setSending] = useState(false);
@@ -29,6 +30,7 @@ export function InviteModal({
     if (!open) return;
     setResult(null);
     setEmail("");
+    setFullName("");
     setRoleTitle("");
     setDepartmentId("");
     setErr("");
@@ -45,6 +47,7 @@ export function InviteModal({
     setErr("");
     const res = await inviteTeammate({
       email,
+      fullName,
       departmentId: departmentId || undefined,
       roleTitle: roleTitle || undefined,
     });
@@ -119,7 +122,16 @@ export function InviteModal({
           </div>
         ) : (
           <>
-            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Email</label>
+            <label className="mb-1.5 block text-[13px] font-medium text-gray-700">Name</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="First and last name"
+              className="input"
+              autoFocus
+            />
+
+            <label className="mb-1.5 mt-4 block text-[13px] font-medium text-gray-700">Email</label>
             <input
               type="email"
               value={email}
@@ -159,6 +171,7 @@ export function InviteModal({
                 onClick={submit}
                 disabled={
                   sending ||
+                  !fullName.trim() ||
                   !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||
                   roleTitle.trim().length === 0
                 }
