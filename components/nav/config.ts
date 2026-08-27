@@ -22,6 +22,7 @@ import {
   PushPin,
   Code,
   ChartLineUp,
+  Notebook,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -50,6 +51,7 @@ export const topNav: NavItem[] = [
   { label: "Calendar", href: "/calendar", icon: CalendarBlank },
   { label: "Tasks", href: "/tasks", icon: Kanban },
   { label: "Approvals", href: "/approvals", icon: ShieldCheck },
+  { label: "Notion", href: "/notion", icon: Notebook },
 ];
 
 // ─── Collapsible menus (less important items) ───────────────────────

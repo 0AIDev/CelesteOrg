@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   Hash,
   Plus,
@@ -67,6 +67,9 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   const [bold, setBold] = useState(false);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<DirectMessage | null>(null);
+  const [dmSearch, setDmSearch] = useState("");
+  const [showPinned, setShowPinned] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -356,7 +359,12 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     }
   }
 
-  const currentMessages = viewMode === "channels" ? messages : dmMessages;
+  const filteredDmConversations = useMemo(() => {
+    const needle = dmSearch.trim().toLowerCase();
+    return needle ? dmConversations.filter((conversation) => conversation.peer_name.toLowerCase().includes(needle)) : dmConversations;
+  }, [dmConversations, dmSearch]);
+  const displayedDmMessages = showPinned ? dmMessages.filter((message) => pinnedIds.includes(message.id)) : dmMessages;
+  const currentMessages = viewMode === "channels" ? messages : displayedDmMessages;
   const currentName = viewMode === "channels"
     ? activeChannel?.name ?? ""
     : activeDmPeer?.peer_name ?? "";
@@ -486,11 +494,12 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         {/* DMs view */}
         {viewMode === "dms" && (
           <>
-            <div className="px-4 py-3">
-              <h2 className="text-sm font-semibold text-gray-900">Direct Messages</h2>
+            <div className="space-y-2 px-3 py-3">
+              <div className="flex items-center justify-between px-1"><h2 className="text-sm font-semibold text-gray-900">Direct Messages</h2><button type="button" onClick={() => setShowPinned((value) => !value)} className={cn("text-[11px]", showPinned ? "font-medium text-gray-900" : "text-gray-400 hover:text-gray-700")}>Pinned</button></div>
+              <input value={dmSearch} onChange={(event) => setDmSearch(event.target.value)} placeholder="Search people" className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-300" />
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 no-scrollbar">
-              {dmConversations.length === 0 ? (
+              {filteredDmConversations.length === 0 ? (
                 <div className="px-3 py-6 text-center">
                   <ChatsCircle className="mx-auto h-6 w-6 text-gray-300" />
                   <p className="mt-2 text-[12px] text-gray-400">
@@ -498,7 +507,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                   </p>
                 </div>
               ) : (
-                dmConversations.map((conv) => (
+                filteredDmConversations.map((conv) => (
                   <div
                     key={conv.peer_id}
                     className={cn(
@@ -661,6 +670,8 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                   key={msg.id}
                   msg={msg}
                   isOwn={msg.sender_id === user?.id}
+                  isPinned={pinnedIds.includes(msg.id)}
+                  onPin={viewMode === "dms" ? () => setPinnedIds((current) => current.includes(msg.id) ? current.filter((id) => id !== msg.id) : [...current, msg.id]) : undefined}
                   onReply={viewMode === "dms" ? () => setReplyTo(msg as DirectMessage) : undefined}
                   onDelete={() =>
                     viewMode === "channels"
@@ -710,11 +721,15 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 function MessageBubble({
   msg,
   isOwn,
+  isPinned,
+  onPin,
   onReply,
   onDelete,
 }: {
   msg: ChatMessage | DirectMessage;
   isOwn: boolean;
+  isPinned: boolean;
+  onPin?: () => void;
   onReply?: () => void;
   onDelete: () => void;
 }) {
@@ -751,6 +766,7 @@ function MessageBubble({
         >
           {msg.content}
         </div>
+        {!isAI && onPin && <button type="button" onClick={onPin} className="mr-2 mt-1 text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">{isPinned ? "Unpin" : "Pin"}</button>}
         {!isAI && !isOwn && onReply && (
           <button type="button" onClick={onReply} className="mt-1 text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
             Reply
