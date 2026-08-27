@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReasoningPanel } from "@/components/elements/reasoning-panel";
+import { parseActions, executeActions } from "@/lib/ai/agent-actions";
 
 type Message = {
   role: "user" | "assistant";
@@ -39,6 +41,7 @@ function saveChatHistory(messages: Message[]) {
 
 /** Floating button + chat modal */
 export function CelesteAssistantModal() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
@@ -155,7 +158,7 @@ export function CelesteAssistantModal() {
           className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in-0 zoom-in-95 duration-200"
           style={{ left: modalLeft, top: modalTop }}
         >
-          <Chat onClose={() => setOpen(false)} />
+          <Chat onClose={() => setOpen(false)} router={router} />
         </div>
       )}
     </>
@@ -163,7 +166,7 @@ export function CelesteAssistantModal() {
 }
 
 /** Simple chat component with persistence */
-function Chat({ onClose }: { onClose: () => void }) {
+function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typeof useRouter> }) {
   const [messages, setMessages] = useState<Message[]>(() => loadChatHistory());
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -248,7 +251,8 @@ function Chat({ onClose }: { onClose: () => void }) {
           { role: "assistant", content: "Sorry, I couldn't generate a response. Please try again." },
         ]);
       } else {
-        const cleaned = cleanResponse(assistantContent);
+        const { cleanText, actions } = parseActions(assistantContent);
+        const cleaned = cleanResponse(cleanText);
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -257,6 +261,10 @@ function Chat({ onClose }: { onClose: () => void }) {
           }
           return updated;
         });
+        // Execute any agentic actions
+        if (actions.length > 0) {
+          executeActions(actions, router);
+        }
       }
     } catch {
       setMessages((prev) => [

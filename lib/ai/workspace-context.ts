@@ -19,6 +19,8 @@ export async function getWorkspaceContext(userId: string): Promise<string> {
     { data: tasks },
     { data: issues },
     { data: githubEvents },
+    { data: dms },
+    { data: notifs },
   ] = await Promise.all([
     // Current user profile
     admin.from("profiles").select("full_name, role_title, department_id, location").eq("id", userId).maybeSingle(),
@@ -76,6 +78,20 @@ export async function getWorkspaceContext(userId: string): Promise<string> {
     // Recent GitHub events
     admin.from("github_events")
       .select("event_type, repository, sender, ai_summary, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10),
+
+    // Recent DMs
+    admin.from("direct_messages")
+      .select("content, created_at, sender_id, receiver_id, sender:profiles!sender_id(full_name), receiver:profiles!direct_messages_receiver_id_fkey(full_name)")
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false })
+      .limit(15),
+
+    // Recent notifications
+    admin.from("notifications")
+      .select("title, body, type, read_at")
+      .eq("recipient_id", userId)
       .order("created_at", { ascending: false })
       .limit(10),
   ]);
@@ -189,6 +205,24 @@ export async function getWorkspaceContext(userId: string): Promise<string> {
       })
       .join("\n");
     parts.push(`## Recent GitHub Activity\n${ghList}`);
+  }
+
+  // ── Recent DMs ───────────────────────────────────────────────────
+  if (dms && dms.length > 0) {
+    const dmList = dms.map((m: Record<string, unknown>) => {
+      const sName = (m.sender as Record<string, unknown>)?.full_name as string | null;
+      const rName = (m.receiver as Record<string, unknown>)?.full_name as string | null;
+      const from = m.sender_id === userId ? "You" : (sName ?? "Unknown");
+      const to = m.receiver_id === userId ? "You" : (rName ?? "Unknown");
+      return `- ${from} → ${to}: ${(String(m.content ?? "")).slice(0, 120)}`;
+    }).join("\n");
+    parts.push(`## Recent Direct Messages\n${dmList}`);
+  }
+
+  // ── Notifications ─────────────────────────────────────────────────
+  if (notifs && notifs.length > 0) {
+    const notifList = notifs.map((n) => `- ${n.title}${n.body ? ": " + n.body : ""}${n.read_at ? " (read)" : " (unread)"}`).join("\n");
+    parts.push(`## Notifications\n${notifList}`);
   }
 
   return parts.join("\n\n");
