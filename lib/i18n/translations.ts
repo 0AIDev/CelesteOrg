@@ -211,6 +211,140 @@ export type TranslationKeys = {
   "common.success": string;
   "common.searchEverything": string;
   "common.language": string;
+  "common.pending": string;
+  "common.approved": string;
+  "common.rejected": string;
+  "common.active": string;
+  "common.name": string;
+  "common.status": string;
+  "common.date": string;
+  "common.priority": string;
+  "common.actions": string;
+  "common.description": string;
+  "common.title": string;
+  "common.open": string;
+
+  // Dashboard
+  "dashboard.timeOffWeek": string;
+  "dashboard.openIdeas": string;
+  "dashboard.todaysSchedule": string;
+  "dashboard.activity": string;
+
+  // Chat
+  "chat.channels": string;
+  "chat.directMessages": string;
+  "chat.replyingTo": string;
+
+  // Documents
+  "docs.sendForSignature": string;
+  "docs.documentPreview": string;
+  "docs.signed": string;
+  "docs.electronicallySign": string;
+  "docs.sendReminder": string;
+  "docs.revokeRequest": string;
+  "docs.deleteDocument": string;
+
+  // Calendar
+  "calendar.vacation": string;
+  "calendar.remote": string;
+  "calendar.sick": string;
+  "calendar.meeting": string;
+  "calendar.pending": string;
+  "calendar.start": string;
+  "calendar.end": string;
+  "calendar.prevMonth": string;
+  "calendar.nextMonth": string;
+
+  // Approvals
+  "approvals.pending": string;
+  "approvals.approved": string;
+  "approvals.rejected": string;
+  "approvals.reviewed": string;
+
+  // Org Chart
+  "org.profile": string;
+  "org.about": string;
+  "org.location": string;
+  "org.prevCompanies": string;
+  "org.equityVested": string;
+  "org.manager": string;
+  "org.team": string;
+  "org.saved": string;
+
+  // Role Dashboard
+  "roleDash.directReports": string;
+  "roleDash.approvalsToReview": string;
+  "roleDash.upcomingEvents": string;
+  "roleDash.leadership": string;
+  "roleDash.approve": string;
+  "roleDash.reject": string;
+
+  // Settings
+  "settings.activeSessions": string;
+  "settings.currentDevice": string;
+  "settings.currentDeviceDesc": string;
+  "settings.updated": string;
+  "settings.approvalRequests": string;
+  "settings.approvalRequestsDesc": string;
+  "settings.morningReminder": string;
+  "settings.morningReminderDesc": string;
+  "settings.eodReminder": string;
+  "settings.eodReminderDesc": string;
+  "settings.newIdeas": string;
+  "settings.newIdeasDesc": string;
+
+  // Command Menu
+  "cmd.approveReject": string;
+  "cmd.orgChart": string;
+  "cmd.githubActivity": string;
+  "cmd.notifications": string;
+  "cmd.equity": string;
+  "cmd.devSettings": string;
+
+  // AI Usage
+  "ai.tokens": string;
+  "ai.cost": string;
+  "ai.avgLatency": string;
+  "ai.errors": string;
+  "ai.requests": string;
+  "ai.tokensPerHour": string;
+  "ai.costByProvider": string;
+  "ai.teamConsumption": string;
+  "ai.recentCalls": string;
+
+  // Equity
+  "equity.totalShares": string;
+  "equity.vested": string;
+  "equity.unvested": string;
+  "equity.editGrant": string;
+  "equity.deleteGrant": string;
+
+  // Issues
+  "issues.issue": string;
+  "issues.track": string;
+  "issues.assignee": string;
+
+  // CRM
+  "crm.company": string;
+  "crm.rating": string;
+  "crm.feedback": string;
+  "crm.added": string;
+  "crm.addFeedback": string;
+  "crm.notes": string;
+  "crm.category": string;
+
+  // Recordings
+  "recordings.processing": string;
+  "recordings.deleteRecording": string;
+
+  // Ideas
+  "ideas.addIdea": string;
+
+  // Documents extra
+  "docs.date": string;
+
+  // Morning briefing
+  "briefing.refresh": string;
 };
 
 const en: TranslationKeys = {
@@ -406,6 +540,123 @@ const en: TranslationKeys = {
   "common.success": "Success",
   "common.searchEverything": "Search everything...",
   "common.language": "Language",
+  "common.pending": "Pending",
+  "common.approved": "Approved",
+  "common.rejected": "Rejected",
+  "common.active": "Active",
+  "common.name": "Name",
+  "common.status": "Status",
+  "common.date": "Date",
+  "common.priority": "Priority",
+  "common.actions": "Actions",
+  "common.description": "Description",
+  "common.title": "Title",
+  "common.open": "Open",
+
+  "dashboard.timeOffWeek": "Time off this week",
+  "dashboard.openIdeas": "Open ideas",
+  "dashboard.todaysSchedule": "Today's schedule",
+  "dashboard.activity": "Activity",
+
+  "chat.channels": "Channels",
+  "chat.directMessages": "Direct Messages",
+  "chat.replyingTo": "Replying to",
+
+  "docs.sendForSignature": "Send for signature",
+  "docs.documentPreview": "Document preview",
+  "docs.signed": "Signed",
+  "docs.electronicallySign": "Electronically sign",
+  "docs.sendReminder": "Send a reminder to everyone who hasn't signed yet",
+  "docs.revokeRequest": "Revoke request",
+  "docs.deleteDocument": "Delete document",
+
+  "calendar.vacation": "Vacation",
+  "calendar.remote": "Remote",
+  "calendar.sick": "Sick",
+  "calendar.meeting": "Meeting",
+  "calendar.pending": "Pending",
+  "calendar.start": "Start",
+  "calendar.end": "End",
+  "calendar.prevMonth": "Previous month",
+  "calendar.nextMonth": "Next month",
+
+  "approvals.pending": "Pending",
+  "approvals.approved": "Approved",
+  "approvals.rejected": "Rejected",
+  "approvals.reviewed": "Reviewed",
+
+  "org.profile": "Profile",
+  "org.about": "About",
+  "org.location": "Location",
+  "org.prevCompanies": "Previous companies",
+  "org.equityVested": "Equity vested",
+  "org.manager": "Manager",
+  "org.team": "Team",
+  "org.saved": "Saved",
+
+  "roleDash.directReports": "Direct reports",
+  "roleDash.approvalsToReview": "Approvals to review",
+  "roleDash.upcomingEvents": "Upcoming events",
+  "roleDash.leadership": "Leadership",
+  "roleDash.approve": "Approve",
+  "roleDash.reject": "Reject",
+
+  "settings.activeSessions": "Active sessions",
+  "settings.currentDevice": "This device",
+  "settings.currentDeviceDesc": "Current browser session - active now",
+  "settings.updated": "Updated",
+  "settings.approvalRequests": "Approval requests",
+  "settings.approvalRequestsDesc": "When someone needs your sign-off",
+  "settings.morningReminder": "Morning standup reminders",
+  "settings.morningReminderDesc": "Daily 9am prompt",
+  "settings.eodReminder": "EOD reminders",
+  "settings.eodReminderDesc": "Daily 5pm prompt to wrap up",
+  "settings.newIdeas": "New ideas",
+  "settings.newIdeasDesc": "High-signal ideas from the vault",
+
+  "cmd.approveReject": "Approve / Reject",
+  "cmd.orgChart": "Org Chart",
+  "cmd.githubActivity": "GitHub Activity",
+  "cmd.notifications": "Notifications",
+  "cmd.equity": "Equity & Cap Table",
+  "cmd.devSettings": "Developer Settings",
+
+  "ai.tokens": "Tokens",
+  "ai.cost": "Cost",
+  "ai.avgLatency": "Avg latency",
+  "ai.errors": "Errors",
+  "ai.requests": "Requests",
+  "ai.tokensPerHour": "Tokens per hour - last 24h",
+  "ai.costByProvider": "Cost by provider",
+  "ai.teamConsumption": "Team consumption - today",
+  "ai.recentCalls": "Recent calls",
+
+  "equity.totalShares": "Total shares",
+  "equity.vested": "Vested",
+  "equity.unvested": "Unvested",
+  "equity.editGrant": "Edit grant",
+  "equity.deleteGrant": "Delete grant",
+
+  "issues.issue": "Issue",
+  "issues.track": "Track",
+  "issues.assignee": "Assignee",
+
+  "crm.company": "Company",
+  "crm.rating": "Rating",
+  "crm.feedback": "Feedback",
+  "crm.added": "Added",
+  "crm.addFeedback": "Add feedback",
+  "crm.notes": "Notes",
+  "crm.category": "Category",
+
+  "recordings.processing": "Processing",
+  "recordings.deleteRecording": "Delete recording",
+
+  "ideas.addIdea": "Add idea",
+
+  "docs.date": "Date",
+
+  "briefing.refresh": "Refresh briefing",
 };
 
 const it: TranslationKeys = {
@@ -591,6 +842,107 @@ const it: TranslationKeys = {
   "common.success": "Successo",
   "common.searchEverything": "Cerca tutto...",
   "common.language": "Lingua",
+
+  "common.pending": "In sospeso",
+  "common.approved": "Approvato",
+  "common.rejected": "Rifiutato",
+  "common.active": "Attivo",
+  "common.name": "Nome",
+  "common.status": "Stato",
+  "common.date": "Data",
+  "common.priority": "Priorita",
+  "common.actions": "Azioni",
+  "common.description": "Descrizione",
+  "common.title": "Titolo",
+  "common.open": "Apri",
+  "dashboard.timeOffWeek": "Permessi questa settimana",
+  "dashboard.openIdeas": "Idee aperte",
+  "dashboard.todaysSchedule": "Programma di oggi",
+  "dashboard.activity": "Attivita",
+  "chat.channels": "Canali",
+  "chat.directMessages": "Messaggi diretti",
+  "chat.replyingTo": "Rispondi a",
+  "docs.sendForSignature": "Invia per firma",
+  "docs.documentPreview": "Anteprima documento",
+  "docs.signed": "Firmato",
+  "docs.electronicallySign": "Firma electronicamente",
+  "docs.sendReminder": "Invia un promemoria a chi non ha ancora firmato",
+  "docs.revokeRequest": "Revoca richiesta",
+  "docs.deleteDocument": "Elimina documento",
+  "calendar.vacation": "Vacanza",
+  "calendar.remote": "Remoto",
+  "calendar.sick": "Malattia",
+  "calendar.meeting": "Riunione",
+  "calendar.pending": "In sospeso",
+  "calendar.start": "Inizio",
+  "calendar.end": "Fine",
+  "calendar.prevMonth": "Mese precedente",
+  "calendar.nextMonth": "Mese successivo",
+  "approvals.pending": "In sospeso",
+  "approvals.approved": "Approvato",
+  "approvals.rejected": "Rifiutato",
+  "approvals.reviewed": "Esaminato",
+  "org.profile": "Profilo",
+  "org.about": "Informazioni",
+  "org.location": "Localita",
+  "org.prevCompanies": "Precedenti aziende",
+  "org.equityVested": "Equity maturata",
+  "org.manager": "Responsabile",
+  "org.team": "Team",
+  "org.saved": "Salvato",
+  "roleDash.directReports": "Subordinati diretti",
+  "roleDash.approvalsToReview": "Approvazioni da esaminare",
+  "roleDash.upcomingEvents": "Prossimi eventi",
+  "roleDash.leadership": "Leadership",
+  "roleDash.approve": "Approva",
+  "roleDash.reject": "Rifiuta",
+  "settings.activeSessions": "Sessioni attive",
+  "settings.currentDevice": "Questo dispositivo",
+  "settings.currentDeviceDesc": "Sessione browser attiva",
+  "settings.updated": "Aggiornato",
+  "settings.approvalRequests": "Richieste di approvazione",
+  "settings.approvalRequestsDesc": "Quando qualcuno ha bisogno della tua firma",
+  "settings.morningReminder": "Promemoria standup mattutino",
+  "settings.morningReminderDesc": "Avviso giornaliero alle 9",
+  "settings.eodReminder": "Promemoria fine giornata",
+  "settings.eodReminderDesc": "Avviso giornaliero alle 17",
+  "settings.newIdeas": "Nuove idee",
+  "settings.newIdeasDesc": "Idee ad alto segnale dal vault",
+  "cmd.approveReject": "Approva / Rifiuta",
+  "cmd.orgChart": "Org Chart",
+  "cmd.githubActivity": "Attivita GitHub",
+  "cmd.notifications": "Notifiche",
+  "cmd.equity": "Equity e Cap Table",
+  "cmd.devSettings": "Impostazioni Sviluppatore",
+  "ai.tokens": "Token",
+  "ai.cost": "Costo",
+  "ai.avgLatency": "Latenza media",
+  "ai.errors": "Errori",
+  "ai.requests": "Richieste",
+  "ai.tokensPerHour": "Token per ora - ultime 24h",
+  "ai.costByProvider": "Costo per provider",
+  "ai.teamConsumption": "Consumo team - oggi",
+  "ai.recentCalls": "Chiamate recenti",
+  "equity.totalShares": "Azioni totali",
+  "equity.vested": "Maturate",
+  "equity.unvested": "Non maturate",
+  "equity.editGrant": "Modifica grant",
+  "equity.deleteGrant": "Elimina grant",
+  "issues.issue": "Problema",
+  "issues.track": "Traccia",
+  "issues.assignee": "Assegnatario",
+  "crm.company": "Azienda",
+  "crm.rating": "Valutazione",
+  "crm.feedback": "Feedback",
+  "crm.added": "Aggiunto",
+  "crm.addFeedback": "Aggiungi feedback",
+  "crm.notes": "Note",
+  "crm.category": "Categoria",
+  "recordings.processing": "In elaborazione",
+  "recordings.deleteRecording": "Elimina registrazione",
+  "ideas.addIdea": "Aggiungi idea",
+  "docs.date": "Data",
+  "briefing.refresh": "Aggiorna briefing",
 };
 
 const es: TranslationKeys = {
@@ -776,6 +1128,107 @@ const es: TranslationKeys = {
   "common.success": "Exito",
   "common.searchEverything": "Buscar todo...",
   "common.language": "Idioma",
+
+  "common.pending": "Pendiente",
+  "common.approved": "Aprobado",
+  "common.rejected": "Rechazado",
+  "common.active": "Activo",
+  "common.name": "Nombre",
+  "common.status": "Estado",
+  "common.date": "Fecha",
+  "common.priority": "Prioridad",
+  "common.actions": "Acciones",
+  "common.description": "Descripcion",
+  "common.title": "Titulo",
+  "common.open": "Abrir",
+  "dashboard.timeOffWeek": "Permisos esta semana",
+  "dashboard.openIdeas": "Ideas abiertas",
+  "dashboard.todaysSchedule": "Programa de hoy",
+  "dashboard.activity": "Actividad",
+  "chat.channels": "Canales",
+  "chat.directMessages": "Mensajes directos",
+  "chat.replyingTo": "Respondiendo a",
+  "docs.sendForSignature": "Enviar para firma",
+  "docs.documentPreview": "Vista previa del documento",
+  "docs.signed": "Firmado",
+  "docs.electronicallySign": "Firmar electronicamente",
+  "docs.sendReminder": "Enviar un recordatorio a quien no haya firmado",
+  "docs.revokeRequest": "Revocar solicitud",
+  "docs.deleteDocument": "Eliminar documento",
+  "calendar.vacation": "Vacaciones",
+  "calendar.remote": "Remoto",
+  "calendar.sick": "Enfermedad",
+  "calendar.meeting": "Reunion",
+  "calendar.pending": "Pendiente",
+  "calendar.start": "Inicio",
+  "calendar.end": "Fin",
+  "calendar.prevMonth": "Mes anterior",
+  "calendar.nextMonth": "Mes siguiente",
+  "approvals.pending": "Pendiente",
+  "approvals.approved": "Aprobado",
+  "approvals.rejected": "Rechazado",
+  "approvals.reviewed": "Revisado",
+  "org.profile": "Perfil",
+  "org.about": "Acerca de",
+  "org.location": "Ubicacion",
+  "org.prevCompanies": "Empresas anteriores",
+  "org.equityVested": "Capital adquirido",
+  "org.manager": "Gerente",
+  "org.team": "Equipo",
+  "org.saved": "Guardado",
+  "roleDash.directReports": "Reportes directos",
+  "roleDash.approvalsToReview": "Aprobaciones por revisar",
+  "roleDash.upcomingEvents": "Proximos eventos",
+  "roleDash.leadership": "Liderazgo",
+  "roleDash.approve": "Aprobar",
+  "roleDash.reject": "Rechazar",
+  "settings.activeSessions": "Sesiones activas",
+  "settings.currentDevice": "Este dispositivo",
+  "settings.currentDeviceDesc": "Sesion actual del navegador",
+  "settings.updated": "Actualizado",
+  "settings.approvalRequests": "Solicitudes de aprobacion",
+  "settings.approvalRequestsDesc": "Cuando alguien necesita tu firma",
+  "settings.morningReminder": "Recordatorios de standup matutino",
+  "settings.morningReminderDesc": "Aviso diario a las 9am",
+  "settings.eodReminder": "Recordatorios de fin de dia",
+  "settings.eodReminderDesc": "Aviso diario a las 5pm",
+  "settings.newIdeas": "Nuevas ideas",
+  "settings.newIdeasDesc": "Ideas de alta senal del vault",
+  "cmd.approveReject": "Aprobar / Rechazar",
+  "cmd.orgChart": "Organigrama",
+  "cmd.githubActivity": "Actividad GitHub",
+  "cmd.notifications": "Notificaciones",
+  "cmd.equity": "Capital y Cap Table",
+  "cmd.devSettings": "Configuracion de Desarrollador",
+  "ai.tokens": "Tokens",
+  "ai.cost": "Costo",
+  "ai.avgLatency": "Latencia promedio",
+  "ai.errors": "Errores",
+  "ai.requests": "Solicitudes",
+  "ai.tokensPerHour": "Tokens por hora - ultimas 24h",
+  "ai.costByProvider": "Costo por proveedor",
+  "ai.teamConsumption": "Consumo del equipo - hoy",
+  "ai.recentCalls": "Llamadas recientes",
+  "equity.totalShares": "Acciones totales",
+  "equity.vested": "Adquiridas",
+  "equity.unvested": "No adquiridas",
+  "equity.editGrant": "Editar concesion",
+  "equity.deleteGrant": "Eliminar concesion",
+  "issues.issue": "Problema",
+  "issues.track": "Seguimiento",
+  "issues.assignee": "Asignado",
+  "crm.company": "Empresa",
+  "crm.rating": "Calificacion",
+  "crm.feedback": "Comentarios",
+  "crm.added": "Agregado",
+  "crm.addFeedback": "Agregar comentario",
+  "crm.notes": "Notas",
+  "crm.category": "Categoria",
+  "recordings.processing": "Procesando",
+  "recordings.deleteRecording": "Eliminar grabacion",
+  "ideas.addIdea": "Agregar idea",
+  "docs.date": "Fecha",
+  "briefing.refresh": "Actualizar resumen",
 };
 
 const ja: TranslationKeys = {
@@ -961,6 +1414,107 @@ const ja: TranslationKeys = {
   "common.success": "成功",
   "common.searchEverything": "すべて検索...",
   "common.language": "言語",
+
+  "common.pending": "保留中",
+  "common.approved": "承認済み",
+  "common.rejected": "却下",
+  "common.active": "アクティブ",
+  "common.name": "名前",
+  "common.status": "ステータス",
+  "common.date": "日付",
+  "common.priority": "優先度",
+  "common.actions": "アクション",
+  "common.description": "説明",
+  "common.title": "タイトル",
+  "common.open": "開く",
+  "dashboard.timeOffWeek": "今週の休暇",
+  "dashboard.openIdeas": "未完了のアイデア",
+  "dashboard.todaysSchedule": "今日のスケジュール",
+  "dashboard.activity": "アクティビティ",
+  "chat.channels": "チャンネル",
+  "chat.directMessages": "ダイレクトメッセージ",
+  "chat.replyingTo": "返信先",
+  "docs.sendForSignature": "署名を依頼",
+  "docs.documentPreview": "ドキュメントプレビュー",
+  "docs.signed": "署名済み",
+  "docs.electronicallySign": "電子署名",
+  "docs.sendReminder": "まだ署名していない人にリマインダーを送信",
+  "docs.revokeRequest": "リクエストを取消する",
+  "docs.deleteDocument": "ドキュメントを削除",
+  "calendar.vacation": "休暇",
+  "calendar.remote": "リモート",
+  "calendar.sick": "病欠",
+  "calendar.meeting": "会議",
+  "calendar.pending": "保留中",
+  "calendar.start": "開始",
+  "calendar.end": "終了",
+  "calendar.prevMonth": "前月",
+  "calendar.nextMonth": "翼月",
+  "approvals.pending": "保留中",
+  "approvals.approved": "承認済み",
+  "approvals.rejected": "却下",
+  "approvals.reviewed": "確認済み",
+  "org.profile": "プロフィール",
+  "org.about": "概要",
+  "org.location": "場所",
+  "org.prevCompanies": "過去の会社",
+  "org.equityVested": "丈与済みエクイティ",
+  "org.manager": "上司",
+  "org.team": "チーム",
+  "org.saved": "保存済み",
+  "roleDash.directReports": "直属の部下",
+  "roleDash.approvalsToReview": "確認が必要な承認",
+  "roleDash.upcomingEvents": "今後のエベント",
+  "roleDash.leadership": "リーダーシップ",
+  "roleDash.approve": "承認",
+  "roleDash.reject": "却下",
+  "settings.activeSessions": "アクティブなセッション",
+  "settings.currentDevice": "このデバイス",
+  "settings.currentDeviceDesc": "現在のブラウザセッション",
+  "settings.updated": "更新済み",
+  "settings.approvalRequests": "承認リクエスト",
+  "settings.approvalRequestsDesc": "誰かが署名を必要とする場合",
+  "settings.morningReminder": "朝のスタンドアップリマインダー",
+  "settings.morningReminderDesc": "毎朝9時のプロンプト",
+  "settings.eodReminder": "終了時リマインダー",
+  "settings.eodReminderDesc": "毎日17時のプロンプト",
+  "settings.newIdeas": "新しいアイデア",
+  "settings.newIdeasDesc": "ヴォールトからの高シグナルアイデア",
+  "cmd.approveReject": "承認 / 却下",
+  "cmd.orgChart": "組織図",
+  "cmd.githubActivity": "GitHubアクティビティ",
+  "cmd.notifications": "通知",
+  "cmd.equity": "エクイティとキャップテーブル",
+  "cmd.devSettings": "開発者設定",
+  "ai.tokens": "トーキン",
+  "ai.cost": "コスト",
+  "ai.avgLatency": "平均レテンシ",
+  "ai.errors": "エラー",
+  "ai.requests": "リクエスト",
+  "ai.tokensPerHour": "1時間あたりトーキン - 過去24時間",
+  "ai.costByProvider": "プロバイダ別コスト",
+  "ai.teamConsumption": "チーム消費量 - 今日",
+  "ai.recentCalls": "最近の呼び出し",
+  "equity.totalShares": "総株式数",
+  "equity.vested": "丈上済み",
+  "equity.unvested": "未丈上",
+  "equity.editGrant": "グラントを編集",
+  "equity.deleteGrant": "グラントを削除",
+  "issues.issue": "問題",
+  "issues.track": "トラック",
+  "issues.assignee": "担当者",
+  "crm.company": "会社",
+  "crm.rating": "評価",
+  "crm.feedback": "フィードバック",
+  "crm.added": "追加日",
+  "crm.addFeedback": "フィードバックを追加",
+  "crm.notes": "メモ",
+  "crm.category": "カテゴリ",
+  "recordings.processing": "処理中",
+  "recordings.deleteRecording": "録画を削除",
+  "ideas.addIdea": "アイデアを追加",
+  "docs.date": "日付",
+  "briefing.refresh": "ブリーフィングを更新",
 };
 
 const fr: TranslationKeys = {
@@ -1146,6 +1700,107 @@ const fr: TranslationKeys = {
   "common.success": "Succes",
   "common.searchEverything": "Rechercher...",
   "common.language": "Langue",
+
+  "common.pending": "En attente",
+  "common.approved": "Approuve",
+  "common.rejected": "Rejete",
+  "common.active": "Actif",
+  "common.name": "Nom",
+  "common.status": "Statut",
+  "common.date": "Date",
+  "common.priority": "Priorite",
+  "common.actions": "Actions",
+  "common.description": "Description",
+  "common.title": "Titre",
+  "common.open": "Ouvrir",
+  "dashboard.timeOffWeek": "Conges cette semaine",
+  "dashboard.openIdeas": "Idees ouvertes",
+  "dashboard.todaysSchedule": "Planning du jour",
+  "dashboard.activity": "Activite",
+  "chat.channels": "Canaux",
+  "chat.directMessages": "Messages directs",
+  "chat.replyingTo": "Repondre a",
+  "docs.sendForSignature": "Envoyer pour signature",
+  "docs.documentPreview": "Apercu du document",
+  "docs.signed": "Signe",
+  "docs.electronicallySign": "Signer electroniquement",
+  "docs.sendReminder": "Envoyer un rappel a ceux qui n'ont pas encore signe",
+  "docs.revokeRequest": "Revoquer la demande",
+  "docs.deleteDocument": "Supprimer le document",
+  "calendar.vacation": "Vacances",
+  "calendar.remote": "A distance",
+  "calendar.sick": "Maladie",
+  "calendar.meeting": "Reunion",
+  "calendar.pending": "En attente",
+  "calendar.start": "Debut",
+  "calendar.end": "Fin",
+  "calendar.prevMonth": "Mois precedent",
+  "calendar.nextMonth": "Mois suivant",
+  "approvals.pending": "En attente",
+  "approvals.approved": "Approuve",
+  "approvals.rejected": "Rejete",
+  "approvals.reviewed": "Examine",
+  "org.profile": "Profil",
+  "org.about": "A propos",
+  "org.location": "Localisation",
+  "org.prevCompanies": "Entreprises precedentes",
+  "org.equityVested": "Capital acquis",
+  "org.manager": "Manager",
+  "org.team": "Equipe",
+  "org.saved": "Enregistre",
+  "roleDash.directReports": "Subordonnes directs",
+  "roleDash.approvalsToReview": "Approbations a examiner",
+  "roleDash.upcomingEvents": "Evenements a venir",
+  "roleDash.leadership": "Leadership",
+  "roleDash.approve": "Approuver",
+  "roleDash.reject": "Rejeter",
+  "settings.activeSessions": "Sessions actives",
+  "settings.currentDevice": "Cet appareil",
+  "settings.currentDeviceDesc": "Session navigateur actuelle",
+  "settings.updated": "Mis a jour",
+  "settings.approvalRequests": "Demandes d'approbation",
+  "settings.approvalRequestsDesc": "Quand quelqu'un a besoin de votre signature",
+  "settings.morningReminder": "Rappels standup matinal",
+  "settings.morningReminderDesc": "Invite quotidienne a 9h",
+  "settings.eodReminder": "Rappels de fin de journee",
+  "settings.eodReminderDesc": "Invite quotidienne a 17h",
+  "settings.newIdeas": "Nouvelles idees",
+  "settings.newIdeasDesc": "Idees a fort signal du vault",
+  "cmd.approveReject": "Approuver / Rejeter",
+  "cmd.orgChart": "Organigramme",
+  "cmd.githubActivity": "Activite GitHub",
+  "cmd.notifications": "Notifications",
+  "cmd.equity": "Capital et Cap Table",
+  "cmd.devSettings": "Parametres Developpeur",
+  "ai.tokens": "Tokens",
+  "ai.cost": "Cout",
+  "ai.avgLatency": "Latence moyenne",
+  "ai.errors": "Erreurs",
+  "ai.requests": "Requetes",
+  "ai.tokensPerHour": "Tokens par heure - dernieres 24h",
+  "ai.costByProvider": "Cout par fournisseur",
+  "ai.teamConsumption": "Consommation equipe - aujourd'hui",
+  "ai.recentCalls": "Appels recents",
+  "equity.totalShares": "Actions totales",
+  "equity.vested": "Acquises",
+  "equity.unvested": "Non acquises",
+  "equity.editGrant": "Modifier la concession",
+  "equity.deleteGrant": "Supprimer la concession",
+  "issues.issue": "Probleme",
+  "issues.track": "Suivi",
+  "issues.assignee": "Assigne",
+  "crm.company": "Entreprise",
+  "crm.rating": "Note",
+  "crm.feedback": "Retour",
+  "crm.added": "Ajoute",
+  "crm.addFeedback": "Ajouter un retour",
+  "crm.notes": "Notes",
+  "crm.category": "Categorie",
+  "recordings.processing": "En cours",
+  "recordings.deleteRecording": "Supprimer l'enregistrement",
+  "ideas.addIdea": "Ajouter une idee",
+  "docs.date": "Date",
+  "briefing.refresh": "Actualiser le briefing",
 };
 
 const de: TranslationKeys = {
@@ -1331,6 +1986,107 @@ const de: TranslationKeys = {
   "common.success": "Erfolg",
   "common.searchEverything": "Alles durchsuchen...",
   "common.language": "Sprache",
+
+  "common.pending": "Ausstehend",
+  "common.approved": "Genehmigt",
+  "common.rejected": "Abgelehnt",
+  "common.active": "Aktiv",
+  "common.name": "Name",
+  "common.status": "Status",
+  "common.date": "Datum",
+  "common.priority": "Prioritat",
+  "common.actions": "Aktionen",
+  "common.description": "Beschreibung",
+  "common.title": "Titel",
+  "common.open": "Offnen",
+  "dashboard.timeOffWeek": "Abwesenheiten diese Woche",
+  "dashboard.openIdeas": "Offene Ideen",
+  "dashboard.todaysSchedule": "Tagesplan",
+  "dashboard.activity": "Aktivitat",
+  "chat.channels": "Kanale",
+  "chat.directMessages": "Direktnachrichten",
+  "chat.replyingTo": "Antworten an",
+  "docs.sendForSignature": "Zur Unterschrift senden",
+  "docs.documentPreview": "Dokumentenvorschau",
+  "docs.signed": "Unterschrieben",
+  "docs.electronicallySign": "Elektronisch unterschreiben",
+  "docs.sendReminder": "Allen, die noch nicht unterschrieben haben, eine Erinnerung senden",
+  "docs.revokeRequest": "Anfrage widerrufen",
+  "docs.deleteDocument": "Dokument loschen",
+  "calendar.vacation": "Urlaub",
+  "calendar.remote": "Remote",
+  "calendar.sick": "Krankheit",
+  "calendar.meeting": "Besprechung",
+  "calendar.pending": "Ausstehend",
+  "calendar.start": "Start",
+  "calendar.end": "Ende",
+  "calendar.prevMonth": "Vorheriger Monat",
+  "calendar.nextMonth": "Nachster Monat",
+  "approvals.pending": "Ausstehend",
+  "approvals.approved": "Genehmigt",
+  "approvals.rejected": "Abgelehnt",
+  "approvals.reviewed": "Uberpruft",
+  "org.profile": "Profil",
+  "org.about": "Uber",
+  "org.location": "Standort",
+  "org.prevCompanies": "Vorherige Unternehmen",
+  "org.equityVested": "Erworbene Beteiligung",
+  "org.manager": "Vorgesetzter",
+  "org.team": "Team",
+  "org.saved": "Gespeichert",
+  "roleDash.directReports": "Direkte Berichte",
+  "roleDash.approvalsToReview": "Zu uberprufende Freigaben",
+  "roleDash.upcomingEvents": "Kommende Veranstaltungen",
+  "roleDash.leadership": "Fuhrung",
+  "roleDash.approve": "Genehmigen",
+  "roleDash.reject": "Ablehnen",
+  "settings.activeSessions": "Aktive Sitzungen",
+  "settings.currentDevice": "Dieses Gerat",
+  "settings.currentDeviceDesc": "Aktuelle Browsersitzung",
+  "settings.updated": "Aktualisiert",
+  "settings.approvalRequests": "Freigabeanfragen",
+  "settings.approvalRequestsDesc": "Wenn jemand deine Unterschrift benotigt",
+  "settings.morningReminder": "Morgendliche Standup-Erinnerungen",
+  "settings.morningReminderDesc": "Taglicher Prompt um 9 Uhr",
+  "settings.eodReminder": "Feierabend-Erinnerungen",
+  "settings.eodReminderDesc": "Taglicher Prompt um 17 Uhr",
+  "settings.newIdeas": "Neue Ideen",
+  "settings.newIdeasDesc": "Hochsignale Ideen aus dem Vault",
+  "cmd.approveReject": "Genehmigen / Ablehnen",
+  "cmd.orgChart": "Organigramm",
+  "cmd.githubActivity": "GitHub-Aktivitat",
+  "cmd.notifications": "Benachrichtigungen",
+  "cmd.equity": "Beteiligung & Cap Table",
+  "cmd.devSettings": "Entwicklereinstellungen",
+  "ai.tokens": "Token",
+  "ai.cost": "Kosten",
+  "ai.avgLatency": "Durchschn. Latenz",
+  "ai.errors": "Fehler",
+  "ai.requests": "Anfragen",
+  "ai.tokensPerHour": "Token pro Stunde - letzte 24h",
+  "ai.costByProvider": "Kosten nach Anbieter",
+  "ai.teamConsumption": "Teamverbrauch - heute",
+  "ai.recentCalls": "Letzte Aufrufe",
+  "equity.totalShares": "Gesamtaktien",
+  "equity.vested": "Erworben",
+  "equity.unvested": "Nicht erworben",
+  "equity.editGrant": "Zuteilung bearbeiten",
+  "equity.deleteGrant": "Zuteilung loschen",
+  "issues.issue": "Problem",
+  "issues.track": "Verfolgung",
+  "issues.assignee": "Zugewiesener",
+  "crm.company": "Unternehmen",
+  "crm.rating": "Bewertung",
+  "crm.feedback": "Feedback",
+  "crm.added": "Hinzugefugt",
+  "crm.addFeedback": "Feedback hinzufugen",
+  "crm.notes": "Notizen",
+  "crm.category": "Kategorie",
+  "recordings.processing": "Verarbeitung",
+  "recordings.deleteRecording": "Aufnahme loschen",
+  "ideas.addIdea": "Idee hinzufugen",
+  "docs.date": "Datum",
+  "briefing.refresh": "Briefing aktualisieren",
 };
 
 export const translations: Record<Locale, TranslationKeys> = {
