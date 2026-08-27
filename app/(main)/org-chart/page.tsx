@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { OrgChartLazy } from "@/components/org/OrgChartLazy";
+import OrgChartLazy from "@/components/org/OrgChartLazy";
 import type { OrgNode } from "@/lib/types";
 
 export const metadata = { title: "Org Chart" };
