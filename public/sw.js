@@ -39,6 +39,8 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   // Skip non-GET and API calls — only cache navigations and static assets.
   if (request.method !== "GET") return;
+  // Browser extensions and other non-http schemes are outside this PWA's cache.
+  if (!/^https?:$/.test(new URL(request.url).protocol)) return;
   if (request.url.includes("/api/")) return;
   if (request.url.includes("/rest/v1/")) return;
 
@@ -49,7 +51,9 @@ self.addEventListener("fetch", (event) => {
         try {
           const response = await fetch(request);
           const cache = await caches.open(CACHE_NAME);
-          cache.put(request, response.clone());
+          if (response.ok) {
+            await cache.put(request, response.clone()).catch(() => {});
+          }
           return response;
         } catch {
           const cached = await caches.match(request);
@@ -64,7 +68,9 @@ self.addEventListener("fetch", (event) => {
         const response = await fetch(request);
         if (response.ok) {
           const cache = await caches.open(CACHE_NAME);
-          cache.put(request, response.clone());
+          if (response.ok) {
+            await cache.put(request, response.clone()).catch(() => {});
+          }
         }
         return response;
       } catch {

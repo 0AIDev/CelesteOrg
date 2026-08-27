@@ -130,8 +130,9 @@ function ProfileTab({
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${user.id}/${Date.now()}-avatar.${ext}`;
       const { error: upErr } = await sb.storage.from("avatars").upload(path, file, {
-        upsert: true,
+        upsert: false,
         contentType: file.type,
+        cacheControl: "3600",
       });
       if (upErr) throw new Error(upErr.message);
 
