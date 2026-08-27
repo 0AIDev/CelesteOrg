@@ -354,7 +354,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
         {/* ── Title ─────────────────────────────────────────────────── */}
         <div className="py-4 pb-3 sm:pb-5 w-full">
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
-            {isAccountStep("welcome") && "Welcome to Celeste HQ"}
+            {isAccountStep("welcome") && (inviteDetails?.full_name ? `Welcome to Celeste HQ (${inviteDetails.full_name})` : "Welcome to Celeste HQ")}
             {isAccountStep("account") && "Set your password"}
             {isNormalStep("welcome") && (s1.full_name ? `Welcome to Celeste HQ (${s1.full_name.split(" ")[0]})` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}

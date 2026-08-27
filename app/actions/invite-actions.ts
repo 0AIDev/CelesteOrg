@@ -330,7 +330,7 @@ export async function acceptInvite(
 
     const { data: invite, error: findErr } = await admin
       .from("invites")
-      .select("id, email, department_id, role_title, status, token, invited_by")
+      .select("id, email, full_name, department_id, role_title, status, token, invited_by")
       .eq("token", parsed.token)
       .maybeSingle();
     if (findErr || !invite) return { ok: false, error: "Invite not found." };
@@ -346,6 +346,8 @@ export async function acceptInvite(
     const profileUpdate: Record<string, unknown> = {
       onboarding_completed: false,
     };
+    if (invite.full_name) profileUpdate.full_name = invite.full_name;
+    if (invite.full_name) profileUpdate.full_name = invite.full_name;
     if (invite.department_id) profileUpdate.department_id = invite.department_id;
     if (invite.role_title) profileUpdate.role_title = invite.role_title;
     const { error: deptErr } = await admin
