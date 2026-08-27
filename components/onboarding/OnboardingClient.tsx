@@ -16,7 +16,7 @@ import {
   completeOnboarding,
   getOnboardingData,
 } from "@/app/actions/onboarding-actions";
-import { acceptInvite, getInviteEmail } from "@/app/actions/invite-actions";
+import { acceptInvite, getInviteDetails, type InviteDetails } from "@/app/actions/invite-actions";
 
 // ── Step definitions ──────────────────────────────────────────────────────
 const STEPS_WITH_ACCOUNT = [
@@ -88,17 +88,21 @@ export function OnboardingClient({
 }) {
   const [data, setData] = useState<OnboardingData>(serverData);
   const [inviteEmail, setInviteEmail] = useState<string | null>(serverEmail ?? null);
+  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [d, email] = await Promise.all([
+        const [d, invite] = await Promise.all([
           getOnboardingData(),
-          inviteToken ? getInviteEmail(inviteToken) : Promise.resolve(null),
+          inviteToken ? getInviteDetails(inviteToken) : Promise.resolve(null),
         ]);
         if (cancelled) return;
-        if (email) setInviteEmail(email);
+        if (invite) {
+          setInviteDetails(invite);
+          if (invite.email) setInviteEmail(invite.email);
+        }
         if (d) setData(d);
       } catch {
         // Stay in guest mode — the wizard still works.
@@ -109,11 +113,11 @@ export function OnboardingClient({
     };
   }, [inviteToken]);
 
-  // Remount when the mode changes (guest → logged-in, or email arrives) so
-  // form state re-initializes with the freshly fetched values.
+  // Remount when the mode changes (guest → logged-in, or invite data
+  // arrives) so form state re-initializes with the freshly fetched values.
   const wizardKey = data
     ? `auth-${data.user.id}`
-    : `guest-${inviteEmail ?? "no-email"}`;
+    : `guest-${inviteEmail ?? inviteDetails?.department_id ?? "no-data"}`;
 
   return (
     <OnboardingWizard
@@ -121,11 +125,12 @@ export function OnboardingClient({
       data={data}
       inviteToken={inviteToken}
       inviteEmail={inviteEmail}
+      inviteDetails={inviteDetails}
     />
   );
 }
 
-function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null }) {
+function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null; inviteDetails?: InviteDetails | null }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const needsAccount = !data;
@@ -152,9 +157,8 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
     bio: (data?.profile?.bio as string) ?? "",
     phone: "",
   });
-  const [departmentId, setDepartmentId] = useState((data?.profile?.department_id as string) ?? "");
-  const [roleTitle, setRoleTitle] = useState((data?.profile?.role_title as string) ?? "");
-  const [reportsTo, setReportsTo] = useState("");
+  const [departmentId, setDepartmentId] = useState((data?.profile?.department_id as string) ?? inviteDetails?.department_id ?? "");
+  const [roleTitle, setRoleTitle] = useState((data?.profile?.role_title as string) ?? inviteDetails?.role_title ?? "");
   const [s3, setS3] = useState({
     primary_language: (data?.techSpecs?.primary_language as string) ?? "",
     frameworks: (data?.techSpecs?.frameworks as string[]) ?? [],
@@ -350,7 +354,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
             {isAccountStep("account") && "Set your password"}
             {isNormalStep("welcome") && (s1.full_name ? `${s1.full_name.split(" ")[0]}, welcome to Celeste HQ` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}
-            {isNormalStep("role") && "What's your role?"}
+            {isNormalStep("role") && (needsAccount && inviteDetails ? "Your role" : "What's your role?")}
             {isNormalStep("team") && "Your team awaits"}
             {isNormalStep("goals") && "Set your goals"}
             {isNormalStep("culture") && "How we work"}
@@ -441,24 +445,42 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
           {/* ═══════════ Role — card grid ═══════════ */}
           {isNormalStep("role") && (
             <div className="space-y-4">
-              <Field label="Department" required>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {(data?.departments ?? []).map((d) => (
-                    <button key={d.id} type="button" onClick={() => setDepartmentId(d.id)}
-                      className={`flex h-18 sm:h-[5.5rem] items-center gap-3 rounded-2xl border px-4 text-left transition-all ${departmentId === d.id ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-900"}`}>
-                      <span className="text-gray-400 text-lg">◈</span>
-                      <span className="text-sm font-medium text-gray-900">{d.name}</span>
-                    </button>
-                  ))}
+              {needsAccount && inviteDetails ? (
+                // Invitee — department and role were already assigned by the
+                // CEO at invite time, so just show them (nothing to pick).
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">Department</p>
+                    <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">
+                      {inviteDetails.department_name ?? "Assigned by your invite"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-[rgba(255,255,255,0.08)]">
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">Role</p>
+                    <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">
+                      {inviteDetails.role_title ?? "Teammate"}
+                    </p>
+                  </div>
                 </div>
-                {!departmentId && <p className="mt-1.5 text-[11px] text-red-500">Select a department to continue</p>}
-              </Field>
-              <Field label="Role title">
-                <input className="input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Software Engineer" />
-              </Field>
-              <Field label="Reports to">
-                <input className="input" value={reportsTo} onChange={(e) => setReportsTo(e.target.value)} placeholder="Manager's name" />
-              </Field>
+              ) : (
+                <>
+                  <Field label="Department" required>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {(data?.departments ?? []).map((d) => (
+                        <button key={d.id} type="button" onClick={() => setDepartmentId(d.id)}
+                          className={`flex h-18 sm:h-[5.5rem] items-center gap-3 rounded-2xl border px-4 text-left transition-all ${departmentId === d.id ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-900"}`}>
+                          <span className="text-gray-400 text-lg">◈</span>
+                          <span className="text-sm font-medium text-gray-900">{d.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {!departmentId && <p className="mt-1.5 text-[11px] text-red-500">Select a department to continue</p>}
+                  </Field>
+                  <Field label="Role title">
+                    <input className="input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Software Engineer" />
+                  </Field>
+                </>
+              )}
             </div>
           )}
 

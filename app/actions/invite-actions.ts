@@ -403,17 +403,32 @@ export async function acceptInvite(
   }
 }
 
-// Public lookup: returns the invited email for a token. Used by the
-// onboarding page to pre-fill the read-only email field.
-export async function getInviteEmail(token: string): Promise<string | null> {
+export type InviteDetails = {
+  email: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  role_title: string | null;
+};
+
+// Public lookup: returns the invite details (email, assigned department and
+// role) for a token. Used by the onboarding page to pre-fill the read-only
+// email field and the already-assigned department/role.
+export async function getInviteDetails(token: string): Promise<InviteDetails | null> {
   try {
     const admin = createAdminClient();
     const { data } = await admin
       .from("invites")
-      .select("email")
+      .select("email, department_id, role_title, departments(name)")
       .eq("token", token)
       .maybeSingle();
-    return data?.email ?? null;
+    if (!data) return null;
+    return {
+      email: data.email ?? null,
+      department_id: data.department_id ?? null,
+      role_title: data.role_title ?? null,
+      department_name:
+        (data.departments as unknown as { name?: string } | null)?.name ?? null,
+    };
   } catch {
     return null;
   }
