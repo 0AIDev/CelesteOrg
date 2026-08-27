@@ -369,8 +369,8 @@ function MessageBubble({ message }: { message: Message }) {
         className={cn(
           "max-w-[80%] whitespace-pre-wrap text-[13px] leading-relaxed",
           isUser
-            ? "rounded-2xl rounded-br-md bg-gray-100 px-3.5 py-2.5 text-gray-800"
-            : "text-gray-700",
+            ? "rounded-2xl rounded-br-md bg-gray-100 px-3.5 py-2.5 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
+            : "text-gray-700 dark:text-gray-300",
         )}
       >
         {content}

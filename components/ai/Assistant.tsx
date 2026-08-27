@@ -190,8 +190,8 @@ function MessageBubble({ message }: { message: Message }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-gray-900 px-3.5 py-2.5">
-          <p className="text-[13px] leading-relaxed text-white whitespace-pre-wrap">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-gray-100 px-3.5 py-2.5 dark:bg-gray-800">
+          <p className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap dark:text-gray-100">
             {message.content}
           </p>
         </div>
@@ -201,8 +201,8 @@ function MessageBubble({ message }: { message: Message }) {
 
   return (
     <div className="group flex justify-start">
-      <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-gray-100 bg-gray-50 px-3.5 py-2.5">
-        <div className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap">
+      <div className="max-w-[85%]">
+        <div className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap dark:text-gray-300">
           {message.content}
         </div>
         <button

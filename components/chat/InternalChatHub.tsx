@@ -735,8 +735,8 @@ function MessageBubble({
             isAI
               ? "border border-gray-100 bg-gray-50 text-gray-800"
               : isOwn
-                ? "rounded-br-md bg-gray-900 text-white"
-                : "rounded-bl-md border border-gray-100 bg-white text-gray-800 shadow-sm",
+                ? "rounded-br-md bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
+                : "rounded-bl-md bg-transparent text-gray-700 dark:text-gray-300",
           )}
         >
           {msg.content}
