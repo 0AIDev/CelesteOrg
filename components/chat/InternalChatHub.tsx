@@ -64,6 +64,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 
   // Shared
   const [input, setInput] = useState("");
+  const [bold, setBold] = useState(false);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<DirectMessage | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
@@ -682,13 +683,13 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "b" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); const inputEl = e.currentTarget; const start = inputEl.selectionStart ?? input.length; const end = inputEl.selectionEnd ?? input.length; setInput(`${input.slice(0, start)}**${input.slice(start, end)}**${input.slice(end)}`); return; } if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setInput((value) => `${value}\n`); return; } if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                onKeyDown={(e) => { if (e.key === "b" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setBold((value) => !value); return; } if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setInput((value) => `${value}\n`); return; } if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder={
                   viewMode === "channels"
                     ? `Message #${currentName} — type @celeste for AI`
                     : `Message ${currentName}...`
                 }
-                className="flex-1 bg-transparent px-2 py-1.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+                className={cn("flex-1 bg-transparent px-2 py-1.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100", bold && "font-bold")}
                 disabled={sending}
               />
               <button
