@@ -256,9 +256,7 @@ async function executeTool(
 // ── Main entry point ──────────────────────────────────────────────────────
 export async function askAi(question: string): Promise<Answer> {
   const q = (question ?? "").trim();
-  if (q.length < 3) return { ok: false, error: "Ask me something…" };
-
-  const userId = await getCurrentUserId();
+  if (q.length < 3) return { ok: false, error: "Ask me something…" };    const userId = await getCurrentUserId();
   if (!userId) return { ok: false, error: "Not authenticated" };
 
   // Fast path: deterministic answers (no API key needed)
@@ -393,7 +391,7 @@ export async function askAi(question: string): Promise<Answer> {
       // If no tool calls, return the text answer directly
       if (!(msg?.tool_calls?.length)) {
         const answer = msg?.content?.trim();
-        if (answer) return { ok: true, answer };
+        if (answer) return { ok: true, answer: limitAnswer(answer) };
       }
 
       // Execute tool calls
@@ -430,11 +428,11 @@ export async function askAi(question: string): Promise<Answer> {
       if (secondRes.ok) {
         const secondData = (await secondRes.json()) as { choices?: { message?: { content?: string } }[] };
         const answer = secondData.choices?.[0]?.message?.content?.trim();
-        if (answer) return { ok: true, answer, actions };
+        if (answer) return { ok: true, answer: limitAnswer(answer), actions };
       }
 
       // Fallback: return raw tool results
-      return { ok: true, answer: actions.join("\n"), actions };
+      return { ok: true, answer: limitAnswer(actions.join("\n")), actions };
     } catch (err) {
       // Provider failed (rate limit, auth, etc.) — try next one
       console.warn(`AI provider ${provider.name} failed:`, err instanceof Error ? err.message : err);
@@ -444,7 +442,12 @@ export async function askAi(question: string): Promise<Answer> {
 
   // All providers failed — deterministic fallback
   // Deterministic fallback (no API key)
-  return { ok: true, answer: deterministicAnswer(q, context) };
+  return { ok: true, answer: limitAnswer(deterministicAnswer(q, context)) };
+}
+
+function limitAnswer(answer: string): string {
+  const firstLine = answer.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? answer.trim();
+  return firstLine.length > 180 ? `${firstLine.slice(0, 177).trimEnd()}…` : firstLine;
 }
 
 function deterministicAnswer(q: string, context: string): string {

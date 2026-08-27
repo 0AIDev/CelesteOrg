@@ -273,7 +273,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   const handleSendDm = useCallback(async () => {
     if (!activeDmPeer || !input.trim() || sending) return;
     setSending(true);
-    const messageContent = replyTo ? `> ${replyTo.content.split("\n")[0]}\n\n${input.trim()}` : input.trim();
+    const messageContent = replyTo ? input.trim() : input.trim();
     const res = await sendDm(activeDmPeer.peer_id, messageContent);
     setInput("");
     setReplyTo(null);
