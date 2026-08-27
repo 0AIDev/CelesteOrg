@@ -300,7 +300,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
 
   const idx = (id: string) => STEP_META.findIndex((s) => s.id === id);
   const isAccountStep = (id: string) => needsAccount && step === idx(id);
-  const isNormalStep = (id: string) => step === idx(id) && !needsAccount;
+  const isCurrentStep = (id: string) => step === idx(id);
 
   const stepActions: Record<string, () => void> = {
     welcome: goNext, account: saveAccount, identity: saveProfile, role: saveRole,
@@ -362,16 +362,16 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
             {isAccountStep("welcome") && (inviteDetails?.full_name ? t("onboarding.welcomeWithName", { name: inviteDetails.full_name }) : t("onboarding.welcome"))}
             {isAccountStep("account") && t("onboarding.setPassword")}
-            {!needsAccount && (s1.full_name ? t("onboarding.welcomeWithName", { name: s1.full_name.split(" ")[0] }) : t("onboarding.welcome"))}
-            {isNormalStep("identity") && t("onboarding.tellUs")}
-            {isNormalStep("role") && (needsAccount && inviteDetails ? t("onboarding.yourRole") : t("onboarding.whatsYourRole"))}
-            {isNormalStep("team") && t("onboarding.teamAwaits")}
-            {isNormalStep("goals") && t("onboarding.setGoals")}
-            {isNormalStep("culture") && t("onboarding.howWeWork")}
-            {isNormalStep("tools") && t("onboarding.toolsAccess")}
-            {isNormalStep("tech") && t("onboarding.yourTechStack")}
-            {isNormalStep("preferences") && t("onboarding.workStyle")}
-            {isNormalStep("nda") && t("onboarding.oneLastThing")}
+            {isCurrentStep("welcome") && !needsAccount && (s1.full_name ? t("onboarding.welcomeWithName", { name: s1.full_name.split(" ")[0] }) : t("onboarding.welcome"))}
+            {isCurrentStep("identity") && t("onboarding.tellUs")}
+            {isCurrentStep("role") && (needsAccount && inviteDetails ? t("onboarding.yourRole") : t("onboarding.whatsYourRole"))}
+            {isCurrentStep("team") && t("onboarding.teamAwaits")}
+            {isCurrentStep("goals") && t("onboarding.setGoals")}
+            {isCurrentStep("culture") && t("onboarding.howWeWork")}
+            {isCurrentStep("tools") && t("onboarding.toolsAccess")}
+            {isCurrentStep("tech") && t("onboarding.yourTechStack")}
+            {isCurrentStep("preferences") && t("onboarding.workStyle")}
+            {isCurrentStep("nda") && t("onboarding.oneLastThing")}
           </h5>
         </div>
 
@@ -379,7 +379,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
         <div className="flex min-h-[280px] flex-col justify-center">
 
           {/* ═══════════ Welcome ═══════════ */}
-          {(isAccountStep("welcome") || isNormalStep("welcome")) && (
+          {(isAccountStep("welcome") || isCurrentStep("welcome")) && (
             <div className="space-y-3">
               {[
                 { icon: <TreeStructure weight="bold" className="h-4 w-4" />, title: t("sidebar.orgChart"), desc: t("onboarding.orgChartDesc") },
@@ -433,7 +433,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Profile ═══════════ */}
-          {isNormalStep("identity") && (
+          {isCurrentStep("identity") && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <button type="button" onClick={() => avatarInputRef.current?.click()} className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-400 transition-colors hover:border-gray-900 dark:border-[rgba(255,255,255,0.12)] dark:bg-[#161616] dark:hover:border-white">
@@ -463,7 +463,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Role — card grid ═══════════ */}
-          {isNormalStep("role") && (
+          {isCurrentStep("role") && (
             <div className="space-y-4">
               {needsAccount && inviteDetails ? (
                 // Invitee — department and role were already assigned by the
@@ -505,7 +505,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Team ═══════════ */}
-          {isNormalStep("team") && (
+          {isCurrentStep("team") && (
             <div className="space-y-4">
               {[
                 { icon: <TreeStructure weight="bold" className="h-4 w-4" />, text: t("onboarding.team1") },
@@ -522,7 +522,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Goals ═══════════ */}
-          {isNormalStep("goals") && (
+          {isCurrentStep("goals") && (
             <div className="space-y-4">
               <Field label={t("onboarding.weekGoals")} required>
                 <textarea className="input resize-none" rows={2} value={goals.first_week} onChange={(e) => setGoals({ ...goals, first_week: e.target.value })} placeholder="e.g. Set up dev environment, meet the team" />
@@ -546,7 +546,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Culture ═══════════ */}
-          {isNormalStep("culture") && (
+          {isCurrentStep("culture") && (
             <div className="space-y-4">
               {[
                 { icon: <Sparkle weight="bold" className="h-4 w-4" />, text: t("onboarding.culture1") },
@@ -564,7 +564,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Tools ═══════════ */}
-          {isNormalStep("tools") && (
+          {isCurrentStep("tools") && (
             <div className="space-y-4">
               <Field label={t("onboarding.toolsAccess")} required>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -582,7 +582,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Tech ═══════════ */}
-          {isNormalStep("tech") && (
+          {isCurrentStep("tech") && (
             <div className="space-y-4">
               <Field label={t("onboarding.primaryLanguage")}>
                 <div className="flex flex-wrap gap-2">
@@ -618,7 +618,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ Preferences ═══════════ */}
-          {isNormalStep("preferences") && (
+          {isCurrentStep("preferences") && (
             <div className="space-y-4">
               <Field label={t("onboarding.coreFocusHours")}>
                 <input className="input" value={s4.focus_hours} onChange={(e) => setS4({ ...s4, focus_hours: e.target.value })} placeholder="e.g. 09:00-12:00, 14:00-17:00" />
@@ -647,7 +647,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           )}
 
           {/* ═══════════ NDA ═══════════ */}
-          {isNormalStep("nda") && (
+          {isCurrentStep("nda") && (
             <div className="space-y-4">
               {s5.signed ? (
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center">
