@@ -65,7 +65,7 @@ export default function RootLayout({
           (function() {
             try {
               var t = localStorage.getItem('celeste-theme');
-              var isDark = t === 'dark';
+              var isDark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
               if (isDark) {
                 document.documentElement.classList.add('dark');
                 document.documentElement.style.backgroundColor = '#0F0F0F';
