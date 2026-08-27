@@ -136,7 +136,7 @@ export default async function InvitePage({
 
         {/* CTA */}
         <Link
-          href={`/sign-in?next=${encodeURIComponent(`/invite/complete?invite=${token}`)}`}
+          href={`/onboarding?token=${token}`}
           className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
         >
           Complete the Onboarding

@@ -15,6 +15,7 @@ import {
   signNDA,
   completeOnboarding,
 } from "@/app/actions/onboarding-actions";
+import { acceptInvite } from "@/app/actions/invite-actions";
 
 // ── Step definitions ──────────────────────────────────────────────────────
 const STEPS_WITH_ACCOUNT = [
@@ -72,7 +73,7 @@ type OnboardingData = {
   user: { id: string; email: string };
 } | null;
 
-export function OnboardingClient({ data }: { data: OnboardingData }) {
+export function OnboardingClient({ data, inviteToken }: { data: OnboardingData; inviteToken?: string | null }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const needsAccount = !data;
@@ -184,13 +185,17 @@ export function OnboardingClient({ data }: { data: OnboardingData }) {
   async function saveNDA() {
     if (s5.signed) {
       const cRes = await completeOnboarding();
-      if (cRes.ok) router.push("/dashboard");
+      if (cRes.ok) {
+        if (inviteToken) await acceptInvite({ token: inviteToken }).catch(() => {});
+        router.push("/dashboard");
+      }
       return;
     }
     setBusy(true); setErr("");
     const res = await signNDA({ typed_name: s5.typed_name, agreed: s5.agreed });
     if (!res.ok) { setBusy(false); setErr(res.error); return; }
     const cRes = await completeOnboarding();
+    if (cRes.ok && inviteToken) await acceptInvite({ token: inviteToken }).catch(() => {});
     setBusy(false);
     if (!cRes.ok) { setErr(cRes.error); return; }
     router.push("/dashboard");
