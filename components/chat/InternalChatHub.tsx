@@ -7,6 +7,7 @@ import {
   X,
   Trash,
   PaperPlaneTilt,
+  ArrowUp,
   List,
   ChatsCircle,
   Circle,
@@ -64,6 +65,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   // Shared
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<DirectMessage | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -255,6 +257,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
     setSending(true);
     const res = await sendMessage(activeChannel.id, input.trim());
     setInput("");
+    setReplyTo(null);
     setSending(false);
     if (res.ok && res.message) {
       setMessages((prev) => {
@@ -269,8 +272,10 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
   const handleSendDm = useCallback(async () => {
     if (!activeDmPeer || !input.trim() || sending) return;
     setSending(true);
-    const res = await sendDm(activeDmPeer.peer_id, input.trim());
+    const messageContent = replyTo ? `> ${replyTo.content.split("\n")[0]}\n\n${input.trim()}` : input.trim();
+    const res = await sendDm(activeDmPeer.peer_id, messageContent);
     setInput("");
+    setReplyTo(null);
     setSending(false);
     if (res.ok && res.message) {
       setDmMessages((prev) => {
@@ -292,7 +297,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
       });
     }
     inputRef.current?.focus();
-  }, [activeDmPeer, input, sending]);
+  }, [activeDmPeer, input, replyTo, sending]);
 
   const handleSend = viewMode === "channels" ? handleSendChannel : handleSendDm;
 
@@ -655,6 +660,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                   key={msg.id}
                   msg={msg}
                   isOwn={msg.sender_id === user?.id}
+                  onReply={viewMode === "dms" ? () => setReplyTo(msg as DirectMessage) : undefined}
                   onDelete={() =>
                     viewMode === "channels"
                       ? handleDeleteMsg(msg.id)
@@ -670,12 +676,13 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         {/* Input */}
         {hasActive && (
           <div className="border-t border-gray-100 px-4 py-3">
+            {viewMode === "dms" && replyTo && <div className="mb-2 flex items-center justify-between rounded-lg bg-gray-100 px-3 py-1.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-300"><span className="truncate">Replying to: {replyTo.content}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="h-3.5 w-3.5" /></button></div>}
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 transition-colors focus-within:border-gray-300 focus-within:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus-within:bg-gray-800">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                onKeyDown={(e) => { if (e.key === "b" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); const inputEl = e.currentTarget; const start = inputEl.selectionStart ?? input.length; const end = inputEl.selectionEnd ?? input.length; setInput(`${input.slice(0, start)}**${input.slice(start, end)}**${input.slice(end)}`); return; } if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setInput((value) => `${value}\n`); return; } if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder={
                   viewMode === "channels"
                     ? `Message #${currentName} — type @celeste for AI`
@@ -687,9 +694,9 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || sending}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 disabled:opacity-30 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-30 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
               >
-                <PaperPlaneTilt className="h-4 w-4" />
+                <ArrowUp className="h-4 w-4" weight="bold" />
               </button>
             </div>
           </div>
@@ -702,10 +709,12 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
 function MessageBubble({
   msg,
   isOwn,
+  onReply,
   onDelete,
 }: {
   msg: ChatMessage | DirectMessage;
   isOwn: boolean;
+  onReply?: () => void;
   onDelete: () => void;
 }) {
   const isAI = "content" in msg && msg.content.startsWith("🤖 **Celeste AI**");
@@ -741,6 +750,11 @@ function MessageBubble({
         >
           {msg.content}
         </div>
+        {!isAI && !isOwn && onReply && (
+          <button type="button" onClick={onReply} className="mt-1 text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            Reply
+          </button>
+        )}
         {isOwn && (
           <button
             onClick={onDelete}
