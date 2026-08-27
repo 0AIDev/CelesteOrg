@@ -670,7 +670,7 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
         {/* Input */}
         {hasActive && (
           <div className="border-t border-gray-100 px-4 py-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 transition-colors focus-within:border-gray-300 focus-within:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus-within:bg-gray-800">
               <input
                 ref={inputRef}
                 value={input}
@@ -681,13 +681,13 @@ export function InternalChatHub({ initialDmPeerId }: { initialDmPeerId?: string 
                     ? `Message #${currentName} — type @celeste for AI`
                     : `Message ${currentName}...`
                 }
-                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
+                className="flex-1 bg-transparent px-2 py-1.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
                 disabled={sending}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || sending}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-30"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 disabled:opacity-30 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               >
                 <PaperPlaneTilt className="h-4 w-4" />
               </button>

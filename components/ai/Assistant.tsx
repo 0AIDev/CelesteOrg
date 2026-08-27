@@ -159,7 +159,7 @@ export function Assistant() {
           {isStreaming ? (
             <button
               onClick={() => abortRef.current?.abort()}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-700"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
             </button>
@@ -167,7 +167,7 @@ export function Assistant() {
             <button
               onClick={() => send(input)}
               disabled={!input.trim()}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
             >
               <ArrowUp className="h-3.5 w-3.5" />
             </button>
