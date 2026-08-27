@@ -190,18 +190,38 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
 
 
   // ── Save handlers ─────────────────────────────────────────────────────
+  // Guests (invite flow) are NOT logged in during the steps, so nothing is
+  // saved server-side until the account is created on the final step. All
+  // wizard data lives in component state and is persisted at the end.
   async function saveAccount() {
     if (!s0.email.trim() || !s0.password || !s0.full_name.trim()) return;
     if (s0.password !== s0.confirmPassword) { setErr("Passwords don't match"); return; }
     setBusy(true); setErr("");
+
+    // 1) Create the account (now the user is authenticated)
     const res = await createAccount({ email: s0.email, password: s0.password, full_name: s0.full_name });
+    if (!res.ok) { setBusy(false); setErr(res.error); return; }
+
+    // 2) Persist everything collected during the wizard
+    await saveOnboardingStep1({ full_name: s0.full_name, location: s1.location, bio: s1.bio, previous_companies: [] }).catch(() => {});
+    if (departmentId) await saveOnboardingStep2({ department_id: departmentId }).catch(() => {});
+    await saveOnboardingStep3({ primary_language: s3.primary_language, frameworks: s3.frameworks, local_model: s3.local_model, hardware_notes: "" }).catch(() => {});
+    await saveOnboardingStep4({ focus_hours: s4.focus_hours, communication_channel: s4.communication_channel, notifications_enabled: s4.notifications_enabled, availability_status: "available" }).catch(() => {});
+    await signNDA({ typed_name: s5.typed_name, agreed: s5.agreed }).catch(() => {});
+
+    // 3) Accept the invite (assigns department + role + org-chart position)
+    if (inviteToken) await acceptInvite({ token: inviteToken }).catch(() => {});
+
+    // 4) Mark onboarding complete (skips role creation since acceptInvite
+    //    already created one)
+    const cRes = await completeOnboarding();
     setBusy(false);
-    if (!res.ok) { setErr(res.error); return; }
-    setS1((prev) => ({ ...prev, full_name: s0.full_name }));
-    goNext();
+    if (!cRes.ok) { setErr(cRes.error); return; }
+    router.push("/dashboard");
   }
 
   async function saveProfile() {
+    if (needsAccount) { goNext(); return; }
     setBusy(true); setErr("");
     const res = await saveOnboardingStep1({ full_name: s1.full_name, location: s1.location, bio: s1.bio, previous_companies: [] });
     setBusy(false);
@@ -210,6 +230,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
   }
 
   async function saveRole() {
+    if (needsAccount) { goNext(); return; }
     setBusy(true); setErr("");
     if (departmentId) {
       const res = await saveOnboardingStep2({ department_id: departmentId });
@@ -220,6 +241,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
   }
 
   async function saveTech() {
+    if (needsAccount) { goNext(); return; }
     setBusy(true); setErr("");
     const res = await saveOnboardingStep3({ primary_language: s3.primary_language, frameworks: s3.frameworks, local_model: s3.local_model, hardware_notes: "" });
     setBusy(false);
@@ -228,6 +250,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
   }
 
   async function savePreferences() {
+    if (needsAccount) { goNext(); return; }
     setBusy(true); setErr("");
     const res = await saveOnboardingStep4({ focus_hours: s4.focus_hours, communication_channel: s4.communication_channel, notifications_enabled: s4.notifications_enabled, availability_status: "available" });
     setBusy(false);
@@ -236,6 +259,8 @@ function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: Onboarding
   }
 
   async function saveNDA() {
+    // Guest: no server save yet — advance to the account step.
+    if (needsAccount) { goNext(); return; }
     if (s5.signed) {
       const cRes = await completeOnboarding();
       if (cRes.ok) {
