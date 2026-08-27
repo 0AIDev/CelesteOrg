@@ -297,7 +297,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
 
   const idx = (id: string) => STEP_META.findIndex((s) => s.id === id);
   const isAccountStep = (id: string) => needsAccount && step === idx(id);
-  const isNormalStep = (id: string) => step === idx(id);
+  const isNormalStep = (id: string) => step === idx(id) && !needsAccount;
 
   const stepActions: Record<string, () => void> = {
     welcome: goNext, account: saveAccount, identity: saveProfile, role: saveRole,
@@ -356,7 +356,7 @@ function OnboardingWizard({ data, inviteToken, inviteEmail, inviteDetails }: { d
           <h5 className="text-xl md:text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
             {isAccountStep("welcome") && (inviteDetails?.full_name ? `Welcome to Celeste HQ (${inviteDetails.full_name})` : "Welcome to Celeste HQ")}
             {isAccountStep("account") && "Set your password"}
-            {isNormalStep("welcome") && (s1.full_name ? `Welcome to Celeste HQ (${s1.full_name.split(" ")[0]})` : "Welcome to Celeste HQ")}
+            {!needsAccount && (s1.full_name ? `Welcome to Celeste HQ (${s1.full_name.split(" ")[0]})` : "Welcome to Celeste HQ")}
             {isNormalStep("identity") && "Tell us about yourself"}
             {isNormalStep("role") && (needsAccount && inviteDetails ? "Your role" : "What's your role?")}
             {isNormalStep("team") && "Your team awaits"}
