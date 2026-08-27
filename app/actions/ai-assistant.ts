@@ -527,14 +527,14 @@ export async function askAi(question: string): Promise<Answer> {
             {
               role: "system",
               content: [
-                "You are Celeste, the AI assistant for Celeste HQ. You have FULL ACCESS to all workspace data:",
-                "calendar, approvals, documents, team members, chat messages, DMs, notifications, ideas, issues, equity.",
-                "You can ANSWER any question about the workspace using the context and tools provided.",
-                "You can EXECUTE actions by calling tools when the user asks you to do something.",
-                "Available actions: create calendar events, submit ideas, invite teammates, approve requests, read chat/DMs.",
-                "Always be concise and direct. Use the user's language. Max 4 sentences for answers.",
-                "When you execute an action, confirm what you did briefly.",
-                "If asked about messages, conversations, or what someone said, use the get_chat_messages or get_dm_messages tools.",
+                "You are Celeste, the AI assistant for Celeste HQ.",
+                "The workspace context below contains ALL data: calendar, approvals, documents, team, chat messages, DMs, notifications, ideas, issues.",
+                "YOU ALREADY HAVE ALL THIS DATA. Answer directly from the context. Do NOT say you don't have access.",
+                "If the user asks about messages/DMs/chat, the data is in 'Recent direct messages' in the context.",
+                "If the user asks about notifications, the data is in 'Notifications' in the context.",
+                "If you need MORE data than what's in context, call the tools.",
+                "Be concise, direct, and use the user's language. Max 4 sentences.",
+                "If the user asks you to do something (create event, invite, approve), call the appropriate tool.",
               ].join(" "),
             },
             { role: "user", content: `Workspace context:\n${context}\n\nUser: ${q}` },
@@ -542,7 +542,7 @@ export async function askAi(question: string): Promise<Answer> {
           tools: TOOLS,
           tool_choice: "auto",
           temperature: 0.3,
-          max_tokens: 400,
+          max_tokens: 800,
         }),
         signal: AbortSignal.timeout(20_000),
       });
@@ -620,8 +620,7 @@ export async function askAi(question: string): Promise<Answer> {
 }
 
 function limitAnswer(answer: string): string {
-  const firstLine = answer.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? answer.trim();
-  return firstLine.length > 180 ? `${firstLine.slice(0, 177).trimEnd()}…` : firstLine;
+  return answer.trim();
 }
 
 function deterministicAnswer(q: string, context: string): string {
@@ -630,7 +629,11 @@ function deterministicAnswer(q: string, context: string): string {
   const calendar = context.split("Today's calendar:\n")[1]?.split("\n\nPending")[0] ?? "";
   const approvals = context.split("Pending approvals:\n")[1]?.split("\n\nRecent")[0] ?? "";
   const documents = context.split("Recent documents:\n")[1]?.split("\n\nTeam")[0] ?? "";
-  const team = context.split("Team:\n")[1] ?? "";
+  const team = context.split("Team:\n")[1]?.split("\n\nRecent direct")[0] ?? "";
+  const dms = context.split("Recent direct messages:\n")[1]?.split("\n\nNotifications")[0] ?? "";
+  const notifications = context.split("Notifications:\n")[1]?.split("\n\nIdeas")[0] ?? "";
+  const ideas = context.split("Ideas:\n")[1]?.split("\n\nIssues")[0] ?? "";
+  const issues = context.split("Issues:\n")[1] ?? "";
 
   const lines = (s: string) => s.split("\n").filter((l) => l.trim().startsWith("-")).slice(0, 6);
 
@@ -653,16 +656,24 @@ function deterministicAnswer(q: string, context: string): string {
     return teamLines.length ? `Team (${teamLines.length}+ people):\n${teamLines.join("\n")}` : "Can't read the team right now.";
   }
   if (/(message|chat|dm|direct|last message|said|wrote)/.test(t)) {
-    return "I can read chat messages! Use the chat tab or ask me about specific channels like #general or conversations with teammates.";
+    const dmLines = lines(dms);
+    if (dmLines.length) return "Recent messages:\n" + dmLines.join("\n");
+    return "No recent messages found. Start a conversation in the Chat tab.";
   }
   if (/(notification|alert|unread)/.test(t)) {
-    return "Check your notifications in the header bell icon, or ask me: 'What are my unread notifications?'";
+    const notifLines = lines(notifications);
+    if (notifLines.length) return "Your notifications:\n" + notifLines.join("\n");
+    return "No notifications.";
   }
   if (/(idea|suggestion|vault)/.test(t)) {
-    return "Ask me 'What ideas are in the vault?' or 'List all ideas' and I'll fetch them for you.";
+    const ideaLines = lines(ideas);
+    if (ideaLines.length) return "Ideas in the vault:\n" + ideaLines.join("\n");
+    return "No ideas yet. Add one via the Ideas tab.";
   }
   if (/(issue|bug|problem|track)/.test(t)) {
-    return "Ask me 'What issues are open?' or 'List all issues' and I'll show you the current status.";
+    const issueLines = lines(issues);
+    if (issueLines.length) return "Open issues:\n" + issueLines.join("\n");
+    return "No issues tracked.";
   }
   if (/(create|schedule|add|new).*(event|meeting|calendar)/.test(t)) {
     return "I can create events! Try: \"Create a meeting tomorrow at 10am called Team Sync\"\nI'll process natural language commands using Groq AI.";
