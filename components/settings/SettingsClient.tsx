@@ -17,8 +17,7 @@ import {
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { Input } from "./Input";
-import { createClient } from "@/lib/supabase/client";
-import { updateProfile, changePassword } from "@/app/actions/settings-actions";
+import { updateProfile, changePassword, uploadAvatar } from "@/app/actions/settings-actions";
 
 
 type Profile = {
@@ -119,32 +118,24 @@ function ProfileTab({
       return;
     }
     setUploading(true);
-    setErr("");
-    try {
-      const sb = createClient();
-      const {
-        data: { user },
-      } = await sb.auth.getUser();
-      if (!user) throw new Error("Not authenticated.");
+      setErr("");
+      try {
+        // Convert to data URL for server-side upload
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("Failed to read file."));
+          reader.readAsDataURL(file);
+        });
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `${user.id}/${Date.now()}-avatar.${ext}`;
-      const { error: upErr } = await sb.storage.from("avatars").upload(path, file, {
-        upsert: false,
-        contentType: file.type,
-        cacheControl: "3600",
-      });
-      if (upErr) throw new Error(upErr.message);
-
-      const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
-      const res = await updateProfile({ avatar_url: pub.publicUrl });
-      if (!res.ok) throw new Error(res.error);
-      onSaved();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
+        const res = await uploadAvatar(dataUrl);
+        if (!res.ok) throw new Error(res.error);
+        onSaved();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Upload failed.");
+      } finally {
+        setUploading(false);
+      }
   }
 
   async function save() {

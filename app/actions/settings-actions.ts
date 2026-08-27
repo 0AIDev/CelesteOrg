@@ -23,13 +23,72 @@ function userClient() {
   );
 }
 
+import { createAdminClient } from "@/lib/supabase/admin";
+
+// Server-side avatar upload using admin client (bypasses RLS).
+// Accepts a data URL or a public URL; tries storage first, falls back to
+// storing the URL directly in the profile.
+export async function uploadAvatar(dataUrlOrUrl: string): Promise<ActionResult & { url?: string }> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated" };
+
+    // If it's already a remote URL (not a data URL), just save it.
+    if (dataUrlOrUrl.startsWith("http")) {
+      const { error } = await supabase.from("profiles").update({ avatar_url: dataUrlOrUrl }).eq("id", user.id);
+      if (error) return { ok: false, error: error.message };
+      revalidatePath("/settings");
+      revalidatePath("/", "layout");
+      return { ok: true, url: dataUrlOrUrl };
+    }
+
+    // Data URL → try storage upload first, fall back to storing data URL.
+    const admin = createAdminClient();
+    const matches = dataUrlOrUrl.match(/^data:image\/([^;]+);base64,(.+)$/);
+    if (matches) {
+      const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+      const base64 = matches[2];
+      const buffer = Buffer.from(base64, "base64");
+      const path = `${user.id}/${Date.now()}-avatar.${ext}`;
+
+      // Ensure bucket exists
+      await admin.storage.createBucket("avatars", { public: true }).catch(() => {});
+
+      const { error: upErr } = await admin.storage.from("avatars").upload(path, buffer, {
+        contentType: `image/${matches[1]}`,
+        upsert: true,
+      });
+
+      if (!upErr) {
+        const { data: pub } = admin.storage.from("avatars").getPublicUrl(path);
+        const { error } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);
+        if (error) return { ok: false, error: error.message };
+        revalidatePath("/settings");
+        revalidatePath("/", "layout");
+        return { ok: true, url: pub.publicUrl };
+      }
+    }
+
+    // Fallback: store the data URL directly in the profile (works without storage).
+    const { error } = await supabase.from("profiles").update({ avatar_url: dataUrlOrUrl }).eq("id", user.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    return { ok: true, url: dataUrlOrUrl };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Upload failed";
+    return { ok: false, error: msg };
+  }
+}
+
 const profileSchema = z.object({
   // Optional: the avatar-upload call only sends { avatar_url }.
   full_name: z.string().min(1).max(200).optional(),
   bio: z.string().max(2000).optional().default(""),
   location: z.string().max(120).optional().default(""),
   previous_companies: z.array(z.string()).optional(),
-  avatar_url: z.string().url().optional().nullable(),
+  avatar_url: z.string().max(5_000_000).optional().nullable(),
 });
 
 export async function updateProfile(
