@@ -17,6 +17,7 @@ import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { navLabelToKey } from "@/lib/i18n/navTranslations";
+import { useDMNotifications } from "@/components/notifications/GlobalDMListener";
 
 // ─── Toggle icons ───────────────────────────────────────────────────
 function SidebarExpandIcon({ className }: { className?: string }) {
@@ -135,7 +136,11 @@ function NavItem({
     >
       <item.icon size={18} weight={active ? "fill" : "regular"} className={cn("shrink-0 transition-colors", active ? "text-gray-950" : "text-gray-400")} />
       <span className="truncate grow">{t(navLabelToKey[item.label] ?? "sidebar.home")}</span>
-      {item.badge && <span className="text-[11px] text-gray-400">{item.badge}</span>}
+      {item.badge && (
+        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-bold text-white">
+          {item.badge}
+        </span>
+      )}
       {/* Pin button — appears on hover */}
       {showPin && hovered && onTogglePin && (
         <button
@@ -241,6 +246,7 @@ function SidebarInner({
 }) {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { totalUnread } = useDMNotifications();
   const [inviteDismissed, setInviteDismissed] = useState(false);
   const [pinnedItems, setPinnedItems] = useState<string[]>([]);
 
@@ -334,7 +340,7 @@ function SidebarInner({
             .map((item) => (
               <NavItem
                 key={item.href ?? item.label}
-                item={item}
+                item={{ ...item, badge: item.label === "Chat" && totalUnread > 0 ? String(totalUnread > 9 ? "9+" : totalUnread) : item.badge }}
                 active={!!item.href && pathname.startsWith(item.href)}
                 onClick={navClick}
                 isPinned={false}

@@ -9,6 +9,7 @@ import { CommandMenu } from "@/components/ui/CommandMenu";
 import { AskAIChat } from "@/components/ai/AskAIChat";
 import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 import { AIProvider } from "@/components/ai/AIProvider";
+import { GlobalDMListener } from "@/components/notifications/GlobalDMListener";
 
 type SessionUser = {
   id: string;
@@ -111,6 +112,9 @@ export function LayoutProvider({
             setEodOpen(true);
           }}
         />
+
+        {/* Global DM notification listener — always mounted */}
+        {user?.id && <GlobalDMListener userId={user.id} />}
 
         {/* Ask AI — floating modal, manages own state */}
         <AskAIChat />

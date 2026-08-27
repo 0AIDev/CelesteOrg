@@ -22,6 +22,7 @@ import { cn, relativeTime } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { LanguageSelector } from "@/lib/i18n/LanguageSelector";
+import { useDMNotifications } from "@/components/notifications/GlobalDMListener";
 
 type NotifItem = {
   id: string;
@@ -57,6 +58,7 @@ export function Header({
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
+  const { totalUnread } = useDMNotifications();
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
 
   // Resolve the current user's id once (StrictMode-safe: guarded by `mounted`,
@@ -183,6 +185,19 @@ export function Header({
         <LanguageSelector compact />
 
         {/* Notifications */}
+        {/* DM unread badge */}
+        {totalUnread > 0 && (
+          <button
+            onClick={() => router.push("/chat")}
+            className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          >
+            <ChatCircleText className="h-[18px] w-[18px]" />
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-900 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+              {totalUnread > 9 ? "9+" : totalUnread}
+            </span>
+          </button>
+        )}
+
         <Popover.Root>
           <Popover.Trigger asChild>
             <button className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
