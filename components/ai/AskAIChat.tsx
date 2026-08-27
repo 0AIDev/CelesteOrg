@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
 
 // Dynamic import to avoid SSR issues with assistant-ui
@@ -12,5 +13,9 @@ const CelesteAssistantModal = dynamic(
 );
 
 export function AskAIChat() {
-  return <CelesteAssistantModal />;
+  return (
+    <Suspense fallback={null}>
+      <CelesteAssistantModal />
+    </Suspense>
+  );
 }

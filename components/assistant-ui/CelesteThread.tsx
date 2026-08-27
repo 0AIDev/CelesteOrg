@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ReasoningPanel } from "@/components/elements/reasoning-panel";
 import { parseActions, executeActions } from "@/lib/ai/agent-actions";
 
 type Message = {
@@ -22,7 +21,6 @@ function loadChatHistory(): Message[] {
     const raw = localStorage.getItem(CHAT_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Message[];
-    // Only keep last 50 messages to avoid bloat
     return parsed.slice(-50);
   } catch {
     return [];
@@ -34,14 +32,13 @@ function saveChatHistory(messages: Message[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-50)));
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 /** Floating button + chat modal */
 export function CelesteAssistantModal() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
@@ -49,6 +46,9 @@ export function CelesteAssistantModal() {
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const [btnRect, setBtnRect] = useState<{ left: number; top: number } | null>(null);
+
+  // Check for ?auto= param to auto-send a message
+  const autoParam = searchParams?.get("auto");
 
   // Load persisted position
   useEffect(() => {
@@ -114,7 +114,6 @@ export function CelesteAssistantModal() {
     };
   }, [isDragging]);
 
-  // Calculate modal position: centered above the button
   const modalWidth = 420;
   const modalHeight = 520;
   const buttonWidth = 136;
@@ -125,7 +124,7 @@ export function CelesteAssistantModal() {
 
   const modalLeft = Math.max(
     16,
-    Math.min(btnLeft + buttonWidth / 2 - modalWidth / 2, window.innerWidth - modalWidth - 16)
+    Math.min(btnLeft + buttonWidth / 2 - modalWidth / 2, window.innerWidth - modalWidth - 16),
   );
   const modalTop = Math.max(16, btnTop - modalHeight - gap);
 
@@ -158,7 +157,7 @@ export function CelesteAssistantModal() {
           className="fixed z-50 flex h-[520px] w-[420px] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in-0 zoom-in-95 duration-200"
           style={{ left: modalLeft, top: modalTop }}
         >
-          <Chat onClose={() => setOpen(false)} router={router} />
+          <Chat onClose={() => setOpen(false)} router={router} autoSend={autoParam} />
         </div>
       )}
     </>
@@ -166,12 +165,15 @@ export function CelesteAssistantModal() {
 }
 
 /** Simple chat component with persistence */
-function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typeof useRouter> }) {
+function Chat({ onClose, router, autoSend }: { onClose: () => void; router: ReturnType<typeof useRouter>; autoSend?: string | null }) {
   const [messages, setMessages] = useState<Message[]>(() => loadChatHistory());
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reasoningSteps, setReasoningSteps] = useState<string[]>([]);
+  const [reasoningOpen, setReasoningOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const autoSentRef = useRef(false);
 
   // Persist messages whenever they change
   useEffect(() => {
@@ -188,6 +190,14 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
     inputRef.current?.focus();
   }, []);
 
+  // Auto-send from URL param
+  useEffect(() => {
+    if (autoSend && !autoSentRef.current && !loading) {
+      autoSentRef.current = true;
+      setTimeout(() => send(autoSend), 500);
+    }
+  }, [autoSend, loading]);
+
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
 
@@ -196,7 +206,16 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
     setInput("");
     setLoading(true);
 
+    // Simulate reasoning steps for UX
+    setReasoningOpen(true);
+    setReasoningSteps(["Analyzing your request"]);
+    setTimeout(() => setReasoningSteps((p) => [...p, "Reading workspace data"]), 800);
+    setTimeout(() => setReasoningSteps((p) => [...p, "Preparing response"]), 1600);
+
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -206,9 +225,15 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
             content: m.content,
           })),
         }),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error("Failed to get response");
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || `Server error ${res.status}`);
+      }
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -238,12 +263,15 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
                   return updated;
                 });
               } catch {
-                // ignore
+                // ignore parse errors in streaming
               }
             }
           }
         }
       }
+
+      setReasoningSteps((p) => [...p, "Done"]);
+      setTimeout(() => setReasoningOpen(false), 400);
 
       if (!assistantContent) {
         setMessages((prev) => [
@@ -261,20 +289,23 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
           }
           return updated;
         });
-        // Execute any agentic actions
         if (actions.length > 0) {
           executeActions(actions, router);
         }
       }
-    } catch {
+    } catch (err) {
+      setReasoningOpen(false);
+      const msg = err instanceof Error && err.name === "AbortError"
+        ? "Response timed out — the AI is taking too long. Try again."
+        : "Network error — please try again.";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Network error — please try again." },
+        { role: "assistant", content: msg },
       ]);
     } finally {
       setLoading(false);
     }
-  }, [messages, loading]);
+  }, [messages, loading, router]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -306,9 +337,9 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
             {messages.map((msg, i) => (
               <MessageBubble key={i} message={msg} />
             ))}
-            {/* Reasoning panel — shows fake thinking steps while AI processes */}
-            {loading && messages[messages.length - 1]?.role !== "assistant" && (
-              <ReasoningPanel active={loading} className="py-1" />
+            {/* Reasoning panel — shows while AI processes */}
+            {loading && reasoningOpen && (
+              <ReasoningDisplay steps={reasoningSteps} />
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -335,7 +366,6 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
             className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white transition-colors"
             disabled={loading}
           />
-          {/* Send button — circular, only visible when typing */}
           {input.trim() && (
             <button
               type="submit"
@@ -346,6 +376,20 @@ function Chat({ onClose, router }: { onClose: () => void; router: ReturnType<typ
             </button>
           )}
         </form>
+      </div>
+    </div>
+  );
+}
+
+/** Fake reasoning display while AI processes */
+function ReasoningDisplay({ steps }: { steps: string[] }) {
+  return (
+    <div className="flex items-start gap-2 py-1 text-[13px] text-gray-400">
+      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-blue-500 animate-pulse" />
+      <div className="flex flex-col gap-1">
+        <span className="font-medium text-gray-500">
+          Thinking{steps.length > 0 && ` — ${steps[steps.length - 1]}`}
+        </span>
       </div>
     </div>
   );

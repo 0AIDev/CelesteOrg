@@ -117,11 +117,9 @@ export function OnboardingClient({
     };
   }, [inviteToken]);
 
-  // Remount when the mode changes (guest → logged-in, or invite data
-  // arrives) so form state re-initializes with the freshly fetched values.
-  const wizardKey = data
-    ? `auth-${data.user.id}`
-    : `guest-${inviteEmail ?? inviteName ?? inviteDetails?.department_id ?? "no-data"}`;
+  // Only remount when auth state changes (guest ↔ logged-in).
+  // Do NOT remount when inviteDetails arrive — that would reset the step.
+  const wizardKey = data ? `auth-${data.user.id}` : `guest`;
 
   return (
     <OnboardingWizard
