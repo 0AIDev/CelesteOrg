@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Spinner, House, TreeStructure, CalendarBlank, ChatsCircle, Command, Sparkle, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -14,8 +14,9 @@ import {
   saveOnboardingStep4,
   signNDA,
   completeOnboarding,
+  getOnboardingData,
 } from "@/app/actions/onboarding-actions";
-import { acceptInvite } from "@/app/actions/invite-actions";
+import { acceptInvite, getInviteEmail } from "@/app/actions/invite-actions";
 
 // ── Step definitions ──────────────────────────────────────────────────────
 const STEPS_WITH_ACCOUNT = [
@@ -73,7 +74,58 @@ type OnboardingData = {
   user: { id: string; email: string };
 } | null;
 
-export function OnboardingClient({ data, inviteToken, inviteEmail }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null }) {
+// Client wrapper — fetches profile data + invited email after render so the
+// server page never blocks on Supabase (no more 504s). Guests see the
+// account-creation flow; logged-in users get their profile prefilled.
+export function OnboardingClient({
+  data: serverData,
+  inviteToken,
+  inviteEmail: serverEmail,
+}: {
+  data: OnboardingData;
+  inviteToken?: string | null;
+  inviteEmail?: string | null;
+}) {
+  const [data, setData] = useState<OnboardingData>(serverData);
+  const [inviteEmail, setInviteEmail] = useState<string | null>(serverEmail ?? null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [d, email] = await Promise.all([
+          getOnboardingData(),
+          inviteToken ? getInviteEmail(inviteToken) : Promise.resolve(null),
+        ]);
+        if (cancelled) return;
+        if (email) setInviteEmail(email);
+        if (d) setData(d);
+      } catch {
+        // Stay in guest mode — the wizard still works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken]);
+
+  // Remount when the mode changes (guest → logged-in, or email arrives) so
+  // form state re-initializes with the freshly fetched values.
+  const wizardKey = data
+    ? `auth-${data.user.id}`
+    : `guest-${inviteEmail ?? "no-email"}`;
+
+  return (
+    <OnboardingWizard
+      key={wizardKey}
+      data={data}
+      inviteToken={inviteToken}
+      inviteEmail={inviteEmail}
+    />
+  );
+}
+
+function OnboardingWizard({ data, inviteToken, inviteEmail }: { data: OnboardingData; inviteToken?: string | null; inviteEmail?: string | null }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const needsAccount = !data;

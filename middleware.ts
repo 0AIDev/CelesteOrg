@@ -35,12 +35,14 @@ export async function middleware(request: NextRequest) {
   ];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
-  // Fast path: no session cookie at all → redirect immediately without
-  // calling Supabase. This makes unauthenticated navigation near-instant
-  // (no auth round-trip on every request).
+  // Fast path: no session cookie at all → skip the Supabase auth round-trip.
+  // This makes unauthenticated navigation (invite links, sign-in, onboarding)
+  // near-instant and avoids cold-start 504s.
   const hasSessionCookie = request.cookies.getAll().some((c) =>
     c.name.startsWith("sb-") && c.name.endsWith("-auth-token"),
   );
+
+  // Protected route with no session → redirect to sign-in (no Supabase call).
   if (isProtected && !hasSessionCookie) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
@@ -48,8 +50,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Refresh the Supabase auth session on every request (only reached when a
-  // session cookie exists, or for public routes like /sign-in).
+  // Onboarding gating without a session. An invite link (?token=) is allowed
+  // without being logged in; anything else redirects to sign-in.
+  if (pathname.startsWith("/onboarding")) {
+    const hasInviteToken = request.nextUrl.searchParams.has("token");
+    if (!hasSessionCookie && !hasInviteToken) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/sign-in";
+      return NextResponse.redirect(url);
+    }
+    // Invite flow with no session → serve the page, zero Supabase calls.
+    if (!hasSessionCookie && hasInviteToken) {
+      return withFreshHtml(request);
+    }
+  }
+
+  // No session cookie on any other (public) route → nothing to refresh.
+  if (!hasSessionCookie) {
+    return withFreshHtml(request, response);
+  }
+
+  // Session cookie exists → refresh the Supabase auth session.
   const supabase = createServerClient(
     supabaseUrl,
     supabaseAnonKey,
@@ -75,8 +96,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Unauthenticated → redirect to sign-in (reached when a stale/expired
-  // cookie exists but the session is no longer valid).
+  // Stale/expired cookie on a protected route → sign-in.
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
@@ -91,31 +111,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Onboarding is only accessible via invite link (with token) or if already authenticated
+  // Authenticated user on onboarding → allow.
   if (pathname.startsWith("/onboarding")) {
-    const hasInviteToken = request.nextUrl.searchParams.has("token");
-    // Allow if: has invite token (invite link), user is authenticated,
-    // or coming from /invito page
-    if (hasInviteToken || user) {
-      return withFreshHtml(request, response);
-    }
-    // No invite token and not authenticated → redirect to sign-in
-    const url = request.nextUrl.clone();
-    url.pathname = "/sign-in";
-    return NextResponse.redirect(url);
-  }
-
-  // Redirect incomplete onboarding to /onboarding (skip the redirect for
-  // /onboarding itself to avoid loops, and for /sign-in /auth/callback).
-  if (
-    user &&
-    isProtected &&
-    !pathname.startsWith("/onboarding") &&
-    pathname !== "/sign-in" &&
-    !pathname.startsWith("/auth")
-  ) {
-    // Onboarding is no longer forced — users access it from the sidebar.
-    // The onboarding link remains visible until onboarding_completed = true.
+    return withFreshHtml(request, response);
   }
 
   return withFreshHtml(request, response);

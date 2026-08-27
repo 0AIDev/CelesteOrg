@@ -403,6 +403,22 @@ export async function acceptInvite(
   }
 }
 
+// Public lookup: returns the invited email for a token. Used by the
+// onboarding page to pre-fill the read-only email field.
+export async function getInviteEmail(token: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("invites")
+      .select("email")
+      .eq("token", token)
+      .maybeSingle();
+    return data?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Email helper ────────────────────────────────────────────────────────────
 
 async function sendInviteEmail(
