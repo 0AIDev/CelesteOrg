@@ -78,7 +78,74 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- 3. Add file_name column to documents if missing
+-- 3. Create issues + issue_comments tables
+CREATE TABLE IF NOT EXISTS public.issues (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title         text NOT NULL,
+  description   text,
+  status        text NOT NULL DEFAULT 'backlog'
+                  CHECK (status IN ('backlog', 'todo', 'in_progress', 'in_review', 'done')),
+  priority      text NOT NULL DEFAULT 'medium'
+                  CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  project_track text NOT NULL DEFAULT 'General'
+                  CHECK (project_track IN ('Core AI', 'Frontend', 'Infrastructure', 'Design', 'General')),
+  assignee_id   uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  creator_id    uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  labels        jsonb DEFAULT '[]',
+  due_date      date,
+  position      integer NOT NULL DEFAULT 0,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_issues_status   ON public.issues (status);
+CREATE INDEX IF NOT EXISTS idx_issues_priority ON public.issues (priority);
+CREATE INDEX IF NOT EXISTS idx_issues_track    ON public.issues (project_track);
+CREATE INDEX IF NOT EXISTS idx_issues_assignee ON public.issues (assignee_id);
+CREATE INDEX IF NOT EXISTS idx_issues_position ON public.issues (status, position);
+
+ALTER TABLE public.issues ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "issues_select" ON public.issues;
+DROP POLICY IF EXISTS "issues_insert" ON public.issues;
+DROP POLICY IF EXISTS "issues_update" ON public.issues;
+DROP POLICY IF EXISTS "issues_delete" ON public.issues;
+
+CREATE POLICY "issues_select" ON public.issues FOR SELECT TO authenticated USING (true);
+CREATE POLICY "issues_insert" ON public.issues FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "issues_update" ON public.issues FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "issues_delete" ON public.issues FOR DELETE TO authenticated USING (true);
+
+CREATE TABLE IF NOT EXISTS public.issue_comments (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  issue_id   uuid NOT NULL REFERENCES public.issues(id) ON DELETE CASCADE,
+  author_id  uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  content    text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_comments_issue ON public.issue_comments (issue_id, created_at);
+
+ALTER TABLE public.issue_comments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "issue_comments_select" ON public.issue_comments;
+DROP POLICY IF EXISTS "issue_comments_insert" ON public.issue_comments;
+DROP POLICY IF EXISTS "issue_comments_delete" ON public.issue_comments;
+
+CREATE POLICY "issue_comments_select" ON public.issue_comments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "issue_comments_insert" ON public.issue_comments FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "issue_comments_delete" ON public.issue_comments FOR DELETE TO authenticated USING (true);
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'issues'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.issues;
+  END IF;
+END $$;
+
+-- 4. Add file_name column to documents if missing
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns WHERE table_name = 'documents' AND column_name = 'file_name'
