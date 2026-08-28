@@ -114,6 +114,69 @@ export async function createRecordingMeta(input: {
   }
 }
 
+// ── Share link ─────────────────────────────────────────────────────────────
+export async function createShareLink(recordingId: string): Promise<ActionResult & { shareUrl?: string; expiresAt?: string }> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated" };
+
+    const { data: recording } = await supabase
+      .from("screen_recordings")
+      .select("id, file_path, author_id")
+      .eq("id", recordingId)
+      .single();
+
+    if (!recording) return { ok: false, error: "Recording not found" };
+    if (recording.author_id !== user.id) return { ok: false, error: "Only the author can share" };
+
+    // Create a signed URL valid for 2 days (172800 seconds)
+    const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase.storage
+      .from("screen-recordings")
+      .createSignedUrl(recording.file_path, 172800, {
+        download: `${recordingId}.webm`,
+      });
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, shareUrl: data.signedUrl, expiresAt };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Share failed" };
+  }
+}
+
+// ── Delete expired recordings (auto-delete after 2 days) ────────────────────
+export async function cleanupExpiredRecordings(): Promise<ActionResult & { deleted?: number }> {
+  try {
+    const supabase = userClient();
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: expired } = await supabase
+      .from("screen_recordings")
+      .select("id, file_path")
+      .lt("created_at", twoDaysAgo);
+
+    if (!expired || expired.length === 0) return { ok: true, deleted: 0 };
+
+    // Remove files from storage
+    for (const rec of expired) {
+      if (rec.file_path) {
+        await supabase.storage.from("screen-recordings").remove([rec.file_path]);
+      }
+    }
+
+    // Delete records
+    const ids = expired.map((r) => r.id);
+    const { error } = await supabase.from("screen_recordings").delete().in("id", ids);
+    if (error) return { ok: false, error: error.message };
+
+    revalidatePath("/recordings");
+    return { ok: true, deleted: expired.length };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Cleanup failed" };
+  }
+}
+
 // ── Delete recording ────────────────────────────────────────────────────────
 export async function deleteRecording(recordingId: string): Promise<ActionResult> {
   try {

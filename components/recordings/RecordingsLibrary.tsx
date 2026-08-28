@@ -10,12 +10,16 @@ import {
   Clock,
   Spinner,
   ArrowClockwise,
+  Link,
+  ShareNetwork,
+  Warning,
+  X,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { ScreenRecorder } from "@/components/recordings/ScreenRecorder";
-import { deleteRecording, getRecordingUrl, type RecordingRow } from "@/app/actions/recording-actions";
+import { deleteRecording, getRecordingUrl, createShareLink, cleanupExpiredRecordings, type RecordingRow } from "@/app/actions/recording-actions";
 
 function formatDuration(secs: number): string {
   if (secs < 60) return `${secs}s`;
@@ -53,6 +57,28 @@ export function RecordingsLibrary({
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareExpiry, setShareExpiry] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare(recording: RecordingRow) {
+    setSharing(recording.id);
+    setShareUrl(null);
+    const res = await createShareLink(recording.id);
+    setSharing(null);
+    if (res.ok && res.shareUrl) {
+      setShareUrl(res.shareUrl);
+      setShareExpiry(res.expiresAt ?? null);
+    }
+  }
+
+  function copyShareLink() {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handlePlay(recording: RecordingRow) {
     if (playing === recording.id) {
@@ -82,6 +108,11 @@ export function RecordingsLibrary({
       }
     }
     setDeleting(null);
+  }
+
+  function daysUntilExpiry(iso: string): number {
+    const diff = new Date(iso).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }
 
   return (
@@ -193,8 +224,8 @@ export function RecordingsLibrary({
                 )}
               </div>
 
-              {/* Author + delete */}
-              <div className="flex shrink-0 items-center gap-3">
+              {/* Author + actions */}
+              <div className="flex shrink-0 items-center gap-2">
                 {rec.author && (
                   <SquircleAvatar
                     name={rec.author.full_name}
@@ -203,6 +234,24 @@ export function RecordingsLibrary({
                     className="h-6 w-6 text-[9px]"
                   />
                 )}
+                {/* Auto-delete countdown */}
+                <span className="flex items-center gap-1 text-[10px] text-gray-400" title="Auto-deletes after 2 days">
+                  <Warning className="h-3 w-3" />
+                  {daysUntilExpiry(rec.created_at)}d left
+                </span>
+                {/* Share button */}
+                <button
+                  onClick={() => handleShare(rec)}
+                  disabled={sharing === rec.id}
+                  className="rounded-lg p-1.5 text-gray-300 opacity-0 transition-all hover:text-blue-500 group-hover:opacity-100"
+                  title="Get share link (expires in 2 days)"
+                >
+                  {sharing === rec.id ? (
+                    <Spinner className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Link className="h-3.5 w-3.5" />
+                  )}
+                </button>
                 <button
                   onClick={() => handleDelete(rec.id)}
                   disabled={deleting === rec.id}
@@ -221,12 +270,40 @@ export function RecordingsLibrary({
         </div>
       )}
 
+      {/* Share link bar */}
+      {shareUrl && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
+          <Link className="h-4 w-4 shrink-0 text-blue-500" />
+          <input
+            readOnly
+            value={shareUrl}
+            className="flex-1 truncate border-none bg-transparent text-[12px] text-blue-700 outline-none"
+          />
+          {shareExpiry && (
+            <span className="shrink-0 text-[10px] text-blue-400">
+              Expires {new Date(shareExpiry).toLocaleDateString()}
+            </span>
+          )}
+          <button
+            onClick={copyShareLink}
+            className="shrink-0 rounded-lg bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            onClick={() => { setShareUrl(null); setShareExpiry(null); }}
+            className="shrink-0 rounded-lg p-1 text-blue-300 hover:text-blue-500"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Recorder modal */}
       {showRecorder && (
         <ScreenRecorder
           onClose={() => {
             setShowRecorder(false);
-            // Refresh the list
             window.location.reload();
           }}
         />

@@ -14,6 +14,7 @@ import {
   Clock,
   Backspace,
   DotsThreeVertical,
+  UserCircle,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
@@ -168,9 +169,9 @@ export function TaskBoard({
   }
 
   // ── Create task ────────────────────────────────────────────────────────
-  async function handleCreate(status: ColumnId, title: string) {
+  async function handleCreate(status: ColumnId, title: string, assigneeId?: string | null) {
     if (!title.trim()) return;
-    const res = await createTask({ title, status });
+    const res = await createTask({ title, status, assignee_id: assigneeId ?? null });
     if (res.ok && res.id) {
       const targetCol = columns[status] ?? [];
       const maxPos = targetCol.length > 0 ? Math.max(...targetCol.map((t) => t.position)) : 0;
@@ -182,7 +183,7 @@ export function TaskBoard({
           description: null,
           status,
           priority: "medium",
-          assignee_id: null,
+          assignee_id: assigneeId ?? null,
           due_date: null,
           position: maxPos + 1,
           created_by: currentUserId ?? null,
@@ -239,7 +240,7 @@ export function TaskBoard({
             onDragStart={onDragStart}
             onDrop={onDrop}
             onDragOver={onDragOver}
-            onCreate={(title) => handleCreate(col.id, title)}
+            onCreate={(title, assigneeId) => handleCreate(col.id, title, assigneeId)}
             onDelete={handleDelete}
           />
         ))}
@@ -265,11 +266,13 @@ function Column({
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDrop: (e: React.DragEvent, status: string) => void;
   onDragOver: (e: React.DragEvent) => void;
-  onCreate: (title: string) => void;
+  onCreate: (title: string, assigneeId?: string | null) => void;
   onDelete: (taskId: string) => void;
+  onAssign?: (taskId: string, assigneeId: string | null) => void;
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newAssignee, setNewAssignee] = useState<string>("");
   const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -280,8 +283,9 @@ function Column({
   async function handleSubmit() {
     if (!newTitle.trim() || creating) return;
     setCreating(true);
-    await onCreate(newTitle);
+    await onCreate(newTitle, newAssignee || null);
     setNewTitle("");
+    setNewAssignee("");
     setCreating(false);
     setShowCreate(false);
   }
@@ -331,6 +335,19 @@ function Column({
             placeholder="Task title…"
             className="w-full border-none bg-transparent text-[13px] text-gray-900 outline-none placeholder:text-gray-400"
           />
+          <div className="mt-2">
+            <label className="mb-1 block text-[11px] text-gray-400">Assign to</label>
+            <select
+              value={newAssignee}
+              onChange={(e) => setNewAssignee(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[12px] text-gray-700 outline-none focus:border-gray-400"
+            >
+              <option value="">Unassigned</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
+              ))}
+            </select>
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <button
               onClick={handleSubmit}
@@ -422,44 +439,61 @@ function TaskCard({
           <span className={cn("text-[10px] font-medium", priority.color)}>
             {priority.label}
           </span>
-        </div>
-
-        {/* Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="rounded p-0.5 text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:text-gray-600"
-          >
-            <DotsThreeVertical className="h-3.5 w-3.5" />
-          </button>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-6 z-20 w-32 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    setEditing(true);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 hover:bg-gray-50"
-                >
-                  Edit title
-                </button>
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    handleDelete();
-                  }}
-                  disabled={deleting}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-red-500 hover:bg-red-50"
-                >
-                  {deleting ? <Spinner className="h-3 w-3 animate-spin" /> : <Trash className="h-3 w-3" />}
-                  Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        </div>          {/* Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="rounded p-0.5 text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:text-gray-600"
+            >
+              <DotsThreeVertical className="h-3.5 w-3.5" />
+            </button>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-6 z-20 w-44 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      setEditing(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 hover:bg-gray-50"
+                  >
+                    Edit title
+                  </button>
+                  <div className="px-3 py-1.5">
+                    <label className="mb-1 block text-[10px] font-medium text-gray-400">Assign to</label>
+                    <select
+                      value={task.assignee_id ?? ""}
+                      onChange={async (e) => {
+                        const val = e.target.value || null;
+                        await updateTask(task.id, { assignee_id: val });
+                        setShowMenu(false);
+                      }}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-700 outline-none"
+                    >
+                      <option value="">Unassigned</option>
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>{m.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="border-t border-gray-100">
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        handleDelete();
+                      }}
+                      disabled={deleting}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-red-500 hover:bg-red-50"
+                    >
+                      {deleting ? <Spinner className="h-3 w-3 animate-spin" /> : <Trash className="h-3 w-3" />}
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
       </div>
 
       {/* Title */}
@@ -509,14 +543,24 @@ function TaskCard({
             </span>
           )}
         </div>
-        {assignee && (
-          <SquircleAvatar
-            name={assignee.full_name}
-            src={assignee.avatar_url}
-            size="xs"
-            className="h-5 w-5 text-[8px]"
-          />
-        )}
+        <div className="flex items-center gap-1.5">
+          {assignee ? (
+            <span className="flex items-center gap-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+              <SquircleAvatar
+                name={assignee.full_name}
+                src={assignee.avatar_url}
+                size="xs"
+                className="h-4 w-4 text-[7px]"
+              />
+              {assignee.full_name?.split(" ")[0]}
+            </span>
+          ) : (
+            <span className="flex items-center gap-0.5 text-[10px] text-gray-300">
+              <UserCircle className="h-3 w-3" />
+              Unassigned
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

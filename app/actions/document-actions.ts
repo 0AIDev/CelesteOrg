@@ -153,13 +153,47 @@ export async function getDocumentSignedUrl(
       .from("documents")
       .createSignedUrl(doc.file_path, ttl, {
         download: action === "download" ? `${doc.id}.pdf` : undefined,
-        transform: {},
       });
 
     if (error) return { ok: false, error: error.message };
     return { ok: true, url: data.signedUrl };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not generate link";
+    return { ok: false, error: msg };
+  }
+}
+
+export async function updateDocument(
+  documentId: string,
+  fields: { title?: string; category?: string },
+): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const supabase = userClient();
+
+    // Only owner or admin can rename
+    const { data: doc, error: findErr } = await supabase
+      .from("documents")
+      .select("id, owner_id")
+      .eq("id", documentId)
+      .single();
+    if (findErr || !doc) return { ok: false, error: "Not found" };
+
+    const privileged = await requirePermission("documents.delete");
+    if (!privileged && doc.owner_id !== userId) {
+      return { ok: false, error: "Only the owner or admin can rename documents" };
+    }
+
+    const { error } = await supabase
+      .from("documents")
+      .update({ ...fields })
+      .eq("id", documentId);
+    if (error) return { ok: false, error: error.message };
+
+    revalidatePath("/documents");
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Update failed";
     return { ok: false, error: msg };
   }
 }

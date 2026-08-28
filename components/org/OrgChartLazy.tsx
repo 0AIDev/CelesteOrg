@@ -34,6 +34,7 @@ type EquityByUser = Record<
 
 export default function OrgChartLazy({
   trees,
+  allRoles,
   departments,
   equity,
   currentUserId,
@@ -41,6 +42,7 @@ export default function OrgChartLazy({
   initialMemberId,
 }: {
   trees: import("@/lib/types").OrgNode[];
+  allRoles?: { id: string; title: string; profile_id: string; reports_to: string | null; department_id: string | null; level: number; profileName: string }[];
   departments: Dept[];
   equity: { byUser: EquityByUser };
   currentUserId?: string | null;
@@ -50,6 +52,7 @@ export default function OrgChartLazy({
   return (
     <OrgChartClient
       trees={trees}
+      allRoles={allRoles}
       departments={departments}
       equity={equity}
       currentUserId={currentUserId}

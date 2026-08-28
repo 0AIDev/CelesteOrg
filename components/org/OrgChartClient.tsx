@@ -27,7 +27,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
-import { saveProfileNote, summarizeProfile } from "@/app/actions/org-actions";
+import { saveProfileNote, summarizeProfile, reassignManager } from "@/app/actions/org-actions";
 import type { OrgNode } from "@/lib/types";
 
 type Dept = {
@@ -48,6 +48,7 @@ type PersonPanel = OrgNode & {
 
 export function OrgChartClient({
   trees,
+  allRoles = [],
   departments,
   equity,
   currentUserId,
@@ -55,6 +56,7 @@ export function OrgChartClient({
   initialMemberId = null,
 }: {
   trees: OrgNode[];
+  allRoles?: { id: string; title: string; profile_id: string; reports_to: string | null; department_id: string | null; level: number; profileName: string }[];
   departments: Dept[];
   equity: {
     byUser: Record<
@@ -190,6 +192,8 @@ export function OrgChartClient({
                 onClose={() => setSelected(null)}
                 currentUserId={currentUserId}
                 initialNote={myNotes[selected.id] ?? ""}
+                allRoles={allRoles}
+                onReassignDone={() => window.location.reload()}
               />
             </motion.div>
           </motion.div>
@@ -393,11 +397,15 @@ function ProfilePanel({
   onClose,
   currentUserId,
   initialNote,
+  allRoles = [],
+  onReassignDone,
 }: {
   person: PersonPanel;
   onClose: () => void;
   currentUserId?: string | null;
   initialNote?: string;
+  allRoles?: { id: string; title: string; profile_id: string; reports_to: string | null; department_id: string | null; level: number; profileName: string }[];
+  onReassignDone?: () => void;
 }) {
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -405,8 +413,15 @@ function ProfilePanel({
   const [noteSaved, setNoteSaved] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(true);
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignError, setReassignError] = useState("");
   const canSeeNotes = !!currentUserId;
   const router = useRouter();
+
+  // If roles are loaded, user is authorized to reassign
+  const canReassign = allRoles.length > 0;
+  const myRole = allRoles.find((r) => r.profile_id === person.id);
+  const availableManagers = allRoles.filter((r) => r.id !== myRole?.id);
 
   async function onSummarize() {
     setSummarizing(true);
@@ -424,6 +439,19 @@ function ProfilePanel({
       setNoteSaved(true);
       setTimeout(() => setNoteSaved(false), 2000);
     }
+  }
+
+  async function onReassign(newManagerRoleId: string) {
+    if (!myRole || !canReassign) return;
+    setReassigning(true);
+    setReassignError("");
+    const res = await reassignManager(myRole.id, newManagerRoleId || null);
+    setReassigning(false);
+    if (!res.ok) {
+      setReassignError(res.error);
+      return;
+    }
+    onReassignDone?.();
   }
 
   return (
@@ -563,6 +591,27 @@ function ProfilePanel({
                 <ArrowRight className="h-4 w-4 text-gray-400" />
                 {person.managerName}
               </div>
+            </Section>
+          )}
+
+          {/* Reassign manager (CEO/founders only) */}
+          {canReassign && myRole && (
+            <Section title="Reassign manager">
+              <select
+                value={myRole.reports_to ?? ""}
+                onChange={(e) => onReassign(e.target.value)}
+                disabled={reassigning}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-gray-400 dark:border-[rgba(255,255,255,0.1)] dark:bg-[rgba(255,255,255,0.04)] dark:text-gray-200"
+              >
+                <option value="">Top level (CEO)</option>
+                {availableManagers.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.profileName} — {r.title}
+                  </option>
+                ))}
+              </select>
+              {reassigning && <p className="mt-1 text-[11px] text-gray-400">Updating…</p>}
+              {reassignError && <p className="mt-1 text-[11px] text-red-500">{reassignError}</p>}
             </Section>
           )}
 

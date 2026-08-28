@@ -94,9 +94,24 @@ export default async function OrgChartPage({
     .sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
     .map((r) => byRole.get(r.id)!);
 
+  // All roles + profile names for reassignment dropdown
+  const allRoles = (roles ?? []).map((r) => {
+    const p = profileMap.get(r.profile_id);
+    return {
+      id: r.id,
+      title: r.title,
+      profile_id: r.profile_id,
+      reports_to: r.reports_to,
+      department_id: r.department_id,
+      level: r.level,
+      profileName: p?.full_name ?? r.title,
+    };
+  });
+
   return (
     <OrgChartLazy
       trees={roots}
+      allRoles={allRoles}
       departments={
         departments?.map((d) => ({
           id: d.id,

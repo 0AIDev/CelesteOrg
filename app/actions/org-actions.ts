@@ -9,6 +9,52 @@ export type NoteResult = { ok: true } | { ok: false; error: string };
  * Save (upsert) a private note about a teammate. Only the author can see or
  * edit their own notes (RLS-enforced in profile_notes).
  */
+export async function reassignManager(
+  roleId: string,
+  newManagerRoleId: string | null,
+): Promise<NoteResult> {
+  try {
+    const admin = createAdminClient();
+    const { data: { user } } = await createClient().auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated" };
+
+    // Only admins/founders can reassign
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("is_founder")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const isAdmin = user.app_metadata?.role === "admin";
+    if (!isAdmin && !profile?.is_founder) {
+      return { ok: false, error: "Only the CEO or founders can reassign people" };
+    }
+
+    const { error } = await admin
+      .from("roles")
+      .update({ reports_to: newManagerRoleId })
+      .eq("id", roleId);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Reassign failed" };
+  }
+}
+
+export async function getRoles(): Promise<{ ok: boolean; roles?: { id: string; title: string; profile_id: string; reports_to: string | null; department_id: string | null }[]; error?: string }> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("roles")
+      .select("id, title, profile_id, reports_to, department_id");
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, roles: data ?? [] };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Load failed" };
+  }
+}
+
 export async function saveProfileNote(
   subjectId: string,
   note: string,

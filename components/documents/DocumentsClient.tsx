@@ -20,6 +20,8 @@ import {
   Download,
   Bell,
   Trash,
+  PencilSimple,
+  FolderSimple,
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
@@ -31,6 +33,7 @@ import {
   createDocumentRecord,
   getDocumentSignedUrl,
   deleteDocument,
+  updateDocument,
 } from "@/app/actions/document-actions";
 import { getCurrentUserProfile, type UserProfile } from "@/app/actions/nda-actions";
 import {
@@ -117,6 +120,20 @@ export function DocumentsClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Doc | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const CATEGORIES = ["General", "Legal", "HR", "Finance", "Engineering", "Marketing", "Operations", "Strategy"];
+
+  async function handleRename(docId: string) {
+    const updates: { title?: string; category?: string } = {};
+    if (editTitle.trim()) updates.title = editTitle.trim();
+    if (editCategory) updates.category = editCategory;
+    if (Object.keys(updates).length === 0) { setEditingDocId(null); return; }
+    const res = await updateDocument(docId, updates);
+    setEditingDocId(null);
+    if (res.ok) router.refresh();
+  }
 
   async function handleDelete(d: Doc) {
     if (deletingId) return;
@@ -460,18 +477,32 @@ export function DocumentsClient({
                 <span className="text-right text-sm text-gray-400">{relativeTime(d.uploaded_at)}</span>
                 <div className="flex justify-end">
                   {canRemoveRow && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(d); }}
-                      disabled={deletingId === d.id}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all hover:bg-gray-100 hover:text-gray-600 focus-visible:opacity-100 group-focus-visible:opacity-100 disabled:opacity-40 [div:hover>&]:opacity-100"
-                      title="Delete document"
-                    >
-                      {deletingId === d.id ? (
-                        <Spinner className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 transition-all [div:hover>&]:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDocId(d.id);
+                          setEditTitle(d.title);
+                          setEditCategory(d.category ?? "General");
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-600"
+                        title="Rename / change category"
+                      >
+                        <PencilSimple className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(d); }}
+                        disabled={deletingId === d.id}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-red-500 disabled:opacity-40"
+                        title="Delete document"
+                      >
+                        {deletingId === d.id ? (
+                          <Spinner className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -619,6 +650,60 @@ export function DocumentsClient({
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 shadow-lg animate-fade-in">
           {toast}
+        </div>
+      )}
+
+      {/* Rename / Category modal */}
+      {editingDocId && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setEditingDocId(null)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-in rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900">Rename document</h4>
+            <label className="mt-3 mb-1 block text-[12px] text-gray-500">Title</label>
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="input w-full"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") handleRename(editingDocId); }}
+            />
+            <label className="mt-3 mb-1 block text-[12px] text-gray-500">Category</label>
+            <div className="flex flex-wrap gap-1.5">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setEditCategory(c)}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    editCategory === c
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setEditingDocId(null)}
+                className="text-[13px] font-medium text-gray-400 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRename(editingDocId)}
+                disabled={!editTitle.trim()}
+                className="btn-primary"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
