@@ -164,6 +164,15 @@ export function OrgChartClient({
             key={filterKey}
             nodes={treesToShow}
             onSelect={openPerson}
+            currentUserId={currentUserId}
+            onDropNode={async (sourceId, targetId) => {
+              // sourceId/targetId are roleIds (React Flow node ids)
+              const sourceRole = allRoles.find((r) => r.id === sourceId);
+              if (sourceRole && sourceRole.id !== targetId) {
+                await reassignManager(sourceRole.id, targetId);
+                window.location.reload();
+              }
+            }}
           />
         )}
       </div>
@@ -280,15 +289,28 @@ function layoutTree(roots: OrgNode[]): { nodes: Node<OrgNodeData>[]; edges: Edge
 function OrgChartFlow({
   nodes: roots,
   onSelect,
+  onDropNode,
+  currentUserId,
 }: {
   nodes: OrgNode[];
   onSelect: (n: OrgNode) => void;
+  onDropNode: (sourceId: string, targetId: string) => void;
+  currentUserId?: string | null;
 }) {
   const { nodes, edges } = useMemo(() => layoutTree(roots), [roots]);
 
   const nodeTypes = useMemo(
-    () => ({ org: (props: NodeProps) => <OrgCardNode {...props} onSelect={onSelect} /> }),
-    [onSelect],
+    () => ({
+      org: (props: NodeProps) => (
+        <OrgCardNode
+          {...props}
+          onSelect={onSelect}
+          onDropNode={onDropNode}
+          currentUserId={currentUserId}
+        />
+      ),
+    }),
+    [onSelect, onDropNode, currentUserId],
   );
   const edgeTypes: EdgeTypes = useMemo(() => ({ orgEdge: OrgEdge }), []);
 
@@ -301,12 +323,10 @@ function OrgChartFlow({
       fitView
       fitViewOptions={{ padding: 0.2 }}
       proOptions={{ hideAttribution: true }}
-      nodesDraggable={false}
+      nodesDraggable={!!currentUserId}
       nodesConnectable={false}
       elementsSelectable={false}
       panOnScroll
-      // Users can't zoom (wheel/pinch/double-click off), but fitView may still
-      // scale the tree down so every node is visible and centered on mount.
       zoomOnScroll={false}
       zoomOnPinch={false}
       zoomOnDoubleClick={false}
@@ -315,6 +335,21 @@ function OrgChartFlow({
       onNodeClick={(_, node) => {
         const data = node.data as OrgNodeData;
         onSelect(data.node);
+      }}
+      onNodeDragStop={(_, node) => {
+        // Find the node under the dropped position (closest other node)
+        const draggedData = node.data as OrgNodeData;
+        const draggedId = draggedData.node.roleId;
+        // Check all other nodes to see which one the dragged node overlaps
+        for (const n of nodes) {
+          if (n.id === draggedId) continue;
+          const dx = Math.abs(n.position.x - node.position.x);
+          const dy = Math.abs(n.position.y - node.position.y);
+          if (dx < NODE_W * 0.8 && dy < NODE_H * 0.8) {
+            onDropNode(draggedId, n.id);
+            return;
+          }
+        }
       }}
       className="bg-transparent"
     >
@@ -353,7 +388,18 @@ function OrgEdge({
 
 // Vertical card (like theorg): circular avatar on top, name, role, and the
 // direct-report count badge hanging below the bottom edge.
-function OrgCardNode({ data, onSelect }: NodeProps & { onSelect?: (n: OrgNode) => void }) {
+function OrgCardNode({
+  data,
+  onSelect,
+  onDropNode,
+  currentUserId,
+  isDraggable,
+}: NodeProps & {
+  onSelect?: (n: OrgNode) => void;
+  onDropNode?: (sourceId: string, targetId: string) => void;
+  currentUserId?: string | null;
+  isDraggable?: boolean;
+}) {
   const { node } = data as OrgNodeData;
   const reportCount = countReports(node);
   return (

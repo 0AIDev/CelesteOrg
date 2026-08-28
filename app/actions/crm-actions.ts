@@ -327,6 +327,67 @@ export async function getContactActivities(contactId: string): Promise<ActionRes
   }
 }
 
+export async function sendContactEmail(
+  contactId: string,
+  subject: string,
+  body: string,
+): Promise<ActionResult & { id?: string }> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Get contact email
+    const { data: contact, error: cErr } = await supabase
+      .from("crm_contacts")
+      .select("email, name")
+      .eq("id", contactId)
+      .single();
+
+    if (cErr || !contact?.email) return { ok: false, error: "Contact has no email address" };
+
+    // Send via Resend
+    const apiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !fromEmail) return { ok: false, error: "Email not configured (RESEND_API_KEY missing)" };
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: contact.email,
+        subject,
+        html: body.replace(/\n/g, "<br>"),
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return { ok: false, error: `Email failed: ${err}` };
+    }
+
+    // Log activity
+    const { data: inserted, error: aErr } = await supabase
+      .from("crm_activities")
+      .insert({
+        contact_id: contactId,
+        type: "email_sent",
+        description: `Email sent to ${contact.name}: "${subject}"`,
+        created_by: user?.id ?? null,
+      })
+      .select("id")
+      .single();
+
+    revalidatePath("/crm");
+    return { ok: true, id: inserted?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Email failed" };
+  }
+}
+
 export async function addActivity(input: {
   contact_id: string;
   type: string;

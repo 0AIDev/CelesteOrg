@@ -37,6 +37,7 @@ import {
   deleteContact,
   addFeedback,
   getContactActivities,
+  sendContactEmail,
   type ContactRow,
   type FeedbackRow,
   type ActivityRow,
@@ -636,6 +637,12 @@ function ContactDetailPanel({
   const [dealCloseDate, setDealCloseDate] = useState(contact.deal_close_date ?? "");
   const [savingDeal, setSavingDeal] = useState(false);
   const [dealSaved, setDealSaved] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     setLoadingActivities(true);
@@ -647,6 +654,25 @@ function ContactDetailPanel({
 
   const status = STATUS_CONFIG[contact.status] ?? STATUS_CONFIG.lead;
   const dealStageConfig = DEAL_STAGES.find((d) => d.value === dealStage) ?? DEAL_STAGES[0];
+
+  async function handleSendEmail() {
+    if (!emailSubject.trim() || !emailBody.trim()) return;
+    setSendingEmail(true);
+    setEmailError("");
+    const res = await sendContactEmail(contact.id, emailSubject, emailBody);
+    setSendingEmail(false);
+    if (res.ok) {
+      setEmailSent(true);
+      setEmailSubject("");
+      setEmailBody("");
+      setTimeout(() => setEmailSent(false), 3000);
+      // Refresh activities
+      const aRes = await getContactActivities(contact.id);
+      if (aRes.ok && aRes.activities) setActivities(aRes.activities);
+    } else {
+      setEmailError(res.error);
+    }
+  }
 
   async function handleSaveDeal() {
     setSavingDeal(true);
@@ -698,13 +724,16 @@ function ContactDetailPanel({
           {/* Actions */}
           <div className="mt-5 flex gap-2">
             {contact.email && (
-              <a
-                href={`mailto:${contact.email}`}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"
+              <button
+                onClick={() => setShowEmail(!showEmail)}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
+                  showEmail ? "bg-gray-900 text-white" : "bg-gray-900 text-white hover:bg-gray-700",
+                )}
               >
                 <Envelope className="h-4 w-4" />
-                Email
-              </a>
+                Send Email
+              </button>
             )}
             <button
               onClick={onAddFeedback}
@@ -714,6 +743,53 @@ function ContactDetailPanel({
               Feedback
             </button>
           </div>
+
+          {/* Email composer */}
+          <AnimatePresence>
+            {showEmail && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Send email to {contact.name}</span>
+                    <button onClick={() => setShowEmail(false)} className="text-gray-400 hover:text-gray-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Subject"
+                      className="input h-8 text-[13px]"
+                    />
+                    <textarea
+                      value={emailBody}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      rows={4}
+                      placeholder="Write your message..."
+                      className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-300"
+                    />
+                    {emailError && <p className="text-[11px] text-red-500">{emailError}</p>}
+                    {emailSent && <p className="text-[11px] text-green-600">Email sent! ✅</p>}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleSendEmail}
+                        disabled={sendingEmail || !emailSubject.trim() || !emailBody.trim()}
+                        className="rounded-lg bg-gray-900 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                      >
+                        {sendingEmail ? <Spinner className="h-3 w-3 animate-spin" /> : "Send"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Quick info */}
           <div className="mt-6 space-y-3">
