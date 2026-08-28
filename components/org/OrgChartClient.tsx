@@ -28,6 +28,7 @@ import "@xyflow/react/dist/style.css";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { saveProfileNote, summarizeProfile, reassignManager } from "@/app/actions/org-actions";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import type { OrgNode } from "@/lib/types";
 
 type Dept = {
@@ -597,19 +598,16 @@ function ProfilePanel({
           {/* Reassign manager (CEO/founders only) */}
           {canReassign && myRole && (
             <Section title="Reassign manager">
-              <select
+              <CustomSelect
                 value={myRole.reports_to ?? ""}
-                onChange={(e) => onReassign(e.target.value)}
+                onValueChange={onReassign}
+                placeholder="Top level (CEO)"
                 disabled={reassigning}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-gray-400 dark:border-[rgba(255,255,255,0.1)] dark:bg-[rgba(255,255,255,0.04)] dark:text-gray-200"
-              >
-                <option value="">Top level (CEO)</option>
-                {availableManagers.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.profileName} — {r.title}
-                  </option>
-                ))}
-              </select>
+                options={availableManagers.map((r) => ({
+                  value: r.id,
+                  label: `${r.profileName} — ${r.title}`,
+                }))}
+              />
               {reassigning && <p className="mt-1 text-[11px] text-gray-400">Updating…</p>}
               {reassignError && <p className="mt-1 text-[11px] text-red-500">{reassignError}</p>}
             </Section>

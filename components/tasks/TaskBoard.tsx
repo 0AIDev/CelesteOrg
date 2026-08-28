@@ -18,6 +18,7 @@ import {
 } from "@phosphor-icons/react";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -337,16 +338,12 @@ function Column({
           />
           <div className="mt-2">
             <label className="mb-1 block text-[11px] text-gray-400">Assign to</label>
-            <select
+            <CustomSelect
               value={newAssignee}
-              onChange={(e) => setNewAssignee(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[12px] text-gray-700 outline-none focus:border-gray-400"
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
-              ))}
-            </select>
+              onValueChange={setNewAssignee}
+              placeholder="Unassigned"
+              options={members.map((m) => ({ value: m.id, label: m.full_name ?? "Unknown" }))}
+            />
           </div>
           <div className="mt-2 flex items-center gap-2">
             <button
@@ -462,20 +459,15 @@ function TaskCard({
                   </button>
                   <div className="px-3 py-1.5">
                     <label className="mb-1 block text-[10px] font-medium text-gray-400">Assign to</label>
-                    <select
+                    <CustomSelect
                       value={task.assignee_id ?? ""}
-                      onChange={async (e) => {
-                        const val = e.target.value || null;
-                        await updateTask(task.id, { assignee_id: val });
+                      onValueChange={async (val) => {
+                        await updateTask(task.id, { assignee_id: val || null });
                         setShowMenu(false);
                       }}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-700 outline-none"
-                    >
-                      <option value="">Unassigned</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.id}>{m.full_name}</option>
-                      ))}
-                    </select>
+                      placeholder="Unassigned"
+                      options={members.map((m) => ({ value: m.id, label: m.full_name ?? "Unknown" }))}
+                    />
                   </div>
                   <div className="border-t border-gray-100">
                     <button
