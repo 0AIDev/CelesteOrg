@@ -650,6 +650,24 @@ function PreviewModal({
   const canRemove = isOwner || canDelete;
   const [deleting, setDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [mdContent, setMdContent] = useState<string | null>(null);
+
+  // Fetch markdown content for .md files
+  useEffect(() => {
+    if (!previewUrl || doc.mime_type !== "text/markdown") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(previewUrl);
+        if (!cancelled && res.ok) {
+          setMdContent(await res.text());
+        }
+      } catch {
+        // ignore — fallback to previewUrl
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [previewUrl, doc.mime_type]);
 
   async function remove() {
     setDeleting(true);
@@ -696,11 +714,34 @@ function PreviewModal({
         </div>
       </div>
       <div
-        className={`flex items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 ${
+        className={`overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 ${
           doc.mime_type === "application/pdf" ? "h-96" : "h-64"
         }`}
       >
-        {previewUrl ? (
+        {mdContent ? (
+          <div className="h-full overflow-y-auto p-6 prose prose-sm prose-gray max-w-none dark:prose-invert">
+            {mdContent.split("\n").map((line, i) => {
+              if (line.startsWith("# ")) return <h1 key={i} className="text-2xl font-bold mt-0 mb-4">{line.slice(2)}</h1>;
+              if (line.startsWith("## ")) return <h2 key={i} className="text-xl font-semibold mt-6 mb-3">{line.slice(3)}</h2>;
+              if (line.startsWith("### ")) return <h3 key={i} className="text-lg font-semibold mt-5 mb-2">{line.slice(4)}</h3>;
+              if (line.startsWith("---")) return <hr key={i} className="my-4 border-gray-200" />;
+              if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="font-bold mt-3">{line.slice(2, -2)}</p>;
+              if (line.startsWith("- **")) {
+                const parts = line.slice(2).split("**");
+                return <p key={i} className="ml-4"><strong>{parts[1]}</strong>{parts[2]}</p>;
+              }
+              if (line.startsWith("- ")) return <p key={i} className="ml-4">• {line.slice(2)}</p>;
+              if (line.startsWith("| ")) {
+                const cells = line.split("|").filter(Boolean).map(c => c.trim());
+                if (cells.every(c => c.match(/^-+$/))) return null;
+                return <div key={i} className="grid grid-cols-2 gap-2 py-1 text-sm"><span className="font-medium text-gray-600">{cells[0]}</span><span>{cells[1]}</span></div>;
+              }
+              if (line.match(/^\d+\. /)) return <p key={i} className="ml-4">{line}</p>;
+              if (line.trim() === "") return <div key={i} className="h-2" />;
+              return <p key={i} className="text-sm leading-relaxed">{line}</p>;
+            })}
+          </div>
+        ) : previewUrl ? (
           doc.mime_type === "application/pdf" ? (
             <iframe
               src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
