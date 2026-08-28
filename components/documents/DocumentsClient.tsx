@@ -17,6 +17,7 @@ import {
   MagnifyingGlass,
   PaperPlaneTilt,
   ArrowCounterClockwise,
+  Download,
   Bell,
   Trash,
 } from "@phosphor-icons/react";
@@ -31,6 +32,7 @@ import {
   getDocumentSignedUrl,
   deleteDocument,
 } from "@/app/actions/document-actions";
+import { getCurrentUserProfile, type UserProfile } from "@/app/actions/nda-actions";
 import {
   signDocument,
   sendForSignature,
@@ -651,6 +653,8 @@ function PreviewModal({
   const [deleting, setDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [mdContent, setMdContent] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>(null);
+  const isNDA = doc.title?.toLowerCase().includes("nda");
 
   // Fetch markdown content for .md files
   useEffect(() => {
@@ -668,6 +672,48 @@ function PreviewModal({
     })();
     return () => { cancelled = true; };
   }, [previewUrl, doc.mime_type]);
+
+  // Fetch user profile for NDA personalization
+  useEffect(() => {
+    if (!isNDA) return;
+    let cancelled = false;
+    (async () => {
+      const profile = await getCurrentUserProfile();
+      if (!cancelled) setUserProfile(profile);
+    })();
+    return () => { cancelled = true; };
+  }, [isNDA]);
+
+  // Personalize NDA content with user data
+  const personalizedContent = useMemo(() => {
+    if (!mdContent || !isNDA || !userProfile) return mdContent;
+    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    return mdContent
+      .replace(/______________________/g, (match, offset) => {
+        // First set of blanks = Authorized Party section (after "AUTHORIZED PARTY")
+        const before = mdContent.slice(0, offset);
+        const authPartyIdx = before.lastIndexOf("### AUTHORIZED PARTY");
+        const companyIdx = before.lastIndexOf("### COMPANY");
+        if (authPartyIdx > companyIdx) {
+          // In Authorized Party section
+          const linesBefore = before.slice(authPartyIdx).split("\n");
+          const lastLabel = linesBefore.reverse().find(l => l.includes("|"));
+          if (lastLabel?.includes("Signature")) return "________________________________________";
+          if (lastLabel?.includes("Printed Name")) return `  ${userProfile.full_name ?? ""}  `;
+          if (lastLabel?.includes("Date")) return `  ${today}  `;
+        }
+        // Default: empty blank
+        return match;
+      })
+      .replace(/Field \| Details\n\|---\|---\n\| \*\*Full Legal Name\*\* \| _+/, 
+        `Field | Details\n|---|---\n| **Full Legal Name** | ${userProfile.full_name ?? ""}`)
+      .replace(/\| \*\*Role \/ Position\*\* \| _+/, 
+        `| **Role / Position** | ${userProfile.role_title ?? ""}`)
+      .replace(/\| \*\*Department\*\* \| _+/, 
+        `| **Department** | ${userProfile.department_name ?? ""}`)
+      .replace(/\| \*\*Date of Execution\*\* \| _+/, 
+        `| **Date of Execution** | ${today}`);
+  }, [mdContent, isNDA, userProfile]);
 
   async function remove() {
     setDeleting(true);
@@ -703,6 +749,21 @@ function PreviewModal({
     );
   }
 
+  const displayContent = isNDA ? personalizedContent : mdContent;
+
+  function downloadNDA() {
+    if (!displayContent) return;
+    const blob = new Blob([displayContent], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${doc.title.replace(/[^\w\s-]/g, "").trim() || "NDA"}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <Modal onClose={onClose} title="Document preview">
       <div className="mb-4">
@@ -711,16 +772,31 @@ function PreviewModal({
           <span>{fmtBytes(doc.file_size)}</span>
           <span>·</span>
           <span>Owner: {doc.owner?.full_name}</span>
+          {isNDA && userProfile && (
+            <>
+              <span>·</span>
+              <span className="text-blue-500">Personalized for {userProfile.full_name}</span>
+            </>
+          )}
         </div>
+        {isNDA && displayContent && (
+          <button
+            onClick={downloadNDA}
+            className="mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download NDA
+          </button>
+        )}
       </div>
       <div
         className={`overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 ${
           doc.mime_type === "application/pdf" ? "h-96" : "h-64"
         }`}
       >
-        {mdContent ? (
+        {displayContent ? (
           <div className="h-full overflow-y-auto p-6 prose prose-sm prose-gray max-w-none dark:prose-invert">
-            {mdContent.split("\n").map((line, i) => {
+            {displayContent.split("\n").map((line, i) => {
               if (line.startsWith("# ")) return <h1 key={i} className="text-2xl font-bold mt-0 mb-4">{line.slice(2)}</h1>;
               if (line.startsWith("## ")) return <h2 key={i} className="text-xl font-semibold mt-6 mb-3">{line.slice(3)}</h2>;
               if (line.startsWith("### ")) return <h3 key={i} className="text-lg font-semibold mt-5 mb-2">{line.slice(4)}</h3>;
