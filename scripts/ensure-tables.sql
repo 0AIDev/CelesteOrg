@@ -153,3 +153,45 @@ DO $$ BEGIN
     ALTER TABLE public.documents ADD COLUMN file_name text;
   END IF;
 END $$;
+
+-- 5. Add deal tracking columns to crm_contacts
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_contacts' AND column_name = 'deal_value') THEN
+    ALTER TABLE public.crm_contacts ADD COLUMN deal_value numeric;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_contacts' AND column_name = 'deal_stage') THEN
+    ALTER TABLE public.crm_contacts ADD COLUMN deal_stage text DEFAULT 'none';
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_contacts' AND column_name = 'deal_close_date') THEN
+    ALTER TABLE public.crm_contacts ADD COLUMN deal_close_date date;
+  END IF;
+END $$;
+
+-- 6. Create crm_activities table
+CREATE TABLE IF NOT EXISTS public.crm_activities (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  contact_id  uuid NOT NULL REFERENCES public.crm_contacts(id) ON DELETE CASCADE,
+  type        text NOT NULL,
+  description text NOT NULL,
+  metadata    jsonb,
+  created_by  uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON public.crm_activities (contact_id, created_at DESC);
+
+ALTER TABLE public.crm_activities ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS crm_activities_select ON public.crm_activities;
+DROP POLICY IF EXISTS crm_activities_insert ON public.crm_activities;
+DROP POLICY IF EXISTS crm_activities_delete ON public.crm_activities;
+
+CREATE POLICY crm_activities_select ON public.crm_activities FOR SELECT TO authenticated USING (true);
+CREATE POLICY crm_activities_insert ON public.crm_activities FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY crm_activities_delete ON public.crm_activities FOR DELETE TO authenticated USING (true);

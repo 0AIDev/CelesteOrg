@@ -35,6 +35,20 @@ export type ContactRow = {
   updated_at: string;
   feedback_count?: number;
   avg_rating?: number | null;
+  deal_value?: number | null;
+  deal_stage?: string | null;
+  deal_close_date?: string | null;
+};
+
+export type ActivityRow = {
+  id: string;
+  contact_id: string;
+  type: string;
+  description: string;
+  metadata?: Record<string, unknown> | null;
+  created_by: string | null;
+  created_at: string;
+  author?: { full_name: string | null; avatar_url: string | null } | null;
 };
 
 export type FeedbackRow = {
@@ -215,5 +229,126 @@ export async function deleteFeedback(feedbackId: string): Promise<ActionResult> 
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Delete failed" };
+  }
+}
+
+// ── Contact move (kanban drag) ─────────────────────────────────────────────
+export async function moveContact(contactId: string, newStatus: string): Promise<ActionResult> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: old } = await supabase.from("crm_contacts").select("status").eq("id", contactId).single();
+
+    const { error } = await supabase
+      .from("crm_contacts")
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq("id", contactId);
+    if (error) return { ok: false, error: error.message };
+
+    // Log activity
+    if (old && old.status !== newStatus) {
+      const statusLabels: Record<string, string> = { lead: "Lead", beta_tester: "Beta Tester", customer: "Customer", churned: "Churned" };
+      await supabase.from("crm_activities").insert({
+        contact_id: contactId,
+        type: "status_change",
+        description: `Status changed from ${statusLabels[old.status] ?? old.status} to ${statusLabels[newStatus] ?? newStatus}`,
+        created_by: user?.id ?? null,
+      });
+    }
+
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Move failed" };
+  }
+}
+
+// ── Full contact update (deal tracking) ─────────────────────────────────────
+export async function updateContactFull(
+  contactId: string,
+  fields: {
+    status?: string;
+    notes?: string | null;
+    deal_value?: number | null;
+    deal_stage?: string | null;
+    deal_close_date?: string | null;
+  },
+): Promise<ActionResult> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const cleaned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (v !== undefined) cleaned[k] = typeof v === "string" ? v.trim() || null : v;
+    }
+    cleaned.updated_at = new Date().toISOString();
+
+    const { error } = await supabase.from("crm_contacts").update(cleaned).eq("id", contactId);
+    if (error) return { ok: false, error: error.message };
+
+    // Log activity
+    if (fields.deal_value !== undefined || fields.deal_stage !== undefined) {
+      const parts: string[] = [];
+      if (fields.deal_value !== undefined) parts.push(`Deal value set to $${(fields.deal_value ?? 0).toLocaleString()}`);
+      if (fields.deal_stage !== undefined) parts.push(`Deal stage → ${fields.deal_stage ?? "None"}`);
+      if (fields.deal_close_date !== undefined) parts.push(`Close date → ${fields.deal_close_date ?? "None"}`);
+      if (parts.length > 0) {
+        await supabase.from("crm_activities").insert({
+          contact_id: contactId,
+          type: "deal_update",
+          description: parts.join(" · "),
+          created_by: user?.id ?? null,
+        });
+      }
+    }
+
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Update failed" };
+  }
+}
+
+// ── Activities ─────────────────────────────────────────────────────────────
+export async function getContactActivities(contactId: string): Promise<ActionResult & { activities?: ActivityRow[] }> {
+  try {
+    const supabase = userClient();
+    const { data, error } = await supabase
+      .from("crm_activities")
+      .select("*, author:profiles(full_name, avatar_url)")
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, activities: (data as ActivityRow[]) ?? [] };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Load failed" };
+  }
+}
+
+export async function addActivity(input: {
+  contact_id: string;
+  type: string;
+  description: string;
+}): Promise<ActionResult & { id?: string }> {
+  try {
+    const supabase = userClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from("crm_activities")
+      .insert({
+        contact_id: input.contact_id,
+        type: input.type,
+        description: input.description.trim(),
+        created_by: user?.id ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, id: data.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Activity failed" };
   }
 }
