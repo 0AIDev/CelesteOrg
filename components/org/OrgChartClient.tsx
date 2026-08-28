@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -28,7 +28,6 @@ import "@xyflow/react/dist/style.css";
 import { SquircleAvatar } from "@/components/ui/SquircleAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { saveProfileNote, summarizeProfile, reassignManager } from "@/app/actions/org-actions";
-import { CustomSelect } from "@/components/ui/CustomSelect";
 import type { OrgNode } from "@/lib/types";
 
 type Dept = {
@@ -77,18 +76,17 @@ export function OrgChartClient({
 }) {
   const [activeDept, setActiveDept] = useState<string | null>(null);
   const [selected, setSelected] = useState<PersonPanel | null>(null);
+  const [localTrees, setLocalTrees] = useState<OrgNode[]>(trees);
 
   // Manager lookup: child profile_id -> parent profile_id
-  const managerOf = useMemo(() => findManagers(trees), [trees]);
-  const profileById = useMemo(() => indexProfiles(trees), [trees]);
+  const managerOf = useMemo(() => findManagers(localTrees), [localTrees]);
+  const profileById = useMemo(() => indexProfiles(localTrees), [localTrees]);
 
   const treesToShow = useMemo(() => {
-    if (!activeDept) return trees;
-    return treeByDept(trees, activeDept);
-  }, [activeDept, trees]);
+    if (!activeDept) return localTrees;
+    return treeByDept(localTrees, activeDept);
+  }, [activeDept, localTrees]);
 
-  // Remount the flow whenever the filter changes so it re-fits and centers
-  // on the filtered tree (React Flow only fits on init).
   const filterKey = activeDept ?? "all";
 
   function openPerson(node: OrgNode) {
@@ -113,7 +111,7 @@ export function OrgChartClient({
     setSelected(obj);
   }
 
-  // Deep link from ⌘K ("member" search result) — open that person's panel.
+  // Deep link from ⌘K
   useEffect(() => {
     if (!initialMemberId) return;
     const node = profileById.get(initialMemberId);
@@ -121,20 +119,29 @@ export function OrgChartClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMemberId]);
 
+  // Called after a successful reassignment — rebuild the tree locally
+  const handleReassign = useCallback(async (sourceRoleId: string, newManagerRoleId: string | null) => {
+    const res = await reassignManager(sourceRoleId, newManagerRoleId);
+    if (!res.ok) return;
+
+    // Rebuild tree in-memory: move the source node under the new parent
+    const moved = moveNodeInTree(localTrees, sourceRoleId, newManagerRoleId);
+    setLocalTrees(moved);
+    setSelected(null);
+  }, [localTrees]);
+
   return (
     <div>
-      {/* Header + filters stay in the readable column */}
       <div className="mx-auto max-w-6xl px-6 pt-8">
         <div className="mb-6">
           <h1 className="text-xl font-semibold tracking-tight text-gray-900">
             Org Chart
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Click any teammate to view their profile, equity, and team structure.
+            Click any teammate to view their profile. Drag to reorder.
           </p>
         </div>
 
-        {/* Department tabs */}
         <div className="mb-6 flex gap-1.5 overflow-x-auto pb-1">
           <DeptTab active={!activeDept} onClick={() => setActiveDept(null)}>
             All
@@ -151,13 +158,10 @@ export function OrgChartClient({
         </div>
       </div>
 
-      {/* Tree — full page, centered, everything visible (React Flow fits on mount) */}
       <div className="h-[calc(100vh-12rem)] w-full overflow-hidden">
         {treesToShow.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-gray-400">
-              No one in this department yet.
-            </p>
+            <p className="text-sm text-gray-400">No one in this department yet.</p>
           </div>
         ) : (
           <OrgChartFlow
@@ -165,19 +169,11 @@ export function OrgChartClient({
             nodes={treesToShow}
             onSelect={openPerson}
             currentUserId={currentUserId}
-            onDropNode={async (sourceId, targetId) => {
-              // sourceId/targetId are roleIds (React Flow node ids)
-              const sourceRole = allRoles.find((r) => r.id === sourceId);
-              if (sourceRole && sourceRole.id !== targetId) {
-                await reassignManager(sourceRole.id, targetId);
-                window.location.reload();
-              }
-            }}
+            onDropNode={handleReassign}
           />
         )}
       </div>
 
-      {/* Slide-over profile panel */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -188,7 +184,6 @@ export function OrgChartClient({
             exit={{ opacity: 0 }}
             onClick={() => setSelected(null)}
           >
-            {/* Solid white card, rounded corners — same style as Ask Celeste */}
             <motion.div
               onClick={(e) => e.stopPropagation()}
               className="m-4 mr-6 h-[calc(100vh-2rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:bg-[#161616] dark:border-[rgba(255,255,255,0.1)]"
@@ -203,7 +198,7 @@ export function OrgChartClient({
                 currentUserId={currentUserId}
                 initialNote={myNotes[selected.id] ?? ""}
                 allRoles={allRoles}
-                onReassignDone={() => window.location.reload()}
+                onReassignDone={handleReassign}
               />
             </motion.div>
           </motion.div>
@@ -239,9 +234,6 @@ function DeptTab({
 // ─── React Flow tree ─────────────────────────────────────────────────────────
 type OrgNodeData = { node: OrgNode };
 
-// Top-down tree layout (like theorg): parents sit above their children,
-// centered over the children's horizontal span, so every subtree stays
-// aligned under its manager.
 const NODE_W = 208;
 const NODE_H = 152;
 const H_GAP = 56;
@@ -252,8 +244,6 @@ function layoutTree(roots: OrgNode[]): { nodes: Node<OrgNodeData>[]; edges: Edge
   const edges: Edge[] = [];
   let nextLeafX = 0;
 
-  // Returns the node's x position. Leaves are placed on a global horizontal
-  // grid; parents are centered over their children's span.
   const place = (n: OrgNode, depth: number, parentId?: string): number => {
     let x: number;
     if (n.reports.length === 0) {
@@ -286,6 +276,8 @@ function layoutTree(roots: OrgNode[]): { nodes: Node<OrgNodeData>[]; edges: Edge
   return { nodes, edges };
 }
 
+const MemoizedOrgCardNode = memo(OrgCardNode);
+
 function OrgChartFlow({
   nodes: roots,
   onSelect,
@@ -302,7 +294,7 @@ function OrgChartFlow({
   const nodeTypes = useMemo(
     () => ({
       org: (props: NodeProps) => (
-        <OrgCardNode
+        <MemoizedOrgCardNode
           {...props}
           onSelect={onSelect}
           onDropNode={onDropNode}
@@ -337,10 +329,8 @@ function OrgChartFlow({
         onSelect(data.node);
       }}
       onNodeDragStop={(_, node) => {
-        // Find the node under the dropped position (closest other node)
         const draggedData = node.data as OrgNodeData;
         const draggedId = draggedData.node.roleId;
-        // Check all other nodes to see which one the dragged node overlaps
         for (const n of nodes) {
           if (n.id === draggedId) continue;
           const dx = Math.abs(n.position.x - node.position.x);
@@ -358,9 +348,8 @@ function OrgChartFlow({
   );
 }
 
-// Vertical connection: leaves the parent's bottom, curves down to the
-// child's top — the classic top-down org tree elbow.
-function OrgEdge({
+// Memoized edge component for performance
+const OrgEdge = memo(function OrgEdge({
   sourceX,
   sourceY,
   targetX,
@@ -384,33 +373,19 @@ function OrgEdge({
       className="dark:stroke-[rgba(255,255,255,0.15)]"
     />
   );
-}
+});
 
-// Vertical card (like theorg): circular avatar on top, name, role, and the
-// direct-report count badge hanging below the bottom edge.
-function OrgCardNode({
-  data,
-  onSelect,
-  onDropNode,
-  currentUserId,
-  isDraggable,
-}: NodeProps & {
-  onSelect?: (n: OrgNode) => void;
-  onDropNode?: (sourceId: string, targetId: string) => void;
-  currentUserId?: string | null;
-  isDraggable?: boolean;
-}) {
+// Memoized card node
+function OrgCardNode({ data, onSelect }: NodeProps & { onSelect?: (n: OrgNode) => void; onDropNode?: (s: string, t: string) => void; currentUserId?: string | null }) {
   const { node } = data as OrgNodeData;
   const reportCount = countReports(node);
   return (
     <div className="group relative flex flex-col items-center">
-      {/* Target handle on top — invisible, lets the edge dock at the card's top */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <button
         onClick={() => onSelect?.(node)}
         className="group relative flex w-[208px] flex-col items-center rounded-2xl border border-gray-200 bg-white px-3 pb-5 pt-0 shadow-sm transition-all hover:border-gray-300 hover:shadow-md dark:border-[rgba(255,255,255,0.1)] dark:bg-[#161616] dark:hover:border-[rgba(255,255,255,0.2)]"
       >
-        {/* Avatar overlaps the card's top edge — half in, half out */}
         <div className="relative -mt-8">
           <SquircleAvatar
             name={node.full_name}
@@ -426,14 +401,12 @@ function OrgCardNode({
           {node.title}
         </p>
       </button>
-      {/* Direct-report count badge, hanging below the card */}
       {reportCount > 0 && (
         <span className="absolute -bottom-2.5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-900 px-2.5 py-0.5 text-[10.5px] font-semibold text-white shadow-sm dark:bg-[rgba(255,255,255,0.15)] dark:text-white">
           {reportCount.toLocaleString()}
           <CaretDown className="h-2.5 w-2.5" />
         </span>
       )}
-      {/* Source handle on the bottom — the edge leaves from here */}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   );
@@ -452,7 +425,7 @@ function ProfilePanel({
   currentUserId?: string | null;
   initialNote?: string;
   allRoles?: { id: string; title: string; profile_id: string; reports_to: string | null; department_id: string | null; level: number; profileName: string }[];
-  onReassignDone?: () => void;
+  onReassignDone?: (sourceRoleId: string, newManagerRoleId: string | null) => void;
 }) {
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -465,7 +438,6 @@ function ProfilePanel({
   const canSeeNotes = !!currentUserId;
   const router = useRouter();
 
-  // If roles are loaded, user is authorized to reassign
   const canReassign = allRoles.length > 0;
   const myRole = allRoles.find((r) => r.profile_id === person.id);
   const availableManagers = allRoles.filter((r) => r.id !== myRole?.id);
@@ -492,13 +464,14 @@ function ProfilePanel({
     if (!myRole || !canReassign) return;
     setReassigning(true);
     setReassignError("");
-    const res = await reassignManager(myRole.id, newManagerRoleId || null);
-    setReassigning(false);
-    if (!res.ok) {
-      setReassignError(res.error);
-      return;
+    // Use the callback — it calls reassignManager + rebuilds tree locally
+    if (onReassignDone) {
+      await onReassignDone(myRole.id, newManagerRoleId || null);
+    } else {
+      const res = await reassignManager(myRole.id, newManagerRoleId || null);
+      if (!res.ok) setReassignError(res.error);
     }
-    onReassignDone?.();
+    setReassigning(false);
   }
 
   return (
@@ -514,7 +487,6 @@ function ProfilePanel({
       </div>
 
       <div className="px-5 py-6">
-        {/* Identity */}
         <div className="flex items-center gap-4">
           <SquircleAvatar
             name={person.full_name}
@@ -535,7 +507,6 @@ function ProfilePanel({
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="mt-5 flex gap-2">
           <button
             onClick={() => router.push(`/chat?peer=${person.id}`)}
@@ -583,14 +554,12 @@ function ProfilePanel({
         )}
 
         <div className="mt-6">
-          {/* Bio / description */}
           {person.bio && (
             <Section title="About">
               <p className="text-sm leading-relaxed text-gray-600">{person.bio}</p>
             </Section>
           )}
 
-          {/* Location */}
           {person.location && (
             <Section title="Location">
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -600,7 +569,6 @@ function ProfilePanel({
             </Section>
           )}
 
-          {/* Previous companies */}
           {person.previous_companies?.length ? (
             <Section title="Previous companies">
               <p className="text-sm text-gray-600">
@@ -609,7 +577,6 @@ function ProfilePanel({
             </Section>
           ) : null}
 
-          {/* Equity vested (existing) */}
           {person.vestedPct != null && (
             <Section title="Equity vested">
               <div className="mb-1.5 flex items-center justify-between text-sm">
@@ -631,7 +598,6 @@ function ProfilePanel({
             </Section>
           )}
 
-          {/* Manager */}
           {person.managerName && (
             <Section title="Manager">
               <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -641,25 +607,26 @@ function ProfilePanel({
             </Section>
           )}
 
-          {/* Reassign manager (CEO/founders only) */}
           {canReassign && myRole && (
             <Section title="Reassign manager">
-              <CustomSelect
+              <select
                 value={myRole.reports_to ?? ""}
-                onValueChange={onReassign}
-                placeholder="Top level (CEO)"
+                onChange={(e) => onReassign(e.target.value)}
                 disabled={reassigning}
-                options={availableManagers.map((r) => ({
-                  value: r.id,
-                  label: `${r.profileName} — ${r.title}`,
-                }))}
-              />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-gray-400 dark:border-[rgba(255,255,255,0.1)] dark:bg-[rgba(255,255,255,0.04)] dark:text-gray-200"
+              >
+                <option value="">Top level (CEO)</option>
+                {availableManagers.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.profileName} — {r.title}
+                  </option>
+                ))}
+              </select>
               {reassigning && <p className="mt-1 text-[11px] text-gray-400">Updating…</p>}
               {reassignError && <p className="mt-1 text-[11px] text-red-500">{reassignError}</p>}
             </Section>
           )}
 
-          {/* Org chart below — direct reports */}
           {person.reports.length > 0 && (
             <div className="py-5">
               <button
@@ -696,7 +663,6 @@ function ProfilePanel({
             </div>
           )}
 
-          {/* Team */}
           {person.departmentName && (
             <Section title="Team">
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -706,7 +672,6 @@ function ProfilePanel({
             </Section>
           )}
 
-          {/* Private notes — only the author can see/edit these */}
           <div className="py-5">
             <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               <NotePencil className="h-3.5 w-3.5" />
@@ -769,7 +734,8 @@ function Section({
   );
 }
 
-// Helpers --------------------------------------------------------------
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
 function countReports(node: OrgNode): number {
   let total = 0;
   const walk = (n: OrgNode) => {
@@ -804,7 +770,6 @@ function treeByDept(
   trees: OrgNode[],
   deptId: string,
 ): OrgNode[] {
-  // Return only branches containing at least one person in the dept.
   const clone = (node: OrgNode): OrgNode => {
     const children = node.reports
       .map(clone)
@@ -815,4 +780,48 @@ function treeByDept(
     return { ...node, reports: children };
   };
   return trees.map(clone).filter((t) => t.reports.length > 0 || t.department_id === deptId);
+}
+
+/**
+ * Rebuild the tree after a reassignment: extract the moved node from its old
+ * parent and attach it under the new manager (or make it a root).
+ */
+function moveNodeInTree(
+  trees: OrgNode[],
+  sourceRoleId: string,
+  newManagerRoleId: string | null,
+): OrgNode[] {
+  let movedNode: OrgNode | null = null;
+
+  // 1. Remove the source node from its current parent
+  const removeNode = (nodes: OrgNode[]): OrgNode[] =>
+    nodes
+      .map((n) => {
+        if (n.roleId === sourceRoleId) {
+          movedNode = n;
+          return null; // remove from here
+        }
+        return { ...n, reports: removeNode(n.reports) };
+      })
+      .filter(Boolean) as OrgNode[];
+
+  const cleaned = removeNode(trees);
+
+  if (!movedNode) return trees;
+
+  // 2. Insert under new parent (or make root)
+  if (!newManagerRoleId) {
+    // Make root
+    return [...cleaned, movedNode];
+  }
+
+  const addNode = (nodes: OrgNode[]): OrgNode[] =>
+    nodes.map((n) => {
+      if (n.roleId === newManagerRoleId) {
+        return { ...n, reports: [...n.reports, movedNode!] };
+      }
+      return { ...n, reports: addNode(n.reports) };
+    });
+
+  return addNode(cleaned);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import {
   Plus,
   X,
@@ -388,7 +388,7 @@ function Column({
 }
 
 // ── Task card ───────────────────────────────────────────────────────────────
-function TaskCard({
+const TaskCard = memo(function TaskCard({
   task,
   members,
   onDragStart,
@@ -556,4 +556,4 @@ function TaskCard({
       </div>
     </div>
   );
-}
+});

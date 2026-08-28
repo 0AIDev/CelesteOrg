@@ -1,15 +1,18 @@
 "use client";
 
-import { Suspense, createContext, useContext, useEffect, useState } from "react";
+import { Suspense, createContext, lazy, useContext, useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import { InviteModal } from "@/components/teams/InviteModal";
-import { MorningModal, EodModal } from "@/components/reports/ReportModals";
-import { CommandMenu } from "@/components/ui/CommandMenu";
-import { AskAIChat } from "@/components/ai/AskAIChat";
-import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 import { AIProvider } from "@/components/ai/AIProvider";
 import { GlobalDMListener } from "@/components/notifications/GlobalDMListener";
+
+// Lazy-load heavy overlays — they only render when opened, so defer until needed.
+const InviteModal = lazy(() => import("@/components/teams/InviteModal").then(m => ({ default: m.InviteModal })));
+const MorningModal = lazy(() => import("@/components/reports/ReportModals").then(m => ({ default: m.MorningModal })));
+const EodModal = lazy(() => import("@/components/reports/ReportModals").then(m => ({ default: m.EodModal })));
+const CommandMenu = lazy(() => import("@/components/ui/CommandMenu").then(m => ({ default: m.CommandMenu })));
+const AskAIChat = lazy(() => import("@/components/ai/AskAIChat").then(m => ({ default: m.AskAIChat })));
+const FeedbackModal = lazy(() => import("@/components/feedback/FeedbackModal").then(m => ({ default: m.FeedbackModal })));
 
 type SessionUser = {
   id: string;
@@ -99,28 +102,34 @@ export function LayoutProvider({
         </div>
 
         {/* Global overlays — the invite modal is only reachable by founders/admins */}
-        {canManage && <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />}
-        <MorningModal open={standupOpen} onClose={() => setStandupOpen(false)} />
-        <EodModal open={eodOpen} onClose={() => setEodOpen(false)} />
-        <CommandMenu
-          open={cmdkOpen}
-          onOpenChange={setCmdkOpen}
-          onOpenStandup={() => {
-            setStandupOpen(true);
-          }}
-          onOpenEod={() => {
-            setEodOpen(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          {canManage && inviteOpen && <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />}
+          {standupOpen && <MorningModal open={standupOpen} onClose={() => setStandupOpen(false)} />}
+          {eodOpen && <EodModal open={eodOpen} onClose={() => setEodOpen(false)} />}
+          <CommandMenu
+            open={cmdkOpen}
+            onOpenChange={setCmdkOpen}
+            onOpenStandup={() => {
+              setStandupOpen(true);
+            }}
+            onOpenEod={() => {
+              setEodOpen(true);
+            }}
+          />
+        </Suspense>
 
         {/* Global DM notification listener — always mounted */}
         {user?.id && <GlobalDMListener userId={user.id} />}
 
-        {/* Ask AI — floating modal, manages own state */}
-        <AskAIChat />
+        {/* Ask AI — floating modal, lazy-loaded */}
+        <Suspense fallback={null}>
+          <AskAIChat />
+        </Suspense>
 
-        {/* Feedback widget — bottom-right floating */}
-        {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+        {/* Feedback widget — lazy-loaded */}
+        <Suspense fallback={null}>
+          {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+        </Suspense>
       </div>
     </Suspense>
     </AIProvider>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import {
   Plus,
   X,
@@ -514,7 +514,7 @@ function KanbanColumn({
 }
 
 // ── Kanban Card ─────────────────────────────────────────────────────────────
-function KanbanCard({
+const KanbanCard = memo(function KanbanCard({
   contact,
   onDragStart,
   onSelect,
@@ -608,7 +608,7 @@ function KanbanCard({
       </div>
     </div>
   );
-}
+});
 
 // ── Contact Detail Panel ────────────────────────────────────────────────────
 function ContactDetailPanel({
