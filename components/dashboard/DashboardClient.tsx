@@ -136,6 +136,37 @@ export function DashboardClient({
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5">
+      {/* 📌 Pinned Announcement */}
+      <div className="mb-4 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 text-xl">🏢</span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-white">Celeste HQ — Official Announcement</h3>
+              <span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/70">Pinned</span>
+            </div>
+            <p className="text-[13px] leading-relaxed text-gray-300">
+              This is our <span className="font-semibold text-white">official headquarters</span>. Forget Slack — everything happens here now.
+              Team chat, tasks, documents, recordings, issues, CRM — <span className="font-semibold text-white">all in one place</span>.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {[
+                { emoji: "💬", label: "Chat" },
+                { emoji: "📋", label: "Tasks" },
+                { emoji: "📄", label: "Documents" },
+                { emoji: "🎥", label: "Recordings" },
+                { emoji: "🐛", label: "Issues" },
+                { emoji: "🤝", label: "CRM" },
+              ].map((t) => (
+                <span key={t.label} className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/80">
+                  {t.emoji} {t.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* AI Morning Briefing */}
       {userId && (
         <div className="mb-4">
